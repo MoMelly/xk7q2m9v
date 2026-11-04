@@ -44,7 +44,7 @@ struct MomentsView: View {
                 if let errorText {
                     Text(errorText)
                         .font(.system(size: 12).monospaced())
-                        .foregroundStyle(Color(red: 1.0, green: 0.62, blue: 0.55))
+                        .foregroundStyle(Theme.warning)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 18)
                         .padding(.bottom, 8)
@@ -55,46 +55,17 @@ struct MomentsView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Button(action: onExit) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.cream)
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-            .glassSurface(cornerRadius: 17)
+            GlassIconButton(symbol: "chevron.left", action: onExit)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("动态")
-                    .font(Theme.serif(22, weight: .semibold))
-                    .foregroundStyle(Theme.cream)
-
-                Text(posts.isEmpty ? "还没有人发东西" : "\(posts.count) 条")
-                    .font(.system(size: 10, weight: .medium))
-                    .tracking(0.6)
-                    .foregroundStyle(Theme.mint.opacity(0.62))
-            }
+            ScreenTitle(
+                title: "动态",
+                detail: posts.isEmpty ? "还没有人发东西" : "\(posts.count) 条"
+            )
 
             Spacer(minLength: 0)
 
-            Button(action: generate) {
-                Group {
-                    if isGenerating {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .scaleEffect(0.7)
-                            .tint(Theme.cream)
-                    } else {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Theme.cream)
-                    }
-                }
-                .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-            .glassSurface(cornerRadius: 17)
-            .disabled(isGenerating || characters.isEmpty)
+            GlassIconButton(symbol: "sparkles", isBusy: isGenerating) { generate() }
+                .disabled(isGenerating || characters.isEmpty)
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)
@@ -104,13 +75,11 @@ struct MomentsView: View {
     private func card(_ post: MomentPost) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 9) {
-                ZStack {
-                    Circle().fill(tintGradient(for: post))
-                    Text(String(post.characterName.prefix(1)))
-                        .font(.system(size: 15, weight: .semibold, design: .serif))
-                        .foregroundStyle(.white.opacity(0.95))
-                }
-                .frame(width: 34, height: 34)
+                AvatarCircle(
+                    initial: String(post.characterName.prefix(1)),
+                    tint: tint(for: post),
+                    size: 34
+                )
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(post.characterName)
@@ -174,6 +143,12 @@ struct MomentsView: View {
         .padding(.top, 6)
     }
 
+    /// 作者如果还能对上号，就用角色自己的头像色，
+    /// 保证同一个人在会话列表和动态里是同一个颜色。
+    private func tint(for post: MomentPost) -> AvatarTint {
+        characters.first { $0.uid == post.characterUID }?.avatarTint ?? .mint
+    }
+
     private func tintGradient(for post: MomentPost) -> LinearGradient {
         let hue = Double(post.tintSeed % 360) / 360.0
         return LinearGradient(
@@ -199,17 +174,7 @@ struct MomentsView: View {
         errorText = nil
 
         Task {
-            let now = Date()
-            let system = """
-            你在替一个角色写一条发在社交动态上的短内容。
-            \(character.persona.isEmpty ? "角色名：\(character.name)。" : character.persona)
-            现在的时间是\(CharacterClock.fullDescription(now))。
-            要求：
-            - 两三句话，像随手发的那样，不要标题、不要 hashtag、不要堆 emoji。
-            - 用第一人称，符合角色身份和当前时间段。
-            - 不要提到自己在被谁要求写。
-            只输出正文。
-            """
+            let system = PromptBuilder.momentPrompt(character: character)
 
             let client = OpenAICompatibleClient(config: settings.config)
             do {

@@ -65,47 +65,34 @@ enum CharacterClock {
     // MARK: - 格式化
 
     static func fullDescription(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = locale
-        f.calendar = calendar
-        f.dateFormat = "yyyy年M月d日 EEEE HH:mm"
-        return f.string(from: date)
+        TimeFormat.full(date)
     }
 
     static func clockText(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = locale
-        f.dateFormat = "HH:mm"
-        return f.string(from: date)
+        TimeFormat.clock(date)
     }
 
     /// 会话列表右侧的时间：今天显示时刻，昨天显示「昨天」，更早显示日期。
     static func listTimestamp(_ date: Date, now: Date = Date()) -> String {
         let cal = calendar
         if cal.isDateInToday(date) {
-            return clockText(date)
+            return TimeFormat.clock(date)
         }
         if cal.isDateInYesterday(date) {
             return "昨天"
         }
-        let f = DateFormatter()
-        f.locale = locale
-        f.dateFormat = "M/d"
-        return f.string(from: date)
+        return TimeFormat.shortDate(date)
     }
 
     /// 聊天页的时间分隔条。
     static func separatorText(_ date: Date, now: Date = Date()) -> String {
         let cal = calendar
         if cal.isDateInToday(date) {
-            return clockText(date)
+            return TimeFormat.clock(date)
         }
         if cal.isDateInYesterday(date) {
-            return "昨天 " + clockText(date)
+            return "昨天 " + TimeFormat.clock(date)
         }
-        let f = DateFormatter()
-        f.locale = locale
-        f.dateFormat = "M月d日 HH:mm"
-        return f.string(from: date)
+        return TimeFormat.monthDayTime(date)
     }
 }

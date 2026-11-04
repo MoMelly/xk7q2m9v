@@ -13,7 +13,7 @@ struct StatusBarView: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
             HStack(spacing: 0) {
-                Text(Self.timeFormatter.string(from: context.date))
+                Text(TimeFormat.clock(context.date))
                     .font(.system(size: 15, weight: .semibold))
                     .monospacedDigit()
                     .frame(width: 56, alignment: .leading)
@@ -32,13 +32,6 @@ struct StatusBarView: View {
             .frame(height: PhoneMetrics.statusBarHeight)
         }
     }
-
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
 }
 
 /// 四格信号。前三级点亮，最后一级留暗，模拟满格边缘的常见状态。

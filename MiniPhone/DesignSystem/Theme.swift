@@ -8,6 +8,8 @@ enum Theme {
     static let retroGreen = Color(red: 0.29, green: 0.47, blue: 0.39)
     static let mint = Color(red: 0.62, green: 0.82, blue: 0.71)
     static let cream = Color(red: 0.97, green: 0.96, blue: 0.92)
+    /// 错误提示用的暖红。压暗过，深色底上不刺眼。
+    static let warning = Color(red: 1.0, green: 0.62, blue: 0.55)
 
     static var backgroundGradient: LinearGradient {
         LinearGradient(

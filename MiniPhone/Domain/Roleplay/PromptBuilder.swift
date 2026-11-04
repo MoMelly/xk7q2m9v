@@ -87,6 +87,24 @@ enum PromptBuilder {
         }
     }
 
+    /// 动态墙那条状态的提示词。
+    ///
+    /// 放在这里而不是写在界面里：提示词一旦分散到各页面，
+    /// 想统一调语气就只能靠全局搜索，而且很容易漏掉一处。
+    static func momentPrompt(character: Companion, now: Date = Date()) -> String {
+        let persona = character.persona.trimmingCharacters(in: .whitespacesAndNewlines)
+        return """
+        你在替一个角色写一条发在社交动态上的短内容。
+        \(persona.isEmpty ? "角色名：\(character.name)。" : persona)
+        现在的时间是\(CharacterClock.fullDescription(now))。
+        要求：
+        - 两三句话，像随手发的那样，不要标题、不要 hashtag、不要堆 emoji。
+        - 用第一人称，符合角色身份和当前时间段。
+        - 不要提到自己在被谁要求写。
+        只输出正文。
+        """
+    }
+
     /// 记忆压缩用的提示词。
     static let memoryCompressionPrompt = """
     你在整理一段对话的长期记忆。

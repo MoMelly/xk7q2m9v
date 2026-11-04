@@ -77,45 +77,21 @@ struct ConversationListView: View {
                     .padding(.bottom, 24)
                 }
             }
-
-            Spacer(minLength: 0).frame(height: 0)
         }
     }
 
     private var header: some View {
         HStack(spacing: 10) {
-            Button(action: onExit) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.cream)
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-            .glassSurface(cornerRadius: 17)
+            GlassIconButton(symbol: "chevron.left", action: onExit)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text("信息")
-                    .font(Theme.serif(22, weight: .semibold))
-                    .foregroundStyle(Theme.cream)
-
-                Text(characters.isEmpty ? "还没有角色" : "\(characters.count) 个角色")
-                    .font(.system(size: 10, weight: .medium))
-                    .tracking(0.6)
-                    .foregroundStyle(Theme.mint.opacity(0.62))
-            }
+            ScreenTitle(
+                title: "信息",
+                detail: characters.isEmpty ? "还没有角色" : "\(characters.count) 个角色"
+            )
 
             Spacer(minLength: 0)
 
-            Button {
-                showCreator = true
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.cream)
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-            .glassSurface(cornerRadius: 17)
+            GlassIconButton(symbol: "plus") { showCreator = true }
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)

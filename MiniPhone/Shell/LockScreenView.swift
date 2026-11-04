@@ -45,7 +45,7 @@ struct LockScreenView: View {
 
     private var dateLine: some View {
         TimelineView(.everyMinute) { context in
-            Text(Self.dateFormatter.string(from: context.date))
+            Text(TimeFormat.lockDate(context.date))
                 .font(.system(size: 15, weight: .medium))
                 .foregroundStyle(.white.opacity(0.88))
                 .shadow(color: .black.opacity(0.3), radius: 4, y: 1)
@@ -54,7 +54,7 @@ struct LockScreenView: View {
 
     private var clock: some View {
         TimelineView(.everyMinute) { context in
-            Text(Self.clockFormatter.string(from: context.date))
+            Text(TimeFormat.clock(context.date))
                 .font(.system(size: PhoneMetrics.lockClockFontSize, weight: .thin, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(.white)
@@ -147,20 +147,4 @@ struct LockScreenView: View {
                 }
             }
     }
-
-    // MARK: - 格式化
-
-    private static let clockFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_CN")
-        formatter.dateFormat = "M月d日 EEEE"
-        return formatter
-    }()
 }

@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import Combine
 
 /// 和某个角色的对话页。
 ///
@@ -19,7 +18,6 @@ struct ChatView: View {
     @State private var showEditor = false
     @State private var showActions = false
     @FocusState private var isInputFocused: Bool
-    @State private var now = Date()
 
     init(character: Companion, settings: SettingsStore, onExit: @escaping () -> Void) {
         self.character = character
@@ -36,8 +34,8 @@ struct ChatView: View {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.isStreaming
     }
 
-    private var isAsleep: Bool {
-        CharacterClock.isAsleep(character, at: now)
+    private func isAsleep(at date: Date) -> Bool {
+        CharacterClock.isAsleep(character, at: date)
     }
 
     var body: some View {
@@ -51,9 +49,6 @@ struct ChatView: View {
             }
         }
         .onAppear { seedGreetingIfNeeded() }
-        .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { value in
-            now = value
-        }
         .sheet(isPresented: $showEditor) {
             CharacterEditorView(character: character, onFinish: { showEditor = false })
         }
@@ -72,14 +67,7 @@ struct ChatView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
-            Button(action: onExit) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.cream)
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-            .glassSurface(cornerRadius: 17)
+            GlassIconButton(symbol: "chevron.left", action: onExit)
 
             Button {
                 showEditor = true
@@ -93,12 +81,16 @@ struct ChatView: View {
                             .foregroundStyle(Theme.cream)
                             .lineLimit(1)
 
-                        Text(subtitle)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(
-                                isAsleep ? Theme.cream.opacity(0.4) : Theme.mint.opacity(0.72)
-                            )
-                            .lineLimit(1)
+                        TimelineView(.everyMinute) { context in
+                            Text(subtitle(at: context.date))
+                                .font(.system(size: 10, weight: .medium))
+                                .foregroundStyle(
+                                    isAsleep(at: context.date)
+                                        ? Theme.cream.opacity(0.4)
+                                        : Theme.mint.opacity(0.72)
+                                )
+                                .lineLimit(1)
+                        }
                     }
                 }
                 .contentShape(Rectangle())
@@ -107,26 +99,17 @@ struct ChatView: View {
 
             Spacer(minLength: 0)
 
-            Button {
-                showActions = true
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Theme.cream)
-                    .frame(width: 34, height: 34)
-            }
-            .buttonStyle(.plain)
-            .glassSurface(cornerRadius: 17)
+            GlassIconButton(symbol: "ellipsis") { showActions = true }
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)
         .padding(.bottom, 8)
     }
 
-    private var subtitle: String {
+    private func subtitle(at date: Date) -> String {
         var parts: [String] = [character.preset.displayName]
         if character.isGroup { parts.append("群聊") }
-        parts.append(isAsleep ? "睡了" : "在的")
+        parts.append(isAsleep(at: date) ? "睡了" : "在的")
         return parts.joined(separator: " · ")
     }
 
@@ -236,7 +219,7 @@ struct ChatView: View {
             HStack {
                 Text("出错了")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Color(red: 1.0, green: 0.62, blue: 0.55))
+                    .foregroundStyle(Theme.warning)
 
                 Spacer(minLength: 0)
 

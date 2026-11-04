@@ -60,16 +60,21 @@ extension Companion {
     }
 }
 
-/// 圆形头像。
-struct AvatarBubble: View {
-    let character: Companion
+/// 圆形头像的绘制。
+///
+/// 单独拆出来是因为它有两个来源：会话列表里拿的是角色对象，
+/// 动态墙里拿的是作者名字（那条动态的角色可能已经被删了）。
+/// 两边要长得一模一样，所以颜色和首字由调用方给，这里只管画。
+struct AvatarCircle: View {
+    let initial: String
+    let tint: AvatarTint
     var size: CGFloat = 46
 
     var body: some View {
         ZStack {
-            Circle().fill(character.avatarTint.gradient)
+            Circle().fill(tint.gradient)
 
-            Text(character.avatarInitial)
+            Text(initial)
                 .font(.system(size: size * 0.42, weight: .semibold, design: .serif))
                 .foregroundStyle(.white.opacity(0.95))
         }
@@ -77,5 +82,15 @@ struct AvatarBubble: View {
         .overlay {
             Circle().strokeBorder(.white.opacity(0.18), lineWidth: 0.5)
         }
+    }
+}
+
+/// 角色头像。
+struct AvatarBubble: View {
+    let character: Companion
+    var size: CGFloat = 46
+
+    var body: some View {
+        AvatarCircle(initial: character.avatarInitial, tint: character.avatarTint, size: size)
     }
 }
