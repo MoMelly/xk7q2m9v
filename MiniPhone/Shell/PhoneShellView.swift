@@ -7,26 +7,28 @@ import SwiftUI
 struct PhoneShellView: View {
     @Bindable var settings: SettingsStore
 
-    @State private var isLocked: Bool
-    @State private var openedApp: PhoneApp?
+    @State private var isLocked: Bool = PhoneShellView.previewLocked
+    @State private var openedApp: PhoneApp? = PhoneShellView.previewApp
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
 
-    /// 启动参数 `-previewState lock|home|chat|moments|settings` 可以让外壳直接落到指定状态。
+    // MARK: - 截图用的启动状态
+
+    /// 启动参数 `-previewState lock|home|chat|moments|settings` 让外壳直接落到指定状态。
     ///
     /// 用途是截图流水线：模拟器里没法用手指上滑，只好用启动参数一步到位。
     /// 不带参数时行为和正常启动完全一致（停在锁屏）。
-    init(settings: SettingsStore) {
-        self.settings = settings
-
-        let preview = UserDefaults.standard.string(forKey: "previewState") ?? "lock"
-        _isLocked = State(initialValue: preview == "lock")
-        _openedApp = State(initialValue: PhoneShellView.appForPreview(preview))
+    private static var previewState: String {
+        UserDefaults.standard.string(forKey: "previewState") ?? "lock"
     }
 
-    private static func appForPreview(_ state: String) -> PhoneApp? {
+    private static var previewLocked: Bool {
+        previewState == "lock"
+    }
+
+    private static var previewApp: PhoneApp? {
         let destination: PhoneApp.Destination?
-        switch state {
+        switch previewState {
         case "chat": destination = .chat
         case "moments": destination = .moments
         case "settings": destination = .settings
