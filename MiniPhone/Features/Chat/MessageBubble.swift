@@ -8,7 +8,9 @@ import SwiftUI
 struct MessageBubble: View {
     let text: String
     let isUser: Bool
-    var speaker: String?
+    /// 群聊里这句话的说话人。必须显式写 `= nil`：memberwise 初始化器
+    /// 不会给 Optional 属性补默认值，漏了会导致不传该参数的调用点编译失败。
+    var speaker: String? = nil
     var isNarration: Bool = false
     /// 流式中：末尾加一根跳动的竖线，表示还在往外吐字。
     var isStreaming: Bool = false
