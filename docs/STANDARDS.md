@@ -133,7 +133,56 @@ chore:    杂项（忽略规则、格式化）
 
 ---
 
-## 9. 怎么执行
+## 9. 构建卡住时怎么排查
+
+云端 CI 出问题时的排查顺序，按「先排除什么」排，别一上来就改 workflow。
+
+### 9.1 先分清「没触发」和「触发了但没机器」
+
+```
+gh run list --repo MoMelly/miniphone --limit 5
+gh api repos/MoMelly/miniphone/actions/runs/<id>/jobs
+```
+
+看 job 的 `runner_name` 字段：
+
+| 现象 | 含义 |
+|---|---|
+| 没有 run 记录 | workflow 没触发：检查 `on.push.branches`、YAML 能否被解析、Actions 是否被禁用 |
+| `status=queued`、`runner_name=null` | 触发了，但**没分到机器**。问题在 GitHub 侧，不在代码 |
+| `runner_name` 有值、steps 为空 | 分到机器了但启动失败，通常是镜像或启动脚本问题 |
+| steps 停在某一步 | 正常的构建失败，看该步日志 |
+
+### 9.2 「没机器」怎么定位到账户还是镜像
+
+**做对照，不要猜。** 建一个临时公开仓库，只放一个 `ubuntu-latest` 的空壳 job，触发一次：
+
+- 公开仓库的 ubuntu job 都排队 → **账户级限制**，跟 macOS、跟私有仓库、跟本项目代码都无关
+- ubuntu 跑了、macOS 排队 → macOS 镜像容量问题，换 `macos-15` 或等
+- 都正常 → 本项目 workflow 配置问题
+
+这一步能省掉大量瞎改。2026-11-04 那次就是靠它确认的：公开仓库的 ubuntu 空壳也拿不到 runner，最终判定为账户侧限制，而不是「是不是我 YAML 写坏了」。
+
+### 9.3 几个会误导人的现象
+
+- **`gh run cancel` 对 `queued` 状态的 run 返回 `{}` 但状态不变。** 取消只对 `in_progress` 真正生效，别以为清空队列就能解开堵塞。
+- **`gh run list` 有缓存。** 怀疑状态时用 `gh api .../runs/<id>` 查单个，返回的 `updated_at` 才是真的。
+- **`Cannot cancel a workflow run that is completed`**：说明那个 run 其实已经结束了，只是列表还没刷新。
+- **git 的 `ls-remote` 看不到 `artifacts` 分支更新，不代表构建没跑。** 构建失败时不写产物分支（或写了但步骤没到），要看 Actions 的 run 记录，别只看分支。
+
+### 9.4 权限前提
+
+`gh` 默认令牌可能没有私有仓库读权限，表现为所有 Actions API 返回 **404**（不是 403）。补权限：
+
+```
+gh auth refresh -h github.com -s repo -s workflow
+```
+
+不补的话，会误判成「仓库不存在」或「构建没跑过」。
+
+---
+
+## 10. 怎么执行
 
 ```
 python scripts/check_standards.py
