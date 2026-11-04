@@ -13,7 +13,7 @@
 | 主动消息 | 本地定时推送 | **砍掉**。只在"你发了消息后切走、回复到达"时通知 |
 | 语音 | 砍掉 | **离线 TTS（Kokoro）+ 模拟通话** |
 | 工程文件 | 待你确认 | 已定：XcodeGen |
-| 数据库 | 待你确认 | 已定：GRDB |
+| 数据库 | 已定 | SwiftData（原计划 GRDB，实现时改的，理由见第 3 节）|
 
 ---
 
@@ -90,12 +90,12 @@ Playbook = 主提示词 + 采样参数 + 正则组 + 变量表 + 界面皮肤 + 
 |---|---|---|
 | UI | SwiftUI（iOS 26 起） | 液态玻璃只有原生有 |
 | 工程文件 | **XcodeGen**（`project.yml`） | `.pbxproj` 是二进制式 XML，手改必炸、无法 diff。yml 描述工程，CI 生成 |
-| 持久化 | **GRDB（SQLite）** | 聊天要分页/搜索/可控迁移。SwiftData 迁移是黑盒，出问题难查 |
+| 持久化 | **SwiftData** | 模型只有 4 个、关系简单，比手写 SQLite 少一半代码。代价是迁移过程不透明，所以加字段一律带默认值，改结构前先落 VersionedSchema（见 STANDARDS.md 第 3 节）|
 | 网络 | URLSession + AsyncThrowingStream | 原生流式，零依赖 |
 | 密钥 | Keychain（`whenUnlockedThisDeviceOnly`） | 不进 UserDefaults、不进代码、不进日志 |
 | 离线 TTS | **Sherpa-ONNX + Kokoro** | 见 §4 |
 | 语音识别 | iOS 原生 Speech（离线包） | 免费、无需联网 |
-| 依赖 | SPM：GRDB、sherpa-onnx | 依赖越少，五年后越能跑 |
+| 依赖 | SPM：sherpa-onnx | 依赖越少，五年后越能跑。SwiftData 是系统框架，不算依赖 |
 | CI | GitHub Actions macOS runner | 你没有 Mac，云端代替 |
 
 不引入：SwiftData、Realm、Core Data、任何 UI 组件库、任何网络封装库。
@@ -126,42 +126,46 @@ Features (SwiftUI)      ← View + ViewModel
    ↓
 Domain (纯 Swift)       ← Entities / UseCases / Protocols，禁止 import SwiftUI
    ↓
-Data                    ← GRDB 实现 / LLM 客户端 / TTS 引擎
+Data                    ← SwiftData 实现 / LLM 客户端 / TTS 引擎
    ↓
 Support                 ← Keychain / Clock / Notifier / Log
 ```
 
-CI 检查：`Domain` 里出现 `import SwiftUI` 或 `import GRDB` 直接判失败。跨层只走协议。
+CI 检查：`Domain` 里出现 `import SwiftUI` 或 `import SwiftData` 直接判失败（由 `scripts/check_standards.py` 执行）。跨层只走协议。
 
 ### 目录
 
 ```
 miniphone/
-├── docs/                     PLAN.md、DECISIONS.md
-├── project.yml               XcodeGen
+├── docs/                     PLAN.md、INSTALL.md、STANDARDS.md
+├── scripts/check_standards.py  构建前跑的规范检查
+├── project.yml               XcodeGen 工程描述（唯一来源）
+├── Config/Info.plist
 ├── .github/workflows/build.yml
 ├── MiniPhone/
-│   ├── App/                  入口 + 依赖装配（唯一知道所有实现的地方）
+│   ├── App/                  入口装配
 │   ├── Domain/
-│   │   ├── Entities/         Character / Message / Card / Playbook / Lorebook / ChatState
-│   │   ├── UseCases/         SendMessage / ImportCard / AssemblePrompt / Summarize / AdvanceClock
-│   │   └── Protocols/
+│   │   ├── Entities/         ChatMessage
+│   │   ├── Protocols/        LLMProviding
+│   │   └── Roleplay/         玩法包、作息、提示词拼装、回复解析
 │   ├── Data/
-│   │   ├── Database/         GRDB schema + migrations（v1、v2…一版一文件）
-│   │   ├── Repositories/
+│   │   ├── Persistence/      SwiftData 模型 / 容器 / 全量导出恢复
 │   │   ├── Remote/           OpenAI 兼容客户端
-│   │   └── Voice/            Sherpa-ONNX 封装、Kokoro 声线管理
+│   │   └── Import/           酒馆角色卡（PNG / JSON）
+│   ├── Shell/                锁屏、桌面、图标、状态栏（假手机外壳）
 │   ├── Features/
-│   │   ├── LockScreen/ Home/ Chat/ Contacts/
-│   │   ├── Album/ Moments/ Notes/ Settings/
-│   │   ├── Call/             模拟通话
-│   │   └── Live/             直播体皮肤
-│   ├── DesignSystem/         Glass 组件、色板、字体、图标
-│   └── Support/
-└── MiniPhoneTests/
+│   │   ├── Chat/             对话页
+│   │   ├── Conversations/    会话列表、角色编辑、设定集
+│   │   ├── Moments/          动态墙
+│   │   └── Settings/         设置
+│   ├── DesignSystem/         玻璃、色板、尺寸、壁纸、头像
+│   └── Support/              日志、Keychain、通知、时间格式化、分享面板
 ```
 
 垂直切分。禁止 `Views/` `Models/` `Helpers/` 这种大杂烩目录。
+
+命名上实体叫 `Companion` 而不是 `Character`——后者与 Swift 标准库的字符类型重名，
+会让编译错误指向完全无关的地方。
 
 ---
 
