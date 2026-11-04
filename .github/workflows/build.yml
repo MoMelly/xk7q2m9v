@@ -23,6 +23,12 @@ jobs:
           xcrun --sdk iphoneos --show-sdk-version
           swift --version
 
+      # 规范挡在编译之前：分层 import、重复造轮子、文件规模、密钥泄漏、换行符。
+      # 规则见 docs/STANDARDS.md。本地也能跑同一条命令。
+      - name: Check standards
+        run: |
+          python3 scripts/check_standards.py
+
       - name: Install XcodeGen
         env:
           HOMEBREW_NO_AUTO_UPDATE: 1

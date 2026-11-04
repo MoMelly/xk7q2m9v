@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""按 docs/STANDARDS.md 检查代码。
+
+只做机械能判断的规则。判断不了「这个组件该不该抽」，那部分只能靠评审。
+
+用法：
+    python scripts/check_standards.py
+
+退出码 0 表示通过；1 表示有违规。CI 在生成工程之前跑这一步。
+"""
+
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "MiniPhone"
+
+# 允许出现 DateFormatter 的文件：格式化只在 TimeFormat 里做。
+DATE_FORMATTER_ALLOWED = {
+    "MiniPhone/Support/TimeFormat.swift",
+    "MiniPhone/Data/Persistence/DataBackup.swift",  # ISO8601，机器可读时间戳
+}
+
+# 允许直接写 Color(red:...) 的位置：色板本身。
+COLOR_LITERAL_ALLOWED = {
+    "MiniPhone/DesignSystem/Theme.swift",
+    "MiniPhone/DesignSystem/CharacterPalette.swift",
+    "MiniPhone/Shell/AppCatalog.swift",
+}
+
+WARN_LINES = 400
+ERROR_LINES = 600
+
+errors: list[str] = []
+warnings: list[str] = []
+
+
+def rel(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
+
+
+def add_error(path: Path, line: int, message: str) -> None:
+    location = f"{rel(path)}:{line}" if line else rel(path)
+    errors.append(f"{location}  {message}")
+
+
+def add_warning(path: Path, line: int, message: str) -> None:
+    location = f"{rel(path)}:{line}" if line else rel(path)
+    warnings.append(f"{location}  {message}")
+
+
+def swift_files() -> list[Path]:
+    if not SRC.is_dir():
+        return []
+    return sorted(SRC.rglob("*.swift"))
+
+
+def check_layer_imports(path: Path, lines: list[str]) -> None:
+    """Domain 层不能依赖 UI 框架。"""
+    relative = rel(path)
+    if "/Domain/" not in f"/{relative}" and not relative.startswith("MiniPhone/Domain/"):
+        return
+
+    forbidden = ("SwiftUI", "SwiftData", "UIKit", "AppKit")
+    for index, line in enumerate(lines, start=1):
+        stripped = line.strip()
+        if stripped.startswith("import "):
+            module = stripped.split()[1]
+            if module in forbidden:
+                add_error(path, index, f"Domain 层不允许 import {module}（业务规则不能依赖界面框架）")
+
+
+def check_duplicate_wheels(path: Path, lines: list[str]) -> None:
+    """已经有过唯一入口的东西，不许再实现一遍。"""
+    relative = rel(path)
+
+    for index, line in enumerate(lines, start=1):
+        if "DateFormatter(" in line and relative not in DATE_FORMATTER_ALLOWED:
+            add_error(path, index, "日期格式化统一走 TimeFormat，不要在这里新建 DateFormatter")
+
+        if "Timer.publish" in line:
+            add_error(path, index, "定时刷新统一用 TimelineView(.everyMinute)，不要用 Timer.publish")
+
+        if "import Combine" in line:
+            add_warning(path, index, "项目里唯一需要 Combine 的地方已改用 TimelineView，确认这个 import 还有用")
+
+        if "glassSurface(cornerRadius: 17)" in line:
+            add_warning(path, index, "34×34 玻璃圆按钮统一用 GlassIconButton")
+
+        if "Color(red:" in line and relative not in COLOR_LITERAL_ALLOWED:
+            if relative.startswith("MiniPhone/Features/") or relative.startswith("MiniPhone/Shell/"):
+                add_warning(path, index, "主题色走 Theme / AvatarTint，视图里不要直接写字面色值")
+
+        # 提示词只允许出现在 PromptBuilder。
+        if relative.startswith("MiniPhone/Features/"):
+            for marker in ("你在扮演", "你在替一个角色", "只输出正文", "【角色】", "【对话形式】"):
+                if marker in line:
+                    add_error(path, index, f"提示词必须放在 PromptBuilder（发现「{marker}」）")
+
+
+def check_file_size(path: Path, lines: list[str]) -> None:
+    count = len(lines)
+    if count > ERROR_LINES:
+        add_error(path, 0, f"文件 {count} 行，超过 {ERROR_LINES} 行上限，需要拆分")
+    elif count > WARN_LINES:
+        add_warning(path, 0, f"文件 {count} 行，超过建议的 {WARN_LINES} 行")
+
+
+def strip_comments_and_strings(text: str) -> str:
+    """把注释和字符串字面量替换成空。
+
+    直接按 `//` 切行会误伤 `"https://..."` 这种字符串（第一版就栽在这），
+    所以逐字符扫描：只有不在字符串里时，`//` 才是注释。
+    """
+    out: list[str] = []
+    index = 0
+    length = len(text)
+    in_string = False
+    in_line_comment = False
+    in_block_comment = False
+
+    while index < length:
+        char = text[index]
+        nxt = text[index + 1] if index + 1 < length else ""
+
+        if in_line_comment:
+            if char == "\n":
+                in_line_comment = False
+                out.append(char)
+        elif in_block_comment:
+            if char == "*" and nxt == "/":
+                in_block_comment = False
+                index += 1
+            elif char == "\n":
+                out.append(char)
+        elif in_string:
+            if char == "\\":
+                index += 1
+            elif char == '"':
+                in_string = False
+            elif char == "\n":
+                # 未闭合的字符串：保守处理，退出字符串状态
+                in_string = False
+                out.append(char)
+        else:
+            if char == "/" and nxt == "/":
+                in_line_comment = True
+                index += 1
+            elif char == "/" and nxt == "*":
+                in_block_comment = True
+                index += 1
+            elif char == '"' and text.startswith('"""', index):
+                # 多行字符串整段跳过：里面常有括号和引号，逐字符扫会乱。
+                end = text.find('"""', index + 3)
+                if end == -1:
+                    break
+                index = end + 2
+            elif char == '"':
+                in_string = True
+            else:
+                out.append(char)
+
+        index += 1
+
+    return "".join(out)
+
+
+def check_line_endings_and_brackets(path: Path, raw: bytes, text: str) -> None:
+    # Windows 上 core.autocrlf=true 会把工作区检出成 CRLF，本地必然触发，
+    # 那属于检出的表象而不是提交内容。换行符只在 CI（Linux/macOS）上把关。
+    if not sys.platform.startswith("win") and b"\r\n" in raw:
+        add_error(path, 0, "文件是 CRLF 换行；仓库统一 LF，CRLF 进 shell 脚本会变成 \\r 报错")
+
+    # 括号平衡：字符串和注释已经剥掉，剩下的才是真正的代码结构。
+    pairs = {"(": ")", "[": "]", "{": "}"}
+    closers = {value: key for key, value in pairs.items()}
+    stack: list[str] = []
+    unbalanced = False
+    for char in strip_comments_and_strings(text):
+        if char in pairs:
+            stack.append(char)
+        elif char in closers:
+            if stack and stack[-1] == closers[char]:
+                stack.pop()
+            else:
+                unbalanced = True
+                break
+    if unbalanced or stack:
+        add_warning(path, 0, "括号看起来不配对，确认一下")
+
+
+KEY_PATTERN = re.compile(r"sk-[A-Za-z0-9]{20,}")
+
+
+def check_secrets(path: Path, lines: list[str]) -> None:
+    for index, line in enumerate(lines, start=1):
+        if KEY_PATTERN.search(line):
+            add_error(path, index, "疑似 API Key 明文，密钥只能存 Keychain")
+
+
+def main() -> int:
+    files = swift_files()
+    if not files:
+        print("找不到 MiniPhone/ 下的 Swift 源码")
+        return 1
+
+    for path in files:
+        raw = path.read_bytes()
+        text = raw.decode("utf-8", errors="replace")
+        lines = text.split("\n")
+
+        check_layer_imports(path, lines)
+        check_duplicate_wheels(path, lines)
+        check_file_size(path, lines)
+        check_line_endings_and_brackets(path, raw, text)
+        check_secrets(path, lines)
+
+    print(f"检查了 {len(files)} 个 Swift 文件")
+
+    if warnings:
+        print(f"\n警告 {len(warnings)} 条：")
+        for item in warnings:
+            print(f"  {item}")
+
+    if errors:
+        print(f"\n违规 {len(errors)} 条：")
+        for item in errors:
+            print(f"  {item}")
+        print("\n规范见 docs/STANDARDS.md")
+        return 1
+
+    print("\n通过")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except AttributeError:
+        pass
+    sys.exit(main())
