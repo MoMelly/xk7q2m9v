@@ -9,6 +9,7 @@ Payload/
 *.ipa
 *.xcarchive
 build.log
+_artifacts/
 
 # 系统
 .DS_Store
