@@ -8,6 +8,7 @@ DerivedData/
 Payload/
 *.ipa
 *.xcarchive
+build.log
 
 # 系统
 .DS_Store

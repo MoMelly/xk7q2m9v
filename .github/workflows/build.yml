@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-26
@@ -43,7 +46,7 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
-            build
+            build 2>&1 | tee build.log
 
       - name: Package unsigned IPA
         run: |
@@ -56,8 +59,48 @@ jobs:
           ls -lh MiniPhone-unsigned.ipa
 
       - name: Upload IPA
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: MiniPhone-unsigned-ipa
           path: MiniPhone-unsigned.ipa
           retention-days: 30
+
+      # Publishes the build log and (on success) the IPA to an orphan branch.
+      # This lets a client without GitHub API access retrieve them over plain
+      # git/SSH instead of the web UI or artifact endpoints.
+      - name: Publish artifacts branch
+        if: always()
+        env:
+          PUSH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          cd "$RUNNER_TEMP"
+          rm -rf pub
+          mkdir pub
+          cd pub
+          git init -q
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          if [ -f "$GITHUB_WORKSPACE/build.log" ]; then
+            cp "$GITHUB_WORKSPACE/build.log" ./build.log
+          else
+            echo "(no build log produced)" > build.log
+          fi
+
+          if [ -f "$GITHUB_WORKSPACE/MiniPhone-unsigned.ipa" ]; then
+            cp "$GITHUB_WORKSPACE/MiniPhone-unsigned.ipa" ./MiniPhone-unsigned.ipa
+          fi
+
+          {
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "sha=${GITHUB_SHA}"
+            echo "status=${{ job.status }}"
+            echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          } > STATUS.txt
+
+          git add -A
+          git commit -q -m "ci ${GITHUB_RUN_ID} ${{ job.status }}"
+          git push -f origin HEAD:artifacts
