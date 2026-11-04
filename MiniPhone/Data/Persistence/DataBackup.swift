@@ -8,6 +8,17 @@ import SwiftData
 enum DataBackup {
     static let currentVersion = 1
 
+    enum BackupError: LocalizedError {
+        case unsupportedVersion(Int)
+
+        var errorDescription: String? {
+            switch self {
+            case .unsupportedVersion(let version):
+                return "这份备份是更新的版本（v\(version)）导出的，当前 App 读不了。先把 App 升级再恢复。"
+            }
+        }
+    }
+
     struct Payload: Codable {
         struct Msg: Codable {
             var role: String
@@ -153,6 +164,12 @@ enum DataBackup {
         decoder.dateDecodingStrategy = .iso8601
         let payload = try decoder.decode(Payload.self, from: data)
 
+        // 备份文件的格式版本高于当前代码能读的，直接拒绝，
+        // 免得「恢复成功」之后字段静默丢失。
+        guard payload.version <= currentVersion else {
+            throw BackupError.unsupportedVersion(payload.version)
+        }
+
         // 清空
         for item in (try? context.fetch(FetchDescriptor<StoredMessage>())) ?? [] {
             context.delete(item)
@@ -183,6 +200,10 @@ enum DataBackup {
                 sleepHour: item.sleepHour,
                 sortIndex: item.sortIndex
             )
+            // 保留原来的 uid：动态和设定集条目里存的是这个 uid，
+            // 重新生成一个的话它们就都指向了一个不存在的角色，
+            // 表现成「恢复之后世界书全部失效、动态头像颜色全变默认色」。
+            character.uid = item.uid
             character.createdAt = item.createdAt
             character.lastMessageAt = item.lastMessageAt
             character.memorySummary = item.memorySummary

@@ -86,7 +86,10 @@ enum CharacterCardImporter {
         return try parseJSON(decoded)
     }
 
-    /// 遍历 PNG 的块，找关键字为 chara / ccv3 的 tEXt。
+    /// 遍历 PNG 的块，找关键字为 chara / ccv3 的文本块。
+    ///
+    /// `tEXt` 和 `iTXt` 的载荷结构不一样：iTXt 在关键字后面还有压缩标志、
+    /// 语言标签、翻译关键字三样东西，直接从第一个 `\0` 后面取文本会拿到二进制垃圾。
     private static func extractTextChunk(from data: Data) -> String? {
         let signatureLength = 8
         guard data.count > signatureLength + 8 else { return nil }
@@ -97,32 +100,65 @@ enum CharacterCardImporter {
         while offset + 8 <= bytes.count {
             let length = Int(beUInt32(bytes, offset))
             let typeStart = offset + 4
-            guard length >= 0, typeStart + 4 <= bytes.count else { return nil }
+            guard typeStart + 4 <= bytes.count else { return nil }
 
             let type = String(bytes: bytes[typeStart..<(typeStart + 4)], encoding: .ascii) ?? ""
             let dataStart = typeStart + 4
             let dataEnd = dataStart + length
-            guard dataEnd <= bytes.count else { return nil }
+            // 块结构：长度(4) + 类型(4) + 数据 + CRC(4)
+            guard dataEnd >= dataStart, dataEnd + 4 <= bytes.count else { return nil }
 
-            if type == "tEXt" || type == "iTXt" {
-                let payload = bytes[dataStart..<dataEnd]
-                if let separator = payload.firstIndex(of: 0) {
-                    let keyword = String(bytes: payload[payload.startIndex..<separator], encoding: .ascii) ?? ""
-                    if keyword == "chara" || keyword == "ccv3" {
-                        let body = payload[(separator + 1)...]
-                        if let text = String(bytes: body, encoding: .utf8), !text.isEmpty {
-                            return text
-                        }
-                    }
-                }
+            let payload = bytes[dataStart..<dataEnd]
+
+            switch type {
+            case "tEXt":
+                if let text = plainTextPayload(payload) { return text }
+            case "iTXt":
+                if let text = internationalTextPayload(payload) { return text }
+            case "IEND":
+                return nil
+            default:
+                break
             }
 
-            if type == "IEND" { break }
-            // 块结构：长度(4) + 类型(4) + 数据 + CRC(4)
             offset = dataEnd + 4
         }
 
         return nil
+    }
+
+    /// `tEXt`：关键字 `\0` 文本
+    private static func plainTextPayload(_ payload: ArraySlice<UInt8>) -> String? {
+        guard let separator = payload.firstIndex(of: 0) else { return nil }
+        let keyword = String(bytes: payload[payload.startIndex..<separator], encoding: .ascii) ?? ""
+        guard keyword == "chara" || keyword == "ccv3" else { return nil }
+
+        let body = payload[(separator + 1)...]
+        guard let text = String(bytes: body, encoding: .utf8), !text.isEmpty else { return nil }
+        return text
+    }
+
+    /// `iTXt`：关键字 `\0` 压缩标志(1) 压缩方法(1) 语言 `\0` 翻译关键字 `\0` 文本
+    private static func internationalTextPayload(_ payload: ArraySlice<UInt8>) -> String? {
+        guard let keywordEnd = payload.firstIndex(of: 0) else { return nil }
+        let keyword = String(bytes: payload[payload.startIndex..<keywordEnd], encoding: .ascii) ?? ""
+        guard keyword == "chara" || keyword == "ccv3" else { return nil }
+
+        var cursor = payload.index(after: keywordEnd)
+        guard cursor + 1 < payload.endIndex else { return nil }
+        let compressionFlag = payload[cursor]
+        cursor += 2
+
+        guard let languageEnd = payload[cursor...].firstIndex(of: 0) else { return nil }
+        cursor = payload.index(after: languageEnd)
+        guard let translatedEnd = payload[cursor...].firstIndex(of: 0) else { return nil }
+        cursor = payload.index(after: translatedEnd)
+
+        // 压缩过的块要用 zlib 解，项目里没带这个依赖；跳过，交给后面的 base64 分支。
+        guard compressionFlag == 0 else { return nil }
+
+        guard let text = String(bytes: payload[cursor...], encoding: .utf8), !text.isEmpty else { return nil }
+        return text
     }
 
     private static func beUInt32(_ bytes: [UInt8], _ offset: Int) -> UInt32 {

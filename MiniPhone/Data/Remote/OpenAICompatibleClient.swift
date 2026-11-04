@@ -19,6 +19,10 @@ final class OpenAICompatibleClient: LLMProviding {
 
         return AsyncThrowingStream { continuation in
             let task = Task {
+                // 一个请求复用同一个 decoder。之前是每解析一行 new 一个，
+                // 一次回复上百行就是上百次分配，白花的。
+                let decoder = JSONDecoder()
+
                 do {
                     let request = try Self.makeRequest(messages: messages, config: config, stream: true)
                     let (bytes, response) = try await session.bytes(for: request)
@@ -42,7 +46,7 @@ final class OpenAICompatibleClient: LLMProviding {
                             .trimmingCharacters(in: .whitespaces)
                         if payload.isEmpty { continue }
                         if payload == "[DONE]" { break }
-                        if let piece = Self.decodeDelta(payload), !piece.isEmpty {
+                        if let piece = Self.decodeDelta(payload, using: decoder), !piece.isEmpty {
                             continuation.yield(piece)
                         }
                     }
@@ -174,9 +178,9 @@ final class OpenAICompatibleClient: LLMProviding {
         let choices: [Choice]
     }
 
-    private static func decodeDelta(_ json: String) -> String? {
+    private static func decodeDelta(_ json: String, using decoder: JSONDecoder) -> String? {
         guard let data = json.data(using: .utf8) else { return nil }
-        guard let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data) else {
+        guard let chunk = try? decoder.decode(StreamChunk.self, from: data) else {
             return nil
         }
         return chunk.choices.first?.delta?.content
