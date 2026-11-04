@@ -1,10 +1,11 @@
 import Foundation
 import Observation
 
-/// P0 的冒烟测试状态机：发一句、流式收回来、出错能看见原因。
-/// 这一层故意很薄——P2 接数据库和记忆时整体替换，不牵动 UI。
+/// 聊天状态机：发一句、流式收回来、出错能看见原因。
+///
+/// 这一层刻意很薄——P2 接数据库和角色记忆时整体替换，不牵动 UI。
 @Observable
-final class SmokeTestViewModel {
+final class ChatViewModel {
     private(set) var messages: [ChatMessage] = []
     private(set) var isStreaming = false
     private(set) var errorText: String?
@@ -17,6 +18,8 @@ final class SmokeTestViewModel {
         errorText = nil
         messages.append(ChatMessage(role: .user, text: trimmed))
 
+        // 先插一条空的助手消息占位，流式片段往它身上追加，
+        // 这样界面上看到的是「气泡逐渐长出来」而不是最后一次性出现。
         let placeholderID = UUID()
         messages.append(ChatMessage(id: placeholderID, role: .assistant, text: ""))
 

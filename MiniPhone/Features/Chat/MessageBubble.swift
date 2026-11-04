@@ -1,5 +1,9 @@
 import SwiftUI
 
+/// 一条聊天气泡。
+///
+/// 用户侧是实心复古绿，助手侧是玻璃——玻璃在深色底上才有层次，
+/// 所以助手气泡不填色，只叠一层材质。
 struct MessageBubble: View {
     let message: ChatMessage
 

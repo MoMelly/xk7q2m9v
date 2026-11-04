@@ -6,7 +6,9 @@ struct MiniPhoneApp: App {
 
     var body: some Scene {
         WindowGroup {
-            SmokeTestView(settings: settings)
+            // 外壳永远是深色：液态玻璃要在深色底上才有折射感，
+            // 跟随系统切到浅色会让整套观感垮掉。
+            PhoneShellView(settings: settings)
                 .preferredColorScheme(.dark)
         }
     }
