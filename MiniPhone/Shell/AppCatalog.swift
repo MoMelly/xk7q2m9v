@@ -7,8 +7,10 @@ import SwiftUI
 struct PhoneApp: Identifiable, Hashable {
     /// 打开后去哪儿。
     enum Destination: Hashable {
-        /// 真的能用：进聊天。
+        /// 真的能用：会话列表。
         case chat
+        /// 真的能用：角色动态墙。
+        case moments
         /// 真的能用：进设置。
         case settings
         /// 还没做，点了给一条提示。
@@ -54,7 +56,7 @@ enum AppCatalog {
                  destination: .placeholder),
         PhoneApp(id: "photos", name: "照片", symbol: "photo.fill",
                  colors: [Color(red: 0.99, green: 0.86, blue: 0.36), Color(red: 0.95, green: 0.44, blue: 0.42)],
-                 destination: .placeholder),
+                 destination: .moments),
         PhoneApp(id: "camera", name: "相机", symbol: "camera.fill",
                  colors: [Color(red: 0.42, green: 0.43, blue: 0.46), Color(red: 0.17, green: 0.18, blue: 0.20)],
                  destination: .placeholder),

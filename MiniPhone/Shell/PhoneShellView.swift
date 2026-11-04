@@ -50,7 +50,9 @@ struct PhoneShellView: View {
     private func appLayer(_ app: PhoneApp) -> some View {
         switch app.destination {
         case .chat:
-            ChatView(settings: settings, onExit: closeApp)
+            ConversationListView(settings: settings, onExit: closeApp)
+        case .moments:
+            MomentsView(settings: settings, onExit: closeApp)
         case .settings:
             SettingsView(settings: settings, onExit: closeApp)
         case .placeholder:
@@ -102,7 +104,7 @@ struct PhoneShellView: View {
 
     private func open(_ app: PhoneApp) {
         switch app.destination {
-        case .chat, .settings:
+        case .chat, .moments, .settings:
             openedApp = app
         case .placeholder:
             showToast("「\(app.name)」还没做")

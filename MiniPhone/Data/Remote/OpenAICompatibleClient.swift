@@ -1,6 +1,6 @@
 import Foundation
 
-/// OpenAI 兼容接口的流式客户端。
+/// OpenAI 兼容接口的客户端。
 /// 只依赖 URLSession，不引第三方网络库——这层薄，出问题能一分钟定位。
 final class OpenAICompatibleClient: LLMProviding {
     private let config: LLMConfig
@@ -11,6 +11,8 @@ final class OpenAICompatibleClient: LLMProviding {
         self.session = session
     }
 
+    // MARK: - 流式
+
     func streamChat(_ messages: [ChatMessage]) -> AsyncThrowingStream<String, Error> {
         let config = self.config
         let session = self.session
@@ -18,7 +20,7 @@ final class OpenAICompatibleClient: LLMProviding {
         return AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let request = try Self.makeRequest(messages: messages, config: config)
+                    let request = try Self.makeRequest(messages: messages, config: config, stream: true)
                     let (bytes, response) = try await session.bytes(for: request)
 
                     guard let http = response as? HTTPURLResponse else {
@@ -62,11 +64,38 @@ final class OpenAICompatibleClient: LLMProviding {
         }
     }
 
+    // MARK: - 一次性
+
+    func complete(_ messages: [ChatMessage]) async throws -> String {
+        let request = try Self.makeRequest(messages: messages, config: config, stream: false)
+        let (data, response) = try await session.data(for: request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw LLMError.invalidResponse
+        }
+
+        guard (200..<300).contains(http.statusCode) else {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw LLMError.http(status: http.statusCode, body: body)
+        }
+
+        guard let decoded = try? JSONDecoder().decode(CompletionResponse.self, from: data) else {
+            throw LLMError.invalidResponse
+        }
+
+        let text = decoded.choices.first?.message?.content ?? ""
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw LLMError.invalidResponse
+        }
+        return text
+    }
+
     // MARK: - Request
 
     private static func makeRequest(
         messages: [ChatMessage],
-        config: LLMConfig
+        config: LLMConfig,
+        stream: Bool
     ) throws -> URLRequest {
         let trimmedKey = config.apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedKey.isEmpty else { throw LLMError.missingKey }
@@ -78,25 +107,27 @@ final class OpenAICompatibleClient: LLMProviding {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.timeoutInterval = 120
+        request.timeoutInterval = stream ? 120 : 60
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(trimmedKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        request.setValue(stream ? "text/event-stream" : "application/json", forHTTPHeaderField: "Accept")
 
         let body = RequestBody(
             model: config.model,
             messages: messages.map {
                 RequestBody.Message(role: $0.role.rawValue, content: $0.text)
             },
-            stream: true
+            stream: stream,
+            temperature: config.temperature,
+            maxTokens: config.maxTokens
         )
         request.httpBody = try JSONEncoder().encode(body)
 
-        AppLog.network.debug("POST \(url.absoluteString, privacy: .public) model=\(config.model, privacy: .public)")
+        AppLog.network.debug("POST \(url.absoluteString, privacy: .public) model=\(config.model, privacy: .public) stream=\(stream)")
         return request
     }
 
-    // MARK: - SSE decoding
+    // MARK: - 解码
 
     private struct RequestBody: Encodable {
         struct Message: Encodable {
@@ -107,6 +138,16 @@ final class OpenAICompatibleClient: LLMProviding {
         let model: String
         let messages: [Message]
         let stream: Bool
+        let temperature: Double
+        let maxTokens: Int
+
+        enum CodingKeys: String, CodingKey {
+            case model
+            case messages
+            case stream
+            case temperature
+            case maxTokens = "max_tokens"
+        }
     }
 
     private struct StreamChunk: Decodable {
@@ -116,6 +157,18 @@ final class OpenAICompatibleClient: LLMProviding {
             }
 
             let delta: Delta?
+        }
+
+        let choices: [Choice]
+    }
+
+    private struct CompletionResponse: Decodable {
+        struct Choice: Decodable {
+            struct Message: Decodable {
+                let content: String?
+            }
+
+            let message: Message?
         }
 
         let choices: [Choice]

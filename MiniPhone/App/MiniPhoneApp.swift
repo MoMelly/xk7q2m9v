@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 @main
 struct MiniPhoneApp: App {
@@ -10,6 +11,10 @@ struct MiniPhoneApp: App {
             // 跟随系统切到浅色会让整套观感垮掉。
             PhoneShellView(settings: settings)
                 .preferredColorScheme(.dark)
+                .task {
+                    await ReplyNotifier.requestAuthorizationIfNeeded()
+                }
         }
+        .modelContainer(AppStore.container)
     }
 }

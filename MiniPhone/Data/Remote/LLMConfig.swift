@@ -6,6 +6,10 @@ struct LLMConfig: Equatable {
     var baseURL: String
     var model: String
     var apiKey: String
+    /// 采样温度。角色扮演默认偏高，否则回答会太「正确」、没脾气。
+    var temperature: Double = 0.9
+    /// 单次回复的硬上限。定得比目标长度宽，避免句子被砍断。
+    var maxTokens: Int = 900
 
     /// 硅基流动的 OpenAI 兼容端点。国内直连可用。
     static let defaultBaseURL = "https://api.siliconflow.cn/v1"
