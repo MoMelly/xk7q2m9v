@@ -171,22 +171,46 @@ miniphone/
 
 ## 6. 数据模型
 
+### 6.1 规划时的设计（v1，未落地）
+
+最初打算拆成 10 个实体：CharacterCard / Character / Conversation / Message / Playbook / Lorebook / ChatState / Memory / Moment / Settings。
+
+### 6.2 实际落地的设计（4 个实体，已实现）
+
 | 实体 | 关键字段 |
 |---|---|
-| CharacterCard | id, name, avatar, description, personality, scenario, firstMes, mesExample, 原始 V2 JSON |
-| Character | id, cardId, 覆盖字段（你可以改卡不改源）, 作息表 |
-| Conversation | id, characterId, playbookId, lastActivityAt, unreadCount |
-| Message | id, conversationId, role, text, virtualSentAt, status, 语音条附件 |
-| Playbook | id, name, mainPrompt, 采样参数, regex 组, 变量表, 皮肤 |
-| Lorebook | id, entries[{keys, content, constant, depth}] |
-| ChatState | conversationId, 变量快照（好感度/地点/情绪/剧情进度） |
-| Memory | id, characterId, kind(fact/summary), content, weight |
-| Moment | id, characterId, text, image, virtualPostedAt |
-| Settings | baseURL, model, 默认 playbook, 语音引擎 |
+| `Companion` | `uid`、`name`、`avatarTintRaw`、`persona`、`greeting`、`presetRaw`、`replyLengthRaw`、`isGroup`、`membersNote`、`wakeHour` / `sleepHour`、`memorySummary` / `memoryCursor`、`totalReplies`、`lastMessageAt`、`sortIndex`、`messages` |
+| `StoredMessage` | `uid`、`characterUID`、`roleRaw`、`text`、`speaker`、`isNarration`、`createdAt`、`character` |
+| `MomentPost` | `uid`、`characterUID`、`characterName`、`text`、`createdAt`、`tintSeed` |
+| `WorldEntry` | `uid`、`characterUID`（空=全局）、`keywords`、`content`、`enabled`、`createdAt` |
 
-所有业务时间走 `VirtualClock.now()`，不直接调 `Date()`。
+**合并的理由**（逐条对应 v1 里的拆分）：
 
-**提示词装配（AssemblePrompt）** 是核心用例，顺序固定：主提示词 → 用户人设 → 角色卡 → 设定集命中条目 → 变量 → 摘要 → 最近 N 条原文 → 作者注释。每一段可单独开关，出问题能定位是哪段注入坏了。
+| v1 拆法 | 为什么合了 |
+|---|---|
+| CharacterCard 与 Character 两张表 | 我们不做"原始卡 + 覆盖字段"的双层模型。导入一次就把字段写进 `Companion`，用户改的就是最终值。多一层同步等于多一处不一致 |
+| Conversation 单独一张表 | 一个角色一个会话，一对一。拆出去后每次查列表都要 join，而换来的能力（一个角色多个会话）现在的界面根本没入口 |
+| Playbook（玩法包）一张表 | 玩法包从"可编辑的数据"降级成"枚举 + 提示词段落"，四个内置包写在 `RoleplayPreset` 里。用户改不了、也不需要改 |
+| ChatState（变量表） | 还没做。等变量系统真做了再加表，现在建一张空表只是占位 |
+| Memory 独立表 | 改成 `Companion` 上的两个字段：`memorySummary` 和 `memoryCursor`。当前只做滚动摘要，一条记录足够 |
+| Settings | 不进数据库，走 UserDefaults + Keychain。设置项是标量，塞进 SwiftData 没有收益 |
+
+`ChatMessage`（Domain 实体）与 `StoredMessage`（持久化模型）是两种东西：前者是送给模型的最小结构（role + text），后者还带说话人和旁白标记。转换点只有 `StoredMessage.asChatMessage` 一处。
+
+### 6.3 提示词装配
+
+`PromptBuilder.systemPrompt` 是唯一入口，顺序固定：
+
+```
+身份 → 人设 → 对话形式 → 群聊规则 → 长度 → 时间与作息 → 记忆摘要 → 设定集命中 → 输出约束
+```
+
+每段独立可读，出问题时能一眼看出是哪一段注入坏了。`Features/` 层不允许自己拼提示词，`check_standards.py` 会扫特征字符串。
+
+### 6.4 关于虚拟时钟
+
+v1 写过"所有业务时间走 `VirtualClock.now()`"。**没有做**：它只有一个用途——把时间调到未来看角色反应，而真实使用里没人需要。现在统一用 `Date()`，格式化走 `TimeFormat`。
+
 
 ---
 
@@ -205,18 +229,23 @@ miniphone/
 
 ## 8. 分期计划
 
-每期都是能装到手机上跑的产出。
+每期都是能装到手机上跑的产出。「代码」一列只说明写没写，不代表验没验证过——中间那一列的差别很关键。
 
-| 期 | 目标 | 验收标准 |
-|---|---|---|
-| **P0** | 打通链路 | 手机上打开显示一句话，内容是你要的模型生成的。CI 能出 ipa |
-| **P1** | 小手机外壳 | 点亮→解锁→翻页→开图标，液态玻璃生效，观感像真机 |
-| **P2** | 聊天核心 | 建角色→聊 50 条→杀进程重开→记录不丢；**能一键导出全部数据** |
-| **P3** | 酒馆内核 | 导入一张 V2 PNG 卡能直接用；切预设出话风格明显不同；世界书命中生效 |
-| **P4** | 记忆与时间 | 连聊 3 天能引用第一天的事；时间调到凌晨，角色说睡了 |
-| **P5** | 玩法包 + 相册动态 | 切到直播体，界面变成直播间；角色发动态，桌面出红点 |
-| **P6** | 语音 | 点语音条能出声；点通话进入通话界面双向对话 |
-| **P7** | 打磨与自维护 | 一键导出全部数据，重装能完整恢复；迁移脚本带自动备份 |
+| 期 | 目标 | 验收标准 | 代码 | 验证 |
+|---|---|---|---|---|
+| **P0** | 打通链路 | 手机上打开显示一句话，内容是你要的模型生成的。CI 能出 ipa | 完成 | **真机跑过** |
+| **P1** | 小手机外壳 | 点亮→解锁→翻页→开图标，液态玻璃生效，观感像真机 | 完成 | 编译通过，未上真机 |
+| **P2** | 聊天核心 | 建角色→聊 50 条→杀进程重开→记录不丢；**能一键导出全部数据** | 完成 | 未编译 |
+| **P3** | 酒馆内核 | 导入一张 V2 PNG 卡能直接用；切预设出话风格明显不同；世界书命中生效 | 完成 | 未编译 |
+| **P4** | 记忆与时间 | 连聊 3 天能引用第一天的事；时间调到凌晨，角色说睡了 | 完成 | 未编译 |
+| **P5** | 玩法包 + 相册动态 | 切到直播体，界面变成直播间；角色发动态，桌面出红点 | 玩法包与动态完成，**直播体界面未做** | 未编译 |
+| **P6** | 语音 | 点语音条能出声；点通话进入通话界面双向对话 | 未开始 | — |
+| **P7** | 打磨与自维护 | 一键导出全部数据，重装能完整恢复；迁移脚本带自动备份 | 导出恢复已完成，迁移脚本未开始 | 未编译 |
+
+**当前卡点**：P1 之后新增的约 3300 行从来没进过编译器。CI 恢复后的第一件事是修编译错误，在此之前不该往上叠功能。
+
+下一次能加的功能顺序见 `docs/ROADMAP.md` 第 3 节。
+
 
 ---
 
