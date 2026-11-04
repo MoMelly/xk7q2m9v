@@ -49,6 +49,7 @@ struct MessageBubble: View {
         } else if isUser {
             label
                 .foregroundStyle(Theme.deepGreen)
+                .lineSpacing(4)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .background(
@@ -58,16 +59,20 @@ struct MessageBubble: View {
         } else {
             label
                 .foregroundStyle(Theme.cream)
+                .lineSpacing(4)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .glassSurface(cornerRadius: 18)
         }
     }
 
+    /// 返回 `Text` 而不是 `some View`：流式光标要用 `+` 拼在正文后面，
+    /// 而 `+` 只存在于 `Text` 之间。所以行距不能写在这里——`lineSpacing`
+    /// 是 `View` 的修饰符，一加就把类型变成 `some View`，`+` 立刻失效。
+    /// 行距放在两个调用点上。
     private var label: Text {
         let base = Text(text.isEmpty ? "…" : text)
             .font(.system(size: 15))
-            .lineSpacing(4)
 
         guard isStreaming else { return base }
         return base + Text("▍").foregroundColor(Theme.mint.opacity(0.8))
