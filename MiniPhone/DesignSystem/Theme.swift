@@ -64,10 +64,16 @@ enum Theme {
     ///
     /// 底色还是社交产品惯用的红，但图标和默认头像用真西瓜：绿皮、白瓤、红瓤、黑籽。
     /// 界面上不出现第二套主色——红是它的品牌红，绿只用在西瓜图形上。
+    ///
+    /// 每个色都给三段：切片是半透明玻璃质感，靠同色系明暗差做厚度，
+    /// 单色画出来是一块塑料片。
     enum Watermelon {
-        static let rind = Color(red: 0.28, green: 0.62, blue: 0.32)
-        static let pith = Color(red: 0.95, green: 0.97, blue: 0.90)
-        static let flesh = Color(red: 0.90, green: 0.24, blue: 0.29)
+        static let rindLight = Color(red: 0.45, green: 0.76, blue: 0.40)
+        static let rind = Color(red: 0.22, green: 0.55, blue: 0.27)
+        static let pith = Color(red: 0.96, green: 0.98, blue: 0.92)
+        static let fleshLight = Color(red: 0.98, green: 0.38, blue: 0.40)
+        static let flesh = Color(red: 0.90, green: 0.22, blue: 0.28)
+        static let fleshDeep = Color(red: 0.76, green: 0.12, blue: 0.20)
         static let seed = Color(red: 0.16, green: 0.14, blue: 0.13)
     }
 

@@ -21,8 +21,13 @@ struct FeedDetailPage: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        NoteCover(title: current.title, tag: current.tag, seed: current.coverSeed)
-                            .frame(height: 220)
+                        NoteCover(
+                            title: current.title,
+                            body: current.body,
+                            tag: current.tag,
+                            seed: current.coverSeed
+                        )
+                        .frame(height: 240)
                             .clipShape(
                                 RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
                             )

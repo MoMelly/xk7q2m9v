@@ -13,6 +13,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
     case music
     case shopping
     case feed
+    case letters
 
     var id: String { rawValue }
 
@@ -25,6 +26,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .music: return "音乐"
         case .shopping: return "购物"
         case .feed: return "西瓜皮"
+        case .letters: return "信件"
         }
     }
 
@@ -37,6 +39,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .music: return "music.note"
         case .shopping: return "bag.fill"
         case .feed: return "book.closed.fill"
+        case .letters: return "envelope.fill"
         }
     }
 }
@@ -62,9 +65,11 @@ struct ScenePage: View {
             case .music:
                 MusicScene(world: world, onClose: onExit)
             case .shopping:
-                ShoppingScene(world: world, onClose: onExit)
+                ShoppingScene(world: world, settings: settings, onClose: onExit)
             case .feed:
-                FeedScene(world: world, onClose: onExit)
+                FeedScene(world: world, settings: settings, onClose: onExit)
+            case .letters:
+                LetterScene(world: world, settings: settings, onClose: onExit)
             }
         }
         .onAppear { world.seedSceneContentIfNeeded() }

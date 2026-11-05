@@ -69,16 +69,41 @@ struct AppIconTile: View {
                 .blendMode(.plusLighter)
 
             if app.id == "feed" {
-                // 西瓜皮不用 SF Symbol：红底上垫一个白色圆徽章，里头一颗圆西瓜。
-                // 直接画西瓜会和红色底糊在一起，垫白圆之后轮廓才立得住。
-                ZStack {
-                    Circle()
-                        .fill(.white.opacity(0.92))
-                        .frame(width: size * 0.74, height: size * 0.74)
+                // 西瓜皮不用 SF Symbol，也不用白色圆徽章打底：
+                // 切片自己带白瓤收边，落在红底上轮廓已经够清楚，
+                // 再垫一个白圆就成了「圆里贴了张图」，反而把通透镜面压死。
+                // 红底上先铺一层背光，切片像是嵌在玻璃里而不是贴在上面。
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [.white.opacity(0.30), .clear],
+                            center: UnitPoint(x: 0.5, y: 0.38),
+                            startRadius: 0,
+                            endRadius: size * 0.62
+                        )
+                    )
+                    .blendMode(.plusLighter)
 
-                    WatermelonMark(size: size * 0.58)
-                }
-                .shadow(color: .black.opacity(0.18), radius: 1, y: 1)
+                WatermelonMark(size: size * 0.84)
+                    .offset(y: size * 0.02)
+                    .shadow(color: .black.opacity(0.22), radius: size * 0.035, y: size * 0.02)
+
+                // 斜穿整个图标的一道反光。玻璃的通透感来自「表面有光在走」，
+                // 只提亮边缘的话，中间还是一片实心红。
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0), .white.opacity(0.30), .white.opacity(0)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .frame(width: size * 1.6, height: size * 0.26)
+                    .rotationEffect(.degrees(-32))
+                    .offset(x: -size * 0.14, y: -size * 0.26)
+                    .blur(radius: size * 0.02)
+                    .blendMode(.plusLighter)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             } else {
                 Image(systemName: app.symbol)
                     .font(.system(size: size * 0.42, weight: .medium))

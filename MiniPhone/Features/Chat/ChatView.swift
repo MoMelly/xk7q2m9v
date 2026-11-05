@@ -17,6 +17,7 @@ struct ChatView: View {
     @State private var draft = ""
     @State private var showDetail = false
     @State private var showCalls = false
+    @State private var callKind: CallKind?
     @FocusState private var isInputFocused: Bool
 
     init(character: Companion, settings: SettingsStore, onExit: @escaping () -> Void) {
@@ -53,6 +54,7 @@ struct ChatView: View {
             CharacterDetailPage(
                 character: character,
                 world: WorldStore.shared,
+                settings: settings,
                 onRegenerate: {
                     showDetail = false
                     Task { await viewModel.regenerate(character: character, context: context, settings: settings) }
@@ -62,6 +64,15 @@ struct ChatView: View {
         }
         .sheet(isPresented: $showCalls) {
             CallScene(world: WorldStore.shared, onClose: { showCalls = false })
+        }
+        .fullScreenCover(item: $callKind) { kind in
+            CallOverlay(
+                character: character,
+                kind: kind,
+                settings: settings,
+                model: viewModel,
+                onEnd: { callKind = nil }
+            )
         }
     }
 
@@ -101,14 +112,39 @@ struct ChatView: View {
 
             Spacer(minLength: 0)
 
-            // 真机的信息 App 右上角就是这个位置放通话入口，详情挪到「…」里。
-            GlassIconButton(symbol: "phone.fill") { showCalls = true }
-
+            // 真机的信息 App 右上角就是这个位置放通话入口。
+            // 点开是三项：语音、视频、通话记录——不再单独占一个桌面图标。
+            GlassMenuButton(symbol: "phone.fill") {
+                callMenuItems
+            }
             GlassIconButton(symbol: "ellipsis") { showDetail = true }
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)
         .padding(.bottom, 8)
+    }
+
+    @ViewBuilder
+    private var callMenuItems: some View {
+        Button {
+            callKind = .voice
+        } label: {
+            Label("语音通话", systemImage: "phone.fill")
+        }
+
+        Button {
+            callKind = .video
+        } label: {
+            Label("视频通话", systemImage: "video.fill")
+        }
+
+        Divider()
+
+        Button {
+            showCalls = true
+        } label: {
+            Label("通话记录", systemImage: "clock.arrow.circlepath")
+        }
     }
 
     private func subtitle(at date: Date) -> String {
@@ -251,6 +287,11 @@ struct ChatView: View {
 
     private var composer: some View {
         HStack(spacing: 10) {
+            // 微信那套：输入框左边的加号里放通话。拨号不再占桌面一格。
+            GlassMenuButton(symbol: "plus", size: 30) {
+                callMenuItems
+            }
+
             TextField("说点什么", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: 15))

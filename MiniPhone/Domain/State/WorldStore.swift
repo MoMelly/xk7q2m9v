@@ -371,6 +371,39 @@ final class WorldStore {
     }
 
 
+    // MARK: - 信件
+
+    /// 收一封。同一个角色写过的信不合并——每封都是当时那一次写的。
+    func appendLetter(from name: String, title: String, body: String) {
+        let cleanBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanBody.isEmpty else { return }
+
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        state.letters.insert(
+            Letter(
+                id: UUID(),
+                fromName: name,
+                title: cleanTitle.isEmpty ? "写给你的信" : String(cleanTitle.prefix(24)),
+                body: String(cleanBody.prefix(1_200)),
+                createdAt: Date(),
+                isRead: false
+            ),
+            at: 0
+        )
+
+        if state.letters.count > 60 {
+            state.letters.removeLast(state.letters.count - 60)
+        }
+        save()
+    }
+
+    func markLetterRead(_ id: UUID) {
+        guard let index = state.letters.firstIndex(where: { $0.id == id }) else { return }
+        guard !state.letters[index].isRead else { return }
+        state.letters[index].isRead = true
+        save()
+    }
+
     // MARK: - 提示词上下文
 
     /// 交给 PromptBuilder 的只读快照。这里不拼提示词，业务层不写文案。

@@ -14,7 +14,8 @@ enum PromptBuilder {
         lastMessageAt: Date?,
         worldContext: WorldContext? = nil,
         metaBlockRequired: Bool = false,
-        refresh: RefreshRequest? = nil
+        refresh: RefreshRequest? = nil,
+        callMode: Bool = false
     ) -> String {
         var blocks: [String] = []
 
@@ -53,6 +54,17 @@ enum PromptBuilder {
 
         // 时间与作息
         blocks.append("【时间】" + CharacterClock.promptContext(character, now: now, lastMessageAt: lastMessageAt))
+
+        // 通话：同一个人，换了个介质。说话方式要跟着变，不然跟打字没区别。
+        if callMode {
+            blocks.append("""
+            【现在在通电话】
+            - 你们在打电话，不是在发消息。只写你嘴上说出来的话，一句话一行，一句 25 字以内。
+            - 不写旁白、不写动作、不加括号说明、不加时间戳。电话里没有这些。
+            - 像真的通话：可以「喂？」开头，可以说到一半停住，可以被打断，可以沉默一下再开口。
+            - 不要每句都完整，口语本来就碎。
+            """)
+        }
 
         // 记忆
         let memory = character.memorySummary.trimmingCharacters(in: .whitespacesAndNewlines)

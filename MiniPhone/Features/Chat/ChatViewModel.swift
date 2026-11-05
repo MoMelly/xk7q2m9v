@@ -25,7 +25,8 @@ final class ChatViewModel {
         _ raw: String,
         character: Companion,
         context: ModelContext,
-        settings: SettingsStore
+        settings: SettingsStore,
+        callMode: Bool = false
     ) async {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isStreaming else { return }
@@ -43,7 +44,30 @@ final class ChatViewModel {
         character.lastMessageAt = Date()
         save(context)
 
-        await generateReply(for: character, context: context, settings: settings)
+        await generateReply(
+            for: character,
+            context: context,
+            settings: settings,
+            callMode: callMode
+        )
+    }
+
+    /// 拨通之后让对方先开口。
+    ///
+    /// 电话和消息不一样：不会等你先发一句「在吗」。这里不插用户的假消息，
+    /// 直接走一次生成，模型看到的最后一条还是之前聊到的地方。
+    func beginCall(
+        character: Companion,
+        context: ModelContext,
+        settings: SettingsStore
+    ) async {
+        guard settings.isConfigured else {
+            errorText = "还没填 API Key。点右上角齿轮填一个。"
+            return
+        }
+        guard !isStreaming else { return }
+        errorText = nil
+        await generateReply(for: character, context: context, settings: settings, callMode: true)
     }
 
     /// 重新生成最后一条回复：先删掉最后一条助手消息，再走一遍生成。
@@ -58,13 +82,14 @@ final class ChatViewModel {
 
         context.delete(last)
         save(context)
-        await generateReply(for: character, context: context, settings: settings)
+        await generateReply(for: character, context: context, settings: settings, callMode: false)
     }
 
     private func generateReply(
         for character: Companion,
         context: ModelContext,
-        settings: SettingsStore
+        settings: SettingsStore,
+        callMode: Bool = false
     ) async {
         isStreaming = true
         streamingText = ""
@@ -126,7 +151,8 @@ final class ChatViewModel {
             lastMessageAt: history.dropLast().last?.createdAt,
             worldContext: worldContext,
             metaBlockRequired: plan.mergesSideEffects,
-            refresh: refresh
+            refresh: refresh,
+            callMode: callMode
         )
 
         var request: [ChatMessage] = [ChatMessage(role: .system, text: system)]

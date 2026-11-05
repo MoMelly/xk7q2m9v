@@ -234,8 +234,20 @@ struct NoteComment: Codable, Identifiable, Hashable {
     var isCharacter: Bool
 }
 
-/// 西瓜皮式的一条笔记。
+/// 一封写给你的信。
 ///
+/// 不是聊天记录的长版本：信是一次写完的、有开头和落款、不会秒回。
+/// 由角色详情页里「让 TA 写封信」触发，写完就躺在信件里，不会自己消失。
+struct Letter: Codable, Identifiable, Hashable {
+    var id: UUID
+    var fromName: String
+    var title: String
+    var body: String
+    var createdAt: Date
+    var isRead: Bool
+}
+
+/// 西瓜皮式的一条笔记。///
 /// 封面不是图片文件，是由标题和 `coverSeed` 现场排出来的文字图——
 /// 用真图就要么占包体、要么调生图接口，两种都不划算。
 struct FeedNote: Codable, Identifiable, Hashable {
@@ -281,6 +293,8 @@ struct WorldState: Codable {
     var shop: [ShopItem] = []
     /// 西瓜皮笔记。
     var feed: [FeedNote] = []
+    /// 收到的信。新的在前。
+    var letters: [Letter] = []
     /// 上一轮刷新增量的时间。
     var lastRefreshAt: Date?
     /// 每个页面各自「距上次刷新过了几轮」。key 是 `RefreshPage.rawValue`。
@@ -294,7 +308,7 @@ struct WorldState: Codable {
     private enum CodingKeys: String, CodingKey {
         case version, people, schedule, mood, currentTrack, location, usage
         case shopping, forum, shop, feed, lastRefreshAt, refreshTurns
-        case characterDays, updatedAt
+        case characterDays, letters, updatedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -313,6 +327,7 @@ struct WorldState: Codable {
         lastRefreshAt = try container.decodeIfPresent(Date.self, forKey: .lastRefreshAt)
         refreshTurns = try container.decodeIfPresent([String: Int].self, forKey: .refreshTurns) ?? [:]
         characterDays = try container.decodeIfPresent([CharacterDay].self, forKey: .characterDays) ?? []
+        letters = try container.decodeIfPresent([Letter].self, forKey: .letters) ?? []
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
     }
 
@@ -333,6 +348,7 @@ struct WorldState: Codable {
         try container.encodeIfPresent(lastRefreshAt, forKey: .lastRefreshAt)
         try container.encode(refreshTurns, forKey: .refreshTurns)
         try container.encode(characterDays, forKey: .characterDays)
+        try container.encode(letters, forKey: .letters)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
 

@@ -9,6 +9,7 @@ import SwiftData
 struct CharacterDetailPage: View {
     @Bindable var character: Companion
     let world: WorldStore
+    let settings: SettingsStore
     var onRegenerate: (() -> Void)? = nil
     var onClose: () -> Void
 
@@ -16,6 +17,8 @@ struct CharacterDetailPage: View {
     @State private var showEditor = false
     @State private var showClearConfirm = false
     @State private var calendarDenied = false
+    @State private var letterService = LetterService.shared
+    @State private var letterMessage: String?
 
     private var person: PersonMemory? {
         world.state.people.first { $0.name == character.name }
@@ -103,6 +106,19 @@ struct CharacterDetailPage: View {
                             )
                         }
                         .buttonStyle(.plain)
+                    }
+
+                    GroupedSection("信件", footer: letterMessage) {
+                        Button(action: writeLetter) {
+                            GroupedRow(
+                                symbol: "envelope.fill",
+                                symbolTint: Theme.IconTint.orange,
+                                title: letterService.isWriting(character) ? "正在写…" : "让 TA 写封信",
+                                showsChevron: false
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(letterService.isWriting(character))
                     }
 
                     GroupedSection("这个会话") {
@@ -208,6 +224,19 @@ struct CharacterDetailPage: View {
                 }
             }
         )
+    }
+
+    /// 写信是一次用户动作。写完给一句回执，信本体在桌面的「信件」里。
+    private func writeLetter() {
+        guard !letterService.isWriting(character) else { return }
+        letterMessage = nil
+        Task {
+            if let error = await letterService.write(character: character, settings: settings) {
+                letterMessage = error
+            } else {
+                letterMessage = "写好了，去「信件」里看。"
+            }
+        }
     }
 
     private func clearHistory() {

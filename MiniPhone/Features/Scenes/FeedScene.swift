@@ -2,18 +2,36 @@ import SwiftUI
 
 /// 西瓜皮。
 ///
-/// 结构照抄真机：顶部搜索条、两个页签、双列瀑布流。封面不是图片，
-/// 由 `NoteCover` 用标题现场排出来——这样笔记再多也不占包体。
-///
-/// 「关注」页只留角色发的笔记：`authorUID` 有值才算，路人的帖子不会混进来。
+/// 结构照抄真机：顶部搜索条 + 关注/发现两个页签，中间双列瀑布流，
+/// 底部只有三格——首页、发布、我的。发布只走中间那个红色按钮，
+/// 右上角留给刷新：点一下，模型出一整轮的帖子。
 struct FeedScene: View {
     let world: WorldStore
+    let settings: SettingsStore
     var onClose: () -> Void
 
-    @State private var tab: Tab = .discover
+    @State private var phoneTab: PhoneTab = .home
+    @State private var feedTab: FeedTab = .discover
     @State private var isComposing = false
+    @State private var refresher = RefreshService.shared
+    @State private var statusText: String?
+    @State private var statusTask: Task<Void, Never>?
 
-    enum Tab: String, CaseIterable, Identifiable {
+    enum PhoneTab: String, CaseIterable, Identifiable {
+        case home = "首页"
+        case mine = "我的"
+
+        var id: String { rawValue }
+
+        var symbol: String {
+            switch self {
+            case .home: return "house"
+            case .mine: return "person"
+            }
+        }
+    }
+
+    enum FeedTab: String, CaseIterable, Identifiable {
         case discover = "发现"
         case following = "关注"
 
@@ -22,7 +40,7 @@ struct FeedScene: View {
 
     private var notes: [FeedNote] {
         let all = world.state.feed.sorted { $0.postedAt > $1.postedAt }
-        switch tab {
+        switch feedTab {
         case .discover: return all
         case .following: return all.filter { $0.authorUID != nil }
         }
@@ -33,17 +51,34 @@ struct FeedScene: View {
             title: "西瓜皮",
             surface: .light,
             onClose: onClose,
-            trailingSymbol: "square.and.pencil",
-            trailingAction: { isComposing = true }
+            trailingSymbol: "arrow.clockwise",
+            trailingAction: refreshFeed
         ) {
             VStack(spacing: 0) {
                 searchBar
-                tabs
-                content
+
+                if phoneTab == .home {
+                    feedTabs
+                }
+
+                if let statusText {
+                    RefreshStatusStrip(text: statusText, isLoading: refresher.isRefreshing(.feed))
+                }
+
+                if phoneTab == .home {
+                    content
+                } else {
+                    FeedProfilePage(world: world, onCompose: { isComposing = true })
+                }
+
+                bottomBar
             }
         }
         .sheet(isPresented: $isComposing) {
-            NoteComposer(world: world, onClose: { isComposing = false })
+            NoteComposer(world: world, onClose: {
+                isComposing = false
+                phoneTab = .mine
+            })
         }
     }
 
@@ -56,6 +91,11 @@ struct FeedScene: View {
             Text("搜点什么")
                 .font(.system(size: PhoneMetrics.FontSize.sub))
             Spacer(minLength: 0)
+
+            if refresher.isRefreshing(.feed) {
+                ProgressView()
+                    .controlSize(.mini)
+            }
         }
         .foregroundStyle(AppSurface.light.secondaryLabel)
         .padding(.horizontal, PhoneMetrics.Space.s)
@@ -70,24 +110,24 @@ struct FeedScene: View {
         .padding(.top, PhoneMetrics.Space.xs)
     }
 
-    private var tabs: some View {
+    private var feedTabs: some View {
         HStack(spacing: PhoneMetrics.Space.l) {
-            ForEach(Tab.allCases) { item in
+            ForEach(FeedTab.allCases) { item in
                 Button {
-                    tab = item
+                    feedTab = item
                 } label: {
                     VStack(spacing: 5) {
                         Text(item.rawValue)
                             .font(.system(
                                 size: PhoneMetrics.FontSize.sub,
-                                weight: tab == item ? .semibold : .regular
+                                weight: feedTab == item ? .semibold : .regular
                             ))
                             .foregroundStyle(
-                                tab == item ? AppSurface.light.label : AppSurface.light.secondaryLabel
+                                feedTab == item ? AppSurface.light.label : AppSurface.light.secondaryLabel
                             )
 
                         Capsule()
-                            .fill(tab == item ? AppSurface.light.label : .clear)
+                            .fill(feedTab == item ? Theme.brand : .clear)
                             .frame(width: 16, height: 2)
                     }
                     .padding(.top, PhoneMetrics.Space.s)
@@ -101,7 +141,6 @@ struct FeedScene: View {
     }
 
     // MARK: - 瀑布流
-
     @ViewBuilder
     private var content: some View {
         if notes.isEmpty {
@@ -109,7 +148,7 @@ struct FeedScene: View {
         } else {
             GeometryReader { proxy in
                 let width = (proxy.size.width - PhoneMetrics.Space.m * 2 - PhoneMetrics.Space.xs) / 2
-                let columns = split(into: 2, width: width)
+                let columns = FeedWaterfall.split(notes, into: 2, width: width)
 
                 ScrollView {
                     HStack(alignment: .top, spacing: PhoneMetrics.Space.xs) {
@@ -127,7 +166,7 @@ struct FeedScene: View {
                         }
                     }
                     .padding(.horizontal, PhoneMetrics.Space.m)
-                    .padding(.top, PhoneMetrics.Space.xs)
+                    .padding(.top, PhoneMetrics.Space.xxs)
                     .padding(.bottom, PhoneMetrics.Space.xl)
                 }
             }
@@ -138,104 +177,84 @@ struct FeedScene: View {
         VStack(spacing: PhoneMetrics.Space.xs) {
             Image(systemName: "book.closed")
                 .font(.system(size: 26))
-            Text(tab == .following ? "角色还没发过笔记" : "还没刷出笔记")
+            Text(feedTab == .following ? "角色还没发过笔记" : "还没刷出笔记")
                 .font(.system(size: PhoneMetrics.FontSize.sub))
-            Text("多聊几句，这里会跟着变。")
+            Text("右上角刷新一下，或者多聊几句。")
                 .font(.system(size: PhoneMetrics.FontSize.caption))
         }
         .foregroundStyle(AppSurface.light.secondaryLabel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// 按估算高度把笔记分到两列，每次放进当前更矮的那一列。
-    ///
-    /// 真做瀑布流要量每一张的实际高度，那得等布局完成再回调，
-    /// 列表一滚动就会抖。按封面比例 + 标题行数估算已经够平。
-    private func split(into count: Int, width: CGFloat) -> [[FeedNote]] {
-        var columns = Array(repeating: [FeedNote](), count: count)
-        var heights = Array(repeating: CGFloat.zero, count: count)
+    // MARK: - 底部
 
-        for note in notes {
-            let target = heights.enumerated().min { $0.element < $1.element }?.offset ?? 0
-            columns[target].append(note)
-            heights[target] += estimatedHeight(of: note, width: width)
-        }
-        return columns
-    }
-
-    private func estimatedHeight(of note: FeedNote, width: CGFloat) -> CGFloat {
-        let ratio = FeedCard.aspectRatio(for: note.coverSeed)
-        let cover = width / ratio
-        // 封面 + 作者行 + 间距。卡片下方不再重复标题，高度就固定了。
-        return cover + 22 + PhoneMetrics.Space.xs
-    }
-}
-
-/// 西瓜皮里的头像。
-///
-/// 有 `authorUID` 的是角色，红底首字；没有的是路人和匿名评论，
-/// 给一颗圆西瓜——这是这个 App 唯一允许出现的默认头像。
-struct FeedAvatar: View {
-    var name: String
-    var isCharacter: Bool
-    var size: CGFloat = 22
-
-    var body: some View {
-        if isCharacter {
-            Circle()
-                .fill(Theme.brand)
-                .frame(width: size, height: size)
-                .overlay {
-                    Text(String(name.prefix(1)))
-                        .font(.system(size: size * 0.46, weight: .bold))
-                        .foregroundStyle(.white)
+    private var bottomBar: some View {
+        HStack(spacing: 0) {
+            ForEach(PhoneTab.allCases) { item in
+                if item == .mine {
+                    composeButton
                 }
-        } else {
-            WatermelonMark(size: size)
-        }
-    }
-}
 
-/// 一张笔记卡。
-struct FeedCard: View {
-    let note: FeedNote
-    let width: CGFloat
-
-    /// 封面比例也由 seed 决定，双列才不会像贴了两排同样大小的砖。
-    static func aspectRatio(for seed: Int) -> CGFloat {
-        [0.80, 1.00, 1.25][StableSeed.index(seed, count: 3)]
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            NoteCover(title: note.title, tag: note.tag, seed: note.coverSeed)
-                .frame(width: width, height: width / Self.aspectRatio(for: note.coverSeed))
-                .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.grouped, style: .continuous))
-
-            // 封面本身就是那张文字图，这里再写一遍标题等于同一句话出现两次。
-            // 标题只留在封面上，下面这行只放作者和赞。
-            HStack(spacing: 4) {
-                FeedAvatar(
-                    name: note.authorName,
-                    isCharacter: note.authorUID != nil,
-                    size: 20
-                )
-
-                Text(note.authorName)
-                    .font(.system(size: PhoneMetrics.FontSize.caption))
-                    .foregroundStyle(AppSurface.light.secondaryLabel)
-                    .lineLimit(1)
-
-                Spacer(minLength: 0)
-
-                Image(systemName: "heart")
-                    .font(.system(size: 10))
-                Text("\(note.likes)")
-                    .font(.system(size: PhoneMetrics.FontSize.caption))
+                Button {
+                    phoneTab = item
+                } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: phoneTab == item ? "\(item.symbol).fill" : item.symbol)
+                            .font(.system(size: 18, weight: .regular))
+                        Text(item.rawValue)
+                            .font(.system(size: 10))
+                    }
+                    .foregroundStyle(
+                        phoneTab == item ? AppSurface.light.label : AppSurface.light.secondaryLabel
+                    )
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .foregroundStyle(AppSurface.light.secondaryLabel)
-            .padding(.top, 5)
         }
-        .padding(.bottom, PhoneMetrics.Space.xxs)
+        .padding(.top, PhoneMetrics.Space.xs)
+        .padding(.bottom, PhoneMetrics.Space.xs)
+        .background(AppSurface.light.background)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(AppSurface.light.separator.opacity(0.5))
+                .frame(height: 0.5)
+        }
+    }
+
+    /// 发帖的唯一入口。红色胶囊是这一页唯一的实心红。
+    private var composeButton: some View {
+        Button {
+            isComposing = true
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 46, height: 30)
+                .background(Capsule().fill(Theme.brand))
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - 刷新
+
+    private func refreshFeed() {
+        guard !refresher.isRefreshing(.feed) else { return }
+        Task {
+            let outcome = await refresher.refresh(.feed, settings: settings)
+            statusTask?.cancel()
+            withAnimation(.easeOut(duration: 0.2)) {
+                statusText = outcome.text
+            }
+            statusTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.25)) {
+                    statusText = nil
+                }
+            }
+        }
     }
 }

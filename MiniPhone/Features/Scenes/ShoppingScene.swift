@@ -7,10 +7,14 @@ import SwiftUI
 /// 所以这一页会随着聊天内容变，`reason` 就写着它是从哪句话来的。
 struct ShoppingScene: View {
     let world: WorldStore
+    let settings: SettingsStore
     var onClose: () -> Void
 
     @State private var tab: Tab = .home
     @State private var category: String?
+    @State private var refresher = RefreshService.shared
+    @State private var statusText: String?
+    @State private var statusTask: Task<Void, Never>?
 
     enum Tab: String, CaseIterable, Identifiable {
         case home = "首页"
@@ -44,7 +48,13 @@ struct ShoppingScene: View {
     }
 
     var body: some View {
-        AppScreen(title: "购物", surface: .light, onClose: onClose) {
+        AppScreen(
+            title: "购物",
+            surface: .light,
+            onClose: onClose,
+            trailingSymbol: "arrow.clockwise",
+            trailingAction: refreshShop
+        ) {
             VStack(spacing: 0) {
                 switch tab {
                 case .home: home
@@ -65,6 +75,10 @@ struct ShoppingScene: View {
             searchBar
             if !categories.isEmpty {
                 categoryRow
+            }
+
+            if let statusText {
+                RefreshStatusStrip(text: statusText, isLoading: refresher.isRefreshing(.shop))
             }
 
             if items.isEmpty {
@@ -331,6 +345,30 @@ struct ShoppingScene: View {
         .foregroundStyle(AppSurface.light.secondaryLabel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, PhoneMetrics.Space.l)
+    }
+
+    // MARK: - 刷新
+
+    /// 和西瓜皮同一套：点一下，一次请求刷八件。
+    ///
+    /// 自动那条路是从聊天里顺出来的，内容更贴着刚才说的话；手动这条是
+    /// 「我想看看现在有什么」，所以提示词允许它按季节和时段自己发挥。
+    private func refreshShop() {
+        guard !refresher.isRefreshing(.shop) else { return }
+        Task {
+            let outcome = await refresher.refresh(.shop, settings: settings)
+            statusTask?.cancel()
+            withAnimation(.easeOut(duration: 0.2)) {
+                statusText = outcome.text
+            }
+            statusTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 4_000_000_000)
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeOut(duration: 0.25)) {
+                    statusText = nil
+                }
+            }
+        }
     }
 
     // MARK: - 底栏
