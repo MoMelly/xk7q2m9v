@@ -105,6 +105,20 @@ struct SettingsView: View {
 
                     GroupedSection {
                         rowLink {
+                            WorldsPage()
+                        } label: {
+                            GroupedRow(
+                                symbol: "square.stack.3d.up.fill",
+                                symbolTint: Theme.IconTint.indigo,
+                                title: "世界",
+                                value: WorldRegistry.active.name,
+                                showsChevron: true
+                            )
+                        }
+
+                        RowDivider()
+
+                        rowLink {
                             DataPage()
                         } label: {
                             GroupedRow(

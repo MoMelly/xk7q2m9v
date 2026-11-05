@@ -2,10 +2,12 @@ import Foundation
 import Observation
 
 /// 世界状态文件的路径。放在类型外面，让备份层不必跨 actor 隔离取路径。
+///
+/// 跟着当前世界走：第一个世界还是 `Documents/world-state.json`，
+/// 新建的世界在 `Documents/worlds/<id>/world-state.json`。
 enum WorldStateFile {
     static var url: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("world-state.json")
+        WorldRegistry.stateURL(for: WorldRegistry.activeID)
     }
 }
 

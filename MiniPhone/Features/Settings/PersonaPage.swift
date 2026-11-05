@@ -19,8 +19,8 @@ struct PersonaPage: View {
                     GroupedSection(
                         footer: "换身份不换记忆：角色记住的事挂在会话上，人设只决定他以为在跟谁说话。"
                     ) {
-                        ForEach(Array(profiles.enumerated()), id: \.element.uid) { index, profile in
-                            if index > 0 {
+                        ForEach(profiles) { profile in
+                            if profile.uid != profiles.first?.uid {
                                 RowDivider()
                             }
 

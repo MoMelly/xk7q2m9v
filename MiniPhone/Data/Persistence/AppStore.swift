@@ -18,8 +18,20 @@ enum AppStore {
 
     /// 落盘的容器。建不出来时退回内存模式，让 App 还能打开——
     /// 打不开比丢数据更让人无从下手。
+    ///
+    /// 每个世界一套库。第一个世界不指定路径，继续用 SwiftData 自己那个默认位置，
+    /// 老数据因此原地不动；新建的世界才落到 `Documents/worlds/<id>/`。
+    /// 这里只在启动时读一次注册表，切换世界之后要重启才生效。
     static let container: ModelContainer = {
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let worldID = WorldRegistry.activeID
+        let configuration: ModelConfiguration
+
+        if let url = WorldRegistry.storeURL(for: worldID) {
+            configuration = ModelConfiguration(schema: schema, url: url)
+        } else {
+            configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        }
+
         do {
             return try ModelContainer(for: schema, configurations: [configuration])
         } catch {
