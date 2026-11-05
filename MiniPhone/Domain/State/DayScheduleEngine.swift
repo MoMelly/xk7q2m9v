@@ -77,8 +77,13 @@ enum DayScheduleEngine {
         }
 
         let hours = [9, 12, 15, 19, 22].filter { $0 > wakeHour && $0 < sleepHour }
+        var used = Set<String>()
         let items: [ScheduleItem] = hours.map { hour in
-            let template = pool[Int(next() % UInt64(pool.count))]
+            // 同一天里不重复。抽到已经用过的就换一个，池子抽干了才让步。
+            let rest = pool.filter { !used.contains($0.title) }
+            let source = rest.isEmpty ? pool : rest
+            let template = source[Int(next() % UInt64(source.count))]
+            used.insert(template.title)
             return ScheduleItem(
                 id: UUID(),
                 hour: hour,

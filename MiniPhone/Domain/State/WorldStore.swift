@@ -341,7 +341,7 @@ final class WorldStore {
 
     /// 第一次进入时铺一层静态内容，之后一直读同一份，不会每次打开都换。
     ///
-    /// 只铺小红书：这几条是路人发的，和聊天无关，用来让版面第一次打开就有东西看。
+    /// 只铺西瓜皮：这几条是路人发的，和聊天无关，用来让版面第一次打开就有东西看。
     /// 购物不铺——那一页的意义就是「从你跟谁聊了什么推出来的」，
     /// 预置几件凭空出现的商品反而把这件事讲反了。
     func seedSceneContentIfNeeded(now: Date = Date()) {
@@ -414,6 +414,19 @@ final class WorldStore {
             .prefix(4)
             .map { $0 }
 
+        // 他自己发过的帖子。没有这一块，他会被问「你昨天发的那条是什么」然后答不上来。
+        let social = state.feed
+            .filter { $0.authorName == owner }
+            .sorted { $0.postedAt > $1.postedAt }
+            .prefix(3)
+            .map { note -> String in
+                var line = "- 「\(note.title)」，\(note.likes) 赞"
+                if let first = note.comments.first {
+                    line += "，\(first.authorName) 评论：「\(first.text)」"
+                }
+                return line
+            }
+
         return WorldContext(
             summaries: summaries,
             facts: facts,
@@ -426,6 +439,7 @@ final class WorldStore {
             usageLines: usage,
             days: days,
             userCalendarLines: calendarLines,
+            socialLines: Array(social),
             now: now
         )
     }
@@ -446,5 +460,7 @@ struct WorldContext {
     var days: [CharacterDay] = []
     /// 用户系统日历里的安排。角色被允许读的时候才有值。
     var userCalendarLines: [String] = []
+    /// 这个角色自己在西瓜皮上发过什么。发过的东西也要进记忆，否则问起会失忆。
+    var socialLines: [String] = []
     var now: Date
 }

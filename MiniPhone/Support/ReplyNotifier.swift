@@ -33,7 +33,7 @@ enum ReplyNotifier {
         deliver(title: characterName, body: String(text.prefix(120)))
     }
 
-    /// 页面自己刷新了（购物换了一批、小红书有人发帖）。
+    /// 页面自己刷新了（购物换了一批、西瓜皮有人发帖）。
     ///
     /// 这是本地通知，不需要推送证书。App 在前台时不发——
     /// 那时外壳会弹一条自己画的玻璃横幅，两条一起出现就重了。

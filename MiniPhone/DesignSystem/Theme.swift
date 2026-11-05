@@ -43,7 +43,7 @@ enum Theme {
     static let separator = Color(red: 0.776, green: 0.776, blue: 0.784)
     /// 系统蓝。浅色 App 的 tint。
     static let tint = Color(red: 0.0, green: 0.478, blue: 1.0)
-    /// 小红书 / 淘宝那一系的品牌红。选中态、加购按钮、价格都用它。
+    /// 西瓜皮 / 淘宝那一系的品牌红。选中态、加购按钮、价格都用它。
     static let brand = Color(red: 0.94, green: 0.35, blue: 0.30)
     /// 价格数字，比品牌红再深一点，白底上更立得住。
     static let price = Color(red: 0.92, green: 0.26, blue: 0.20)
@@ -60,7 +60,19 @@ enum Theme {
         static let indigo = Color(red: 0.55, green: 0.42, blue: 0.78)
     }
 
-    /// 阴影只有三档。浅色分组列表默认不用——给每行都加阴影，浅底上会叠出一圈灰边。
+    /// 「西瓜皮」自己的那套色。
+    ///
+    /// 底色还是社交产品惯用的红，但图标和默认头像用真西瓜：绿皮、白瓤、红瓤、黑籽。
+    /// 界面上不出现第二套主色——红是它的品牌红，绿只用在西瓜图形上。
+    enum Watermelon {
+        static let rind = Color(red: 0.28, green: 0.62, blue: 0.32)
+        static let pith = Color(red: 0.95, green: 0.97, blue: 0.90)
+        static let flesh = Color(red: 0.90, green: 0.24, blue: 0.29)
+        static let seed = Color(red: 0.16, green: 0.14, blue: 0.13)
+    }
+
+    /// 阴影只有三档。
+    /// 浅色分组列表默认不用——给每行都加阴影，浅底上会叠出一圈灰边。
     enum ShadowStyle {
         case none
         case soft

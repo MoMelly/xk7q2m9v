@@ -210,6 +210,16 @@ enum PromptBuilder {
             """)
         }
 
+        // 他自己在西瓜皮上发过的东西。
+        if !context.socialLines.isEmpty {
+            parts.append("""
+            【你在西瓜皮上】
+            你在这个 App 里有自己的号，最近发过：
+            \(context.socialLines.joined(separator: "\n"))
+            你记得自己发过什么，也记得底下谁说了什么。别人问起可以聊，但不要主动当广告念。
+            """)
+        }
+
         // 用户 iOS 日历里的事。角色只有在被允许读的时候才看得到。
         if !context.userCalendarLines.isEmpty {
             parts.append("""

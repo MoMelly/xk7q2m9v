@@ -13,7 +13,7 @@ enum RefreshPage: String, Codable, CaseIterable, Identifiable, Hashable {
     var title: String {
         switch self {
         case .shop: return "购物"
-        case .feed: return "小红书"
+        case .feed: return "西瓜皮"
         }
     }
 
@@ -28,7 +28,7 @@ enum RefreshPage: String, Codable, CaseIterable, Identifiable, Hashable {
     var notice: String {
         switch self {
         case .shop: return "购物 · 给你挑了几件新的"
-        case .feed: return "小红书 · 有人发了新笔记"
+        case .feed: return "西瓜皮 · 有人发了新笔记"
         }
     }
 }
@@ -70,7 +70,7 @@ struct RefreshRequest: Hashable {
 ///
 /// 规则：每个页面各自维护「距上次刷新过了几轮」，到间隔之后按各自概率掷骰子，
 /// 掷中就刷，刷完计数归零。所以两个页面不会同步变，购物可能连着刷两次，
-/// 小红书一次都没动——这本来就是「不同 App 有各自的节奏」。
+/// 西瓜皮一次都没动——这本来就是「不同 App 有各自的节奏」。
 ///
 /// 按次计费允许一轮同时刷多个页面（同一次请求，不额外花钱）；
 /// 按量计费每轮只放一个页面进来，把多出来的 token 压到最小。

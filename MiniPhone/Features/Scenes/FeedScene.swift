@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 小红书。
+/// 西瓜皮。
 ///
 /// 结构照抄真机：顶部搜索条、两个页签、双列瀑布流。封面不是图片，
 /// 由 `NoteCover` 用标题现场排出来——这样笔记再多也不占包体。
@@ -30,7 +30,7 @@ struct FeedScene: View {
 
     var body: some View {
         AppScreen(
-            title: "小红书",
+            title: "西瓜皮",
             surface: .light,
             onClose: onClose,
             trailingSymbol: "square.and.pencil",
@@ -171,6 +171,31 @@ struct FeedScene: View {
     }
 }
 
+/// 西瓜皮里的头像。
+///
+/// 有 `authorUID` 的是角色，红底首字；没有的是路人和匿名评论，
+/// 给一颗圆西瓜——这是这个 App 唯一允许出现的默认头像。
+struct FeedAvatar: View {
+    var name: String
+    var isCharacter: Bool
+    var size: CGFloat = 22
+
+    var body: some View {
+        if isCharacter {
+            Circle()
+                .fill(Theme.brand)
+                .frame(width: size, height: size)
+                .overlay {
+                    Text(String(name.prefix(1)))
+                        .font(.system(size: size * 0.46, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+        } else {
+            WatermelonMark(size: size)
+        }
+    }
+}
+
 /// 一张笔记卡。
 struct FeedCard: View {
     let note: FeedNote
@@ -196,14 +221,11 @@ struct FeedCard: View {
                 .padding(.top, PhoneMetrics.Space.xs)
 
             HStack(spacing: 4) {
-                Circle()
-                    .fill(Theme.brand)
-                    .frame(width: 14, height: 14)
-                    .overlay {
-                        Text(String(note.authorName.prefix(1)))
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.white)
-                    }
+                FeedAvatar(
+                    name: note.authorName,
+                    isCharacter: note.authorUID != nil,
+                    size: 15
+                )
 
                 Text(note.authorName)
                     .font(.system(size: PhoneMetrics.FontSize.caption))

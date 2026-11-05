@@ -234,7 +234,7 @@ struct NoteComment: Codable, Identifiable, Hashable {
     var isCharacter: Bool
 }
 
-/// 小红书式的一条笔记。
+/// 西瓜皮式的一条笔记。
 ///
 /// 封面不是图片文件，是由标题和 `coverSeed` 现场排出来的文字图——
 /// 用真图就要么占包体、要么调生图接口，两种都不划算。
@@ -279,7 +279,7 @@ struct WorldState: Codable {
     var forum: [ForumPost] = []
     /// 购物页的推荐流，由刷新引擎写入。
     var shop: [ShopItem] = []
-    /// 小红书笔记。
+    /// 西瓜皮笔记。
     var feed: [FeedNote] = []
     /// 上一轮刷新增量的时间。
     var lastRefreshAt: Date?

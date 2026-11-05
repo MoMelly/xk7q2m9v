@@ -95,7 +95,7 @@ enum AppCatalog {
         PhoneApp(id: "music", name: "音乐", symbol: "music.note",
                  colors: [Color(red: 1.0, green: 0.46, blue: 0.52), Color(red: 0.97, green: 0.24, blue: 0.48)],
                  destination: .scene(.music)),
-        PhoneApp(id: "feed", name: "小红书", symbol: "book.closed.fill",
+        PhoneApp(id: "feed", name: "西瓜皮", symbol: "book.closed.fill",
                  colors: [Color(red: 1.0, green: 0.38, blue: 0.36), Color(red: 0.94, green: 0.16, blue: 0.24)],
                  destination: .scene(.feed)),
         PhoneApp(id: "appstore", name: "购物", symbol: "bag.fill",

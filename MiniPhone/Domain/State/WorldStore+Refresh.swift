@@ -70,7 +70,7 @@ extension WorldStore {
         return added
     }
 
-    /// 把这一轮带回来的笔记写进小红书。
+    /// 把这一轮带回来的笔记写进西瓜皮。
     @discardableResult
     func applyFeedDrafts(
         _ drafts: [ReplyEnvelope.FeedDraft],
@@ -134,7 +134,7 @@ extension WorldStore {
         save()
     }
 
-    /// 用户自己在小红书发的笔记。
+    /// 用户自己在西瓜皮发的笔记。
     ///
     /// `authorUID` 留空表示「我发的」，界面上不当成角色主页入口。
     func publishNote(title: String, body: String, tag: String) {

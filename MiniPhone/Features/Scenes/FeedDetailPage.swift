@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 笔记详情。
 ///
-/// 结构照小红书：大封面、标题、正文、话题、作者，下面一列评论。
+/// 结构照西瓜皮：大封面、标题、正文、话题、作者，下面一列评论。
 /// 用户自己发的笔记也走这一页，可以在底下补一句。
 struct FeedDetailPage: View {
     let note: FeedNote
@@ -43,14 +43,11 @@ struct FeedDetailPage: View {
 
     private var authorRow: some View {
         HStack(spacing: PhoneMetrics.Space.xs) {
-            Circle()
-                .fill(Theme.brand)
-                .frame(width: 26, height: 26)
-                .overlay {
-                    Text(String(current.authorName.prefix(1)))
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.white)
-                }
+            FeedAvatar(
+                name: current.authorName,
+                isCharacter: current.authorUID != nil,
+                size: 26
+            )
 
             Text(current.authorName)
                 .font(.system(size: PhoneMetrics.FontSize.sub, weight: .medium))
@@ -105,16 +102,11 @@ struct FeedDetailPage: View {
 
             ForEach(current.comments) { comment in
                 HStack(alignment: .top, spacing: PhoneMetrics.Space.xs) {
-                    Circle()
-                        .fill(comment.isCharacter
-                              ? Theme.tint
-                              : AppSurface.light.separator)
-                        .frame(width: 22, height: 22)
-                        .overlay {
-                            Text(String(comment.authorName.prefix(1)))
-                                .font(.system(size: 10, weight: .semibold))
-                                .foregroundStyle(comment.isCharacter ? .white : AppSurface.light.label)
-                        }
+                    FeedAvatar(
+                        name: comment.authorName,
+                        isCharacter: comment.isCharacter,
+                        size: 22
+                    )
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(comment.authorName)

@@ -24,7 +24,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .health: return "健康"
         case .music: return "音乐"
         case .shopping: return "购物"
-        case .feed: return "小红书"
+        case .feed: return "西瓜皮"
         }
     }
 

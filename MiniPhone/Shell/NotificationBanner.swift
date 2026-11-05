@@ -63,7 +63,7 @@ struct NotificationBanner: View {
 
 /// 外壳里的横幅队列。
 ///
-/// 一次刷新可能同时涉及购物和小红书，两条横幅一起冒出来会挤满屏幕，
+/// 一次刷新可能同时涉及购物和西瓜皮，两条横幅一起冒出来会挤满屏幕，
 /// 所以排队逐条显示。
 struct NotificationStack: View {
     let notices: [Notice]

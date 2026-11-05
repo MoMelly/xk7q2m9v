@@ -68,10 +68,23 @@ struct AppIconTile: View {
                 )
                 .blendMode(.plusLighter)
 
-            Image(systemName: app.symbol)
-                .font(.system(size: size * 0.42, weight: .medium))
-                .foregroundStyle(app.symbolTint)
-                .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
+            if app.id == "feed" {
+                // 西瓜皮不用 SF Symbol：红底上垫一个白色圆徽章，里头一颗圆西瓜。
+                // 直接画西瓜会和红色底糊在一起，垫白圆之后轮廓才立得住。
+                ZStack {
+                    Circle()
+                        .fill(.white.opacity(0.92))
+                        .frame(width: size * 0.74, height: size * 0.74)
+
+                    WatermelonMark(size: size * 0.58)
+                }
+                .shadow(color: .black.opacity(0.18), radius: 1, y: 1)
+            } else {
+                Image(systemName: app.symbol)
+                    .font(.system(size: size * 0.42, weight: .medium))
+                    .foregroundStyle(app.symbolTint)
+                    .shadow(color: .black.opacity(0.2), radius: 1, y: 1)
+            }
         }
         .frame(width: size, height: size)
         .overlay {
