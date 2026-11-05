@@ -101,6 +101,27 @@ def check_duplicate_wheels(path: Path, lines: list[str]) -> None:
                     add_error(path, index, f"提示词必须放在 PromptBuilder（发现「{marker}」）")
 
 
+def check_launch_permissions(path: Path, lines: list[str]) -> None:
+    """App 入口不得申请系统权限。
+
+    首次启动的授权框由系统绘制在 App 之上，SwiftUI 层级里关不掉；
+    它会盖住锁屏，也会让模拟器截图全部作废。权限申请只能绑到用户动作
+    或真正要用到该能力的那一刻。
+    """
+    if not rel(path).startswith("MiniPhone/App/"):
+        return
+
+    for index, line in enumerate(lines, start=1):
+        if line.lstrip().startswith("//"):
+            continue
+        if "requestAuthorization" in line:
+            add_error(
+                path,
+                index,
+                "启动路径不允许申请系统权限；绑定到设置开关或首次真实使用时",
+            )
+
+
 def check_file_size(path: Path, lines: list[str]) -> None:
     count = len(lines)
     if count > ERROR_LINES:
@@ -214,6 +235,7 @@ def main() -> int:
 
         check_layer_imports(path, lines)
         check_duplicate_wheels(path, lines)
+        check_launch_permissions(path, lines)
         check_file_size(path, lines)
         check_line_endings_and_brackets(path, raw, text)
         check_secrets(path, lines)
