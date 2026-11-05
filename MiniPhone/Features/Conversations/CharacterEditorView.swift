@@ -22,6 +22,8 @@ struct CharacterEditorView: View {
     @State private var membersNote = ""
     @State private var wakeHour = 7
     @State private var sleepHour = 23
+    @State private var signature = ""
+    @State private var tagsText = ""
 
     @State private var showImporter = false
     @State private var importMessage: String?
@@ -44,12 +46,15 @@ struct CharacterEditorView: View {
         _membersNote = State(initialValue: character?.membersNote ?? "")
         _wakeHour = State(initialValue: character?.wakeHour ?? 7)
         _sleepHour = State(initialValue: character?.sleepHour ?? 23)
+        _signature = State(initialValue: character?.signature ?? "")
+        _tagsText = State(initialValue: character?.tags.joined(separator: "，") ?? "")
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 basicsSection
+                profileSection
                 presetSection
                 personaSection
                 scheduleSection
@@ -149,6 +154,19 @@ struct CharacterEditorView: View {
             Text(isGroup
                  ? "群聊时模型会以「名字：台词」的形式分行输出，界面会自动拆成多个气泡。"
                  : "回复长度只是提示词里的约束，不会硬截断句子。")
+        }
+    }
+
+    private var profileSection: some View {
+        Section {
+            TextField("签名（主页上那一行，30 字内）", text: $signature, axis: .vertical)
+                .lineLimit(1...2)
+
+            TextField("标签（逗号分隔，例如：夜猫子，毒舌，会做饭）", text: $tagsText)
+        } header: {
+            Text("主页")
+        } footer: {
+            Text("签名和标签只出现在角色主页上，也会进提示词，让它说话时别太偏离自己贴的标签。")
         }
     }
 
@@ -313,6 +331,11 @@ struct CharacterEditorView: View {
         target.membersNote = membersNote
         target.wakeHour = wakeHour
         target.sleepHour = sleepHour
+        target.signature = signature.trimmingCharacters(in: .whitespacesAndNewlines)
+        target.tags = tagsText
+            .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
 
         do {
             try context.save()

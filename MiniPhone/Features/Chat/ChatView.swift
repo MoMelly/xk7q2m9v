@@ -15,8 +15,8 @@ struct ChatView: View {
 
     @State private var viewModel = ChatViewModel()
     @State private var draft = ""
-    @State private var showEditor = false
-    @State private var showActions = false
+    @State private var showDetail = false
+    @State private var showCalls = false
     @FocusState private var isInputFocused: Bool
 
     init(character: Companion, settings: SettingsStore, onExit: @escaping () -> Void) {
@@ -49,17 +49,19 @@ struct ChatView: View {
             }
         }
         .onAppear { seedGreetingIfNeeded() }
-        .sheet(isPresented: $showEditor) {
-            CharacterEditorView(character: character, onFinish: { showEditor = false })
+        .sheet(isPresented: $showDetail) {
+            CharacterDetailPage(
+                character: character,
+                world: WorldStore.shared,
+                onRegenerate: {
+                    showDetail = false
+                    Task { await viewModel.regenerate(character: character, context: context, settings: settings) }
+                },
+                onClose: { showDetail = false }
+            )
         }
-        .confirmationDialog("这次对话", isPresented: $showActions, titleVisibility: .visible) {
-            Button("重新生成最后一条") {
-                Task { await viewModel.regenerate(character: character, context: context, settings: settings) }
-            }
-            Button("清空对话记录", role: .destructive) {
-                clearHistory()
-            }
-            Button("取消", role: .cancel) {}
+        .sheet(isPresented: $showCalls) {
+            CallScene(world: WorldStore.shared, onClose: { showCalls = false })
         }
     }
 
@@ -70,7 +72,7 @@ struct ChatView: View {
             GlassIconButton(symbol: "chevron.left", action: onExit)
 
             Button {
-                showEditor = true
+                showDetail = true
             } label: {
                 HStack(spacing: 9) {
                     AvatarBubble(character: character, size: 30)
@@ -99,7 +101,10 @@ struct ChatView: View {
 
             Spacer(minLength: 0)
 
-            GlassIconButton(symbol: "ellipsis") { showActions = true }
+            // 真机的信息 App 右上角就是这个位置放通话入口，详情挪到「…」里。
+            GlassIconButton(symbol: "phone.fill") { showCalls = true }
+
+            GlassIconButton(symbol: "ellipsis") { showDetail = true }
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)
@@ -306,15 +311,5 @@ struct ChatView: View {
         message.character = character
         context.insert(message)
         try? context.save()
-    }
-
-    private func clearHistory() {
-        for message in character.messages {
-            context.delete(message)
-        }
-        character.memorySummary = ""
-        character.memoryCursor = nil
-        try? context.save()
-        seedGreetingIfNeeded()
     }
 }

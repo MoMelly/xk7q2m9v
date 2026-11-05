@@ -54,7 +54,7 @@ struct ScenePage: View {
             case .calendar:
                 CalendarScene(world: world, onClose: onExit)
             case .notes:
-                NotesScene(world: world, onClose: onExit)
+                NotesScene(onClose: onExit)
             case .calls:
                 CallScene(world: world, onClose: onExit)
             case .health:

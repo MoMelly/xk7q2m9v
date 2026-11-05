@@ -74,6 +74,66 @@ struct DaySchedule: Codable {
     var generatedAt: Date
 }
 
+/// 某个角色某一天的时间轴，也是他这一天留下的记忆。
+///
+/// 只在「当天和它说过话」时才落一份，不给二十个没聊过的角色白造二十份内容。
+/// 落下来之后就留着：角色要能说出「昨天在做什么」，光有今天这一天是不够的。
+struct CharacterDay: Codable, Identifiable {
+    var name: String
+    var dateKey: String
+    var items: [ScheduleItem]
+    /// 这天的主要心情，取日程里出现最多的一种。
+    var mood: Mood
+    /// 当天发生的事，由聊天之后的一次概括写进来。没聊过就是空串。
+    var summary: String
+    /// 这天有没有真的说过话。日程是排出来的，这个标记是聊出来的。
+    var didChat: Bool
+    var generatedAt: Date
+
+    var id: String { "\(name)|\(dateKey)" }
+
+    private enum CodingKeys: String, CodingKey {
+        case name, dateKey, items, mood, summary, didChat, generatedAt
+    }
+
+    init(
+        name: String,
+        dateKey: String,
+        items: [ScheduleItem],
+        mood: Mood,
+        summary: String = "",
+        didChat: Bool = false,
+        generatedAt: Date = Date()
+    ) {
+        self.name = name
+        self.dateKey = dateKey
+        self.items = items
+        self.mood = mood
+        self.summary = summary
+        self.didChat = didChat
+        self.generatedAt = generatedAt
+    }
+
+    /// 逐字段兜底。这一层以后还会加东西（事件、关系变化），
+    /// 合成解码会让任何一次新增都把整份世界状态读废。
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        dateKey = try container.decodeIfPresent(String.self, forKey: .dateKey) ?? ""
+        items = try container.decodeIfPresent([ScheduleItem].self, forKey: .items) ?? []
+        if let raw = try? container.decodeIfPresent(String.self, forKey: .mood),
+           let raw,
+           let parsed = Mood(rawValue: raw) {
+            mood = parsed
+        } else {
+            mood = .calm
+        }
+        summary = try container.decodeIfPresent(String.self, forKey: .summary) ?? ""
+        didChat = try container.decodeIfPresent(Bool.self, forKey: .didChat) ?? false
+        generatedAt = try container.decodeIfPresent(Date.self, forKey: .generatedAt) ?? Date()
+    }
+}
+
 /// 一条跨会话事实。归属到人，不归属到会话，群聊里发生的事单聊也能读到。
 struct PersonFact: Codable, Identifiable {
     var id: UUID
@@ -226,13 +286,16 @@ struct WorldState: Codable {
     var lastRefreshAt: Date?
     /// 每个页面各自「距上次刷新过了几轮」。key 是 `RefreshPage.rawValue`。
     var refreshTurns: [String: Int] = [:]
+    /// 各角色当天的时间轴，只保留今天的。
+    var characterDays: [CharacterDay] = []
     var updatedAt: Date = Date()
 
     init() {}
 
     private enum CodingKeys: String, CodingKey {
         case version, people, schedule, mood, currentTrack, location, usage
-        case shopping, forum, shop, feed, lastRefreshAt, refreshTurns, updatedAt
+        case shopping, forum, shop, feed, lastRefreshAt, refreshTurns
+        case characterDays, updatedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -250,7 +313,28 @@ struct WorldState: Codable {
         feed = try container.decodeIfPresent([FeedNote].self, forKey: .feed) ?? []
         lastRefreshAt = try container.decodeIfPresent(Date.self, forKey: .lastRefreshAt)
         refreshTurns = try container.decodeIfPresent([String: Int].self, forKey: .refreshTurns) ?? [:]
+        characterDays = try container.decodeIfPresent([CharacterDay].self, forKey: .characterDays) ?? []
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+    }
+
+    /// 归档编码要跟着手写解码一起走，两边字段名对不上会静默丢数据。
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(version, forKey: .version)
+        try container.encode(people, forKey: .people)
+        try container.encodeIfPresent(schedule, forKey: .schedule)
+        try container.encodeIfPresent(mood, forKey: .mood)
+        try container.encodeIfPresent(currentTrack, forKey: .currentTrack)
+        try container.encode(location, forKey: .location)
+        try container.encode(usage, forKey: .usage)
+        try container.encode(shopping, forKey: .shopping)
+        try container.encode(forum, forKey: .forum)
+        try container.encode(shop, forKey: .shop)
+        try container.encode(feed, forKey: .feed)
+        try container.encodeIfPresent(lastRefreshAt, forKey: .lastRefreshAt)
+        try container.encode(refreshTurns, forKey: .refreshTurns)
+        try container.encode(characterDays, forKey: .characterDays)
+        try container.encode(updatedAt, forKey: .updatedAt)
     }
 
     static let empty = WorldState()

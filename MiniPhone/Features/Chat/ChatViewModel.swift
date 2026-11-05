@@ -90,9 +90,16 @@ final class ChatViewModel {
             .joined(separator: "\n")
 
         let allEntries = (try? context.fetch(FetchDescriptor<WorldEntry>())) ?? []
+
+        // 日历只在角色被允许读的时候才去取。默认关，关着就连查都不查。
+        let calendarLines = character.canReadCalendar
+            ? UserCalendarBridge.upcomingLines()
+            : []
+
         let worldContext = world.context(
             for: names,
-            deviceLines: DeviceSnapshot.lines(allowPhoneLookups: settings.allowPhoneLookups)
+            deviceLines: DeviceSnapshot.lines(allowPhoneLookups: settings.allowPhoneLookups),
+            calendarLines: calendarLines
         )
         if !worldContext.voices.isEmpty {
             world.markReferenced(worldContext.voices)
@@ -196,6 +203,7 @@ final class ChatViewModel {
         character.totalReplies += 1
         character.lastMessageAt = Date()
         applySideEffects(meta, names: names, character: character, context: context)
+        recordDay(meta, for: character)
         applyRefresh(
             meta,
             refresh: refresh,
@@ -220,8 +228,25 @@ final class ChatViewModel {
         }
     }
 
-    /// 状态块里带回来的增量统一写进 WorldStore。
+    /// 把这一轮记进角色当天的那一页。
     ///
+    /// 日程本身是本地排出来的，聊过之后才盖上「这天说过话」的章，
+    /// 并把模型给的 dayLog 挂上去。角色之后说「昨天我们聊到……」靠的就是它。
+    private func recordDay(_ meta: ReplyEnvelope.Meta?, for character: Companion) {
+        let world = WorldStore.shared
+
+        world.ensureCharacterDay(
+            named: character.name,
+            wakeHour: character.wakeHour,
+            sleepHour: character.sleepHour,
+            replies: character.totalReplies
+        )
+
+        let log = meta?.dayLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        world.noteCharacterChat(named: character.name, summary: log)
+    }
+
+    /// 状态块里带回来的增量统一写进 WorldStore。
     /// 群聊里发生的事按所有相关人物归档，所以回到单聊时读得到同一份记忆。
     private func applySideEffects(
         _ meta: ReplyEnvelope.Meta?,

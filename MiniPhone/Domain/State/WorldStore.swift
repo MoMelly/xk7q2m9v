@@ -115,6 +115,102 @@ final class WorldStore {
         return true
     }
 
+    // MARK: - 角色日历
+
+    /// 读某个角色某一天的时间轴，没有就是没有。
+    func characterDay(named name: String, on date: Date = Date()) -> CharacterDay? {
+        let key = DayScheduleEngine.dateKey(date)
+        return state.characterDays.first { $0.name == name && $0.dateKey == key }
+    }
+
+    /// 某个角色留下的全部日子，新的在前。
+    func characterDays(named name: String, limit: Int = 30) -> [CharacterDay] {
+        Array(
+            state.characterDays
+                .filter { $0.name == name }
+                .sorted { $0.dateKey > $1.dateKey }
+                .prefix(limit)
+        )
+    }
+
+    /// 取某个角色某一天的时间轴，没有就现生成一份。
+    ///
+    /// 调用点只有两处：点开他的日历、以及当天第一次聊天。
+    /// 不点不开就不生成——用户不会为二十个没聊过的人各付一份内容。
+    ///
+    /// 生成时会避开前一天做过的事，否则连续两天都是「去楼下买咖啡」，
+    /// 一眼就能看出是模板在转。
+    @discardableResult
+    func ensureCharacterDay(
+        named name: String,
+        on date: Date = Date(),
+        wakeHour: Int = 7,
+        sleepHour: Int = 23,
+        replies: Int = 0
+    ) -> CharacterDay {
+        if let existing = characterDay(named: name, on: date) {
+            return existing
+        }
+
+        let calendar = Calendar.current
+        let yesterdayKey = calendar
+            .date(byAdding: .day, value: -1, to: date)
+            .map { DayScheduleEngine.dateKey($0) }
+        let yesterdayTitles = Set(
+            state.characterDays
+                .first { $0.name == name && $0.dateKey == yesterdayKey }?
+                .items.map(\.title) ?? []
+        )
+
+        let day = DayScheduleEngine.generateCharacterDay(
+            name: name,
+            date: date,
+            wakeHour: wakeHour,
+            sleepHour: sleepHour,
+            stage: .of(replies: replies),
+            avoiding: yesterdayTitles
+        )
+
+        state.characterDays.append(day)
+        pruneCharacterDays()
+        save()
+        return day
+    }
+
+    /// 聊过之后在当天那份上盖一个章，并把这次聊天的概括写进去。
+    ///
+    /// 概况不覆盖已有的：同一天聊三次，前两次的内容也要留着，
+    /// 否则他只能记住最后一次说了什么。
+    func noteCharacterChat(named name: String, summary: String, on date: Date = Date()) {
+        guard let index = state.characterDays.firstIndex(where: {
+            $0.name == name && $0.dateKey == DayScheduleEngine.dateKey(date)
+        }) else { return }
+
+        state.characterDays[index].didChat = true
+        let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            save()
+            return
+        }
+
+        let existing = state.characterDays[index].summary
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if existing.isEmpty {
+            state.characterDays[index].summary = trimmed
+        } else if !existing.contains(trimmed) {
+            state.characterDays[index].summary = existing + "；" + trimmed
+        }
+        save()
+    }
+
+    /// 只留最近 30 天。再往前的东西模型读不过来，留着只是让文件变大。
+    private func pruneCharacterDays() {
+        let cutoff = Calendar.current
+            .date(byAdding: .day, value: -30, to: Date())
+            .map { DayScheduleEngine.dateKey($0) } ?? "0000-00-00"
+        state.characterDays.removeAll { $0.dateKey < cutoff }
+    }
+
     /// 事件开始时把心情拉回日程基准；聊天带来的转折不受此影响。
     func refreshMoodFromSchedule(now: Date = Date()) {
         guard let base = DayScheduleEngine.scheduledMood(schedule: state.schedule, now: now) else { return }
@@ -281,6 +377,7 @@ final class WorldStore {
     func context(
         for names: [String],
         deviceLines: [String],
+        calendarLines: [String] = [],
         now: Date = Date()
     ) -> WorldContext {
         let keys = Set(names)
@@ -308,6 +405,15 @@ final class WorldStore {
             .prefix(3)
             .map { "\($0.appName) \(Int($0.seconds / 60)) 分钟" }
 
+        // 只取这次对话的对象自己的日子。群聊时说话人不止一个，
+        // 硬塞所有人的日程会让模型分不清哪段经历是谁的。
+        let owner = names.first ?? ""
+        let days = state.characterDays
+            .filter { $0.name == owner }
+            .sorted { $0.dateKey > $1.dateKey }
+            .prefix(4)
+            .map { $0 }
+
         return WorldContext(
             summaries: summaries,
             facts: facts,
@@ -318,6 +424,8 @@ final class WorldStore {
             location: state.location,
             deviceLines: deviceLines,
             usageLines: usage,
+            days: days,
+            userCalendarLines: calendarLines,
             now: now
         )
     }
@@ -334,5 +442,9 @@ struct WorldContext {
     var location: String
     var deviceLines: [String]
     var usageLines: [String]
+    /// 这个角色自己这几天的日子，新的在前。
+    var days: [CharacterDay] = []
+    /// 用户系统日历里的安排。角色被允许读的时候才有值。
+    var userCalendarLines: [String] = []
     var now: Date
 }

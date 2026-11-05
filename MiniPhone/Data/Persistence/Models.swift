@@ -24,6 +24,18 @@ final class Companion {
     /// 群聊成员描述，只进提示词。
     var membersNote: String = ""
 
+    /// 主页上的一句话签名。QQ 和朋友圈都有这个位置，空着会显得像张卡片。
+    var signature: String = ""
+    /// 标签，逗号分隔。主页上排成一行胶囊。
+    var tagsRaw: String = ""
+
+    /// NPC 是「简化版角色」：内容少、设定浅，但可以升级成正式角色。
+    var isNPC: Bool = false
+
+    /// 允许这个角色读用户的系统日历（今天和明天的几条）。
+    /// 默认关：能看别人的日程是一件要被明确交出去的事。
+    var canReadCalendar: Bool = false
+
     var wakeHour: Int = 7
     var sleepHour: Int = 23
 
@@ -76,6 +88,18 @@ final class Companion {
     var replyLength: ReplyLength {
         get { ReplyLength(rawValue: replyLengthRaw) ?? .medium }
         set { replyLengthRaw = newValue.rawValue }
+    }
+
+    var tags: [String] {
+        get {
+            tagsRaw
+                .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" || $0 == " " })
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }
+        set {
+            tagsRaw = newValue.joined(separator: ",")
+        }
     }
 
     /// 会话列表里的最后一句预览。
@@ -148,6 +172,55 @@ final class MomentPost {
         self.text = text
         self.createdAt = Date()
         self.tintSeed = Int.random(in: 0..<360)
+    }
+}
+
+/// 我自己的备忘录。
+///
+/// 和「角色记得什么」是两套东西：那部分在角色详情里只读，
+/// 这一份是用户自己写的，能改能删。混在一起会让人分不清哪条是自己写的。
+@Model
+final class NoteItem {
+    var uid: UUID = UUID()
+    var title: String = ""
+    var body: String = ""
+    /// 文件夹名，空串归到默认那一组。
+    var folder: String = ""
+    var isPinned: Bool = false
+    var createdAt: Date = Date()
+    var updatedAt: Date = Date()
+
+    init(title: String = "", body: String = "", folder: String = "") {
+        self.uid = UUID()
+        self.title = title
+        self.body = body
+        self.folder = folder
+        self.isPinned = false
+        self.createdAt = Date()
+        self.updatedAt = Date()
+    }
+
+    /// 列表里显示的第一行。标题为空时退回首行正文，和系统备忘录的规则一致。
+    var displayTitle: String {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
+        let firstLine = body
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .first
+            .map(String.init) ?? ""
+        return firstLine.isEmpty ? "新备忘录" : firstLine
+    }
+
+    /// 标题之外剩下的正文，用来做第二行摘要。
+    var previewText: String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        var rest = body
+        if !trimmedTitle.isEmpty, rest.hasPrefix(trimmedTitle) {
+            rest = String(rest.dropFirst(trimmedTitle.count))
+        }
+        return rest
+            .replacingOccurrences(of: "\n", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

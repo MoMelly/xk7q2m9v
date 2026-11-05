@@ -1,38 +1,67 @@
 import SwiftUI
+import SwiftData
 
 /// 备忘录。
 ///
-/// 结构照系统备忘录：搜索框在最上，下面是文件夹列表，点进去才是笔记。
-/// 这里的「文件夹」是一个人，里面装着它跨会话记住的事——数据沿用
-/// `WorldState.people.facts`，不另造一份，单聊和群聊读的是同一批。
+/// 这是「我的」备忘录：自己写、自己改、自己删。
+/// 角色记得的东西不在这里——那是角色的记忆，只出现在角色详情里，
+/// 而且是只读的。两者混在一个列表里，会分不清哪条是自己写的。
 struct NotesScene: View {
-    let world: WorldStore
     var onClose: () -> Void
 
-    @State private var query = ""
+    @Environment(\.modelContext) private var context
+    @Query(sort: [SortDescriptor(\NoteItem.updatedAt, order: .reverse)])
+    private var notes: [NoteItem]
 
-    private var folders: [PersonMemory] {
-        let people = world.state.people.filter { !$0.facts.isEmpty }
-        guard !query.isEmpty else {
-            return people.sorted { $0.facts.count > $1.facts.count }
-        }
-        let key = query.lowercased()
-        return people.filter { person in
-            person.name.lowercased().contains(key)
-                || person.facts.contains { $0.text.lowercased().contains(key) }
+    @State private var query = ""
+    @State private var editing: NoteItem?
+    @State private var showNewNote = false
+
+    private var filtered: [NoteItem] {
+        let key = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !key.isEmpty else { return notes }
+        return notes.filter {
+            $0.title.lowercased().contains(key) || $0.body.lowercased().contains(key)
         }
     }
 
+    private var pinned: [NoteItem] {
+        filtered.filter(\.isPinned)
+    }
+
+    private var others: [NoteItem] {
+        filtered.filter { !$0.isPinned }
+    }
+
     var body: some View {
-        AppScreen(title: "备忘录", onClose: onClose) {
+        AppScreen(
+            title: "备忘录",
+            onClose: onClose,
+            trailingSymbol: "square.and.pencil",
+            trailingAction: { showNewNote = true }
+        ) {
             ScrollView {
                 VStack(spacing: PhoneMetrics.Space.section) {
                     searchField
-                    folderSection
+
+                    if filtered.isEmpty {
+                        emptyState
+                    } else {
+                        if !pinned.isEmpty {
+                            noteSection("置顶", notes: pinned)
+                        }
+                        noteSection(pinned.isEmpty ? "所有备忘录" : "备忘录", notes: others)
+                    }
                 }
                 .padding(.top, PhoneMetrics.Space.s)
                 .padding(.bottom, PhoneMetrics.Space.xl)
             }
+        }
+        .sheet(item: $editing) { note in
+            NoteEditorPage(note: note)
+        }
+        .sheet(isPresented: $showNewNote) {
+            NoteEditorPage(note: nil)
         }
     }
 
@@ -79,78 +108,173 @@ struct NotesScene: View {
         .padding(.horizontal, PhoneMetrics.Space.m)
     }
 
-    // MARK: - 文件夹
+    // MARK: - 列表
 
-    @ViewBuilder
-    private var folderSection: some View {
-        if folders.isEmpty {
-            Text(query.isEmpty ? "还没有记住任何事。聊过之后，值得留下的会被记到这里。" : "没有匹配的备忘录")
-                .font(.system(size: PhoneMetrics.FontSize.footnote))
-                .foregroundStyle(Theme.secondaryLabel)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, PhoneMetrics.Space.m)
-        } else {
-            GroupedSection(
-                query.isEmpty ? "文件夹" : "搜索结果",
-                footer: query.isEmpty ? "每一份是一个人。它说过的话、答应过的事都记在这里，不会因为换了会话就忘掉。" : nil
-            ) {
-                ForEach(folders) { person in
-                    NavigationLink {
-                        NoteListPage(person: person)
+    private func noteSection(_ title: String, notes: [NoteItem]) -> some View {
+        GroupedSection(title) {
+            if notes.isEmpty {
+                Text("这个分组是空的")
+                    .font(.system(size: PhoneMetrics.FontSize.footnote))
+                    .foregroundStyle(Theme.secondaryLabel)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(PhoneMetrics.Space.m)
+            } else {
+                ForEach(notes) { note in
+                    Button {
+                        editing = note
                     } label: {
-                        GroupedRow(
-                            symbol: "folder.fill",
-                            symbolTint: Theme.IconTint.orange,
-                            title: person.name,
-                            value: "\(person.facts.count)",
-                            showsChevron: true
-                        )
+                        noteRow(note)
                     }
                     .buttonStyle(.plain)
 
-                    if person.id != folders.last?.id {
+                    if note.id != notes.last?.id {
                         RowDivider()
                     }
                 }
             }
         }
     }
+
+    private func noteRow(_ note: NoteItem) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                if note.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.IconTint.orange)
+                }
+
+                Text(note.displayTitle)
+                    .font(.system(size: PhoneMetrics.FontSize.body, weight: .semibold))
+                    .foregroundStyle(Theme.label)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: 6) {
+                Text(TimeFormat.shortDate(note.updatedAt))
+                    .font(.system(size: PhoneMetrics.FontSize.caption))
+                    .foregroundStyle(Theme.secondaryLabel)
+
+                Text(note.previewText.isEmpty ? "没有更多内容" : note.previewText)
+                    .font(.system(size: PhoneMetrics.FontSize.caption))
+                    .foregroundStyle(Theme.secondaryLabel)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, PhoneMetrics.Space.m)
+        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+    }
+
+    // MARK: - 空态
+
+    private var emptyState: some View {
+        VStack(spacing: PhoneMetrics.Space.s) {
+            Image(systemName: "note.text")
+                .font(.system(size: 30, weight: .light))
+                .foregroundStyle(Theme.secondaryLabel.opacity(0.7))
+
+            Text(query.isEmpty ? "还没有备忘录" : "没有匹配的备忘录")
+                .font(.system(size: PhoneMetrics.FontSize.footnote))
+                .foregroundStyle(Theme.secondaryLabel)
+
+            if query.isEmpty {
+                Button("写第一条") { showNewNote = true }
+                    .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .medium))
+                    .foregroundStyle(Theme.tint)
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 60)
+    }
 }
 
-/// 一个人名下的全部笔记。
-struct NoteListPage: View {
-    let person: PersonMemory
+/// 新建或编辑一条备忘录。
+///
+/// 用 sheet 而不是 push：系统备忘录也是从下往上滑出来的编辑页，
+/// 而且这样不必在列表页塞一条 NavigationLink 的空转分支。
+struct NoteEditorPage: View {
+    let note: NoteItem?
 
-    private var notes: [PersonFact] {
-        person.facts.sorted { $0.createdAt > $1.createdAt }
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var draftTitle = ""
+    @State private var draftBody = ""
+
+    private var hasContent: Bool {
+        !draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !draftBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
-        AppPage(title: person.name) {
-            ScrollView {
-                GroupedSection(footer: "记的是原话或明确的结论，不是概括。") {
-                    if notes.isEmpty {
-                        Text("这个文件夹还是空的")
-                            .font(.system(size: PhoneMetrics.FontSize.footnote))
-                            .foregroundStyle(Theme.secondaryLabel)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(PhoneMetrics.Space.m)
-                    } else {
-                        ForEach(notes) { fact in
-                            GroupedRow(
-                                title: fact.text,
-                                subtitle: "\(fact.sourceName) · \(TimeFormat.callTime(fact.createdAt))"
-                            )
-                            .padding(.vertical, PhoneMetrics.Space.xs)
+        NavigationStack {
+            VStack(spacing: 0) {
+                TextField("标题", text: $draftTitle)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(Theme.label)
+                    .padding(.horizontal, PhoneMetrics.Space.m)
+                    .padding(.top, PhoneMetrics.Space.m)
 
-                            if fact.id != notes.last?.id {
-                                RowDivider()
-                            }
+                TextEditor(text: $draftBody)
+                    .scrollContentBackground(.hidden)
+                    .font(.system(size: PhoneMetrics.FontSize.body))
+                    .foregroundStyle(Theme.label)
+                    .tint(Theme.tint)
+                    .padding(.horizontal, PhoneMetrics.Space.s)
+                    .padding(.top, PhoneMetrics.Space.xs)
+                    .overlay(alignment: .topLeading) {
+                        if draftBody.isEmpty {
+                            Text("写点什么")
+                                .font(.system(size: PhoneMetrics.FontSize.body))
+                                .foregroundStyle(Theme.secondaryLabel.opacity(0.7))
+                                .padding(.horizontal, PhoneMetrics.Space.m + 1)
+                                .padding(.top, PhoneMetrics.Space.s)
+                                .allowsHitTesting(false)
                         }
                     }
-                }
-                .padding(.top, PhoneMetrics.Space.s)
             }
+            .background(AppSurface.light.background.ignoresSafeArea())
+            .navigationTitle(note == nil ? "新备忘录" : "编辑")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("存储") { commit() }
+                        .disabled(!hasContent)
+                }
+            }
+            .environment(\.colorScheme, .light)
         }
+        .onAppear {
+            draftTitle = note?.title ?? ""
+            draftBody = note?.body ?? ""
+        }
+    }
+
+    private func commit() {
+        let title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let body = draftBody.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if let note {
+            note.title = title
+            note.body = body
+            note.updatedAt = Date()
+        } else {
+            let item = NoteItem(title: title, body: body)
+            context.insert(item)
+        }
+
+        try? context.save()
+        dismiss()
     }
 }

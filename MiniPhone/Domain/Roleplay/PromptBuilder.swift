@@ -25,6 +25,15 @@ enum PromptBuilder {
         let persona = character.persona.trimmingCharacters(in: .whitespacesAndNewlines)
         blocks.append("【角色】\(character.name)\n" + (persona.isEmpty ? "（没有写具体设定，按名字和对话内容自行保持人设一致。）" : persona))
 
+        // 主页上自己写的那句签名和几个标签，代表他希望别人看到的形象。
+        var profile: [String] = []
+        let signature = character.signature.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !signature.isEmpty { profile.append("签名：\(signature)") }
+        if !character.tags.isEmpty { profile.append("标签：" + character.tags.joined(separator: "、")) }
+        if !profile.isEmpty {
+            blocks.append("【你在主页上怎么写自己】\n" + profile.joined(separator: "\n"))
+        }
+
         // 玩法
         blocks.append("【对话形式】\n" + character.preset.promptRules)
 
@@ -82,6 +91,7 @@ enum PromptBuilder {
             正文之后另起一行，输出一段机器可读的 JSON，以 <<<meta>>> 开头、<<<end>>> 结尾。
             字段全部可选：mood（calm/glad/focused/tired/annoyed/low/excited）、moodReason、
             voice（这一轮没说出口的一句心里话）、memory（这一轮新记住的一个事实）、
+            dayLog（这一轮聊完之后，用一句「今天」视角的话概括你们说了什么，25 字内）、
             scheduleNote、moment（一条可以发出去的动态）、voiceResolvedID（某个心结被解开了就填它的 id）。
             只有确实发生了变化才填对应字段，没有就输出 {}。
             正文里不要提到这个块，也不要把它写进台词。
@@ -176,6 +186,40 @@ enum PromptBuilder {
             parts.append("【此刻的状态】\(mood.mood.label)，因为\(mood.reason)。状态有惯性，不要一句话就换一种。")
         }
 
+        // 你自己这几天的日子。这是角色自己的经历，不是用户转述的。
+        // 没有这一块，角色永远只有「现在」，问昨天就只能编。
+        if !context.days.isEmpty {
+            let lines = context.days.map { day -> String in
+                var text = "- \(relativeDayLabel(day.dateKey, today: context.now))："
+                text += day.items.map(\.title).joined(separator: "、")
+                text += "（\(day.mood.label)）"
+                if !day.summary.isEmpty {
+                    text += "。那天你们说到：\(day.summary)"
+                } else if day.didChat {
+                    text += "。那天你们说过话"
+                } else {
+                    text += "。那天你们没说话"
+                }
+                return text
+            }
+            parts.append("""
+            【你自己这几天的日子】
+            \(lines.joined(separator: "\n"))
+            这些是你自己的经历。可以自然提起，但别像念流水账一样从头数一遍；
+            也不要每次都主动汇报，只在对话里确实接得住的时候提一句。
+            """)
+        }
+
+        // 用户 iOS 日历里的事。角色只有在被允许读的时候才看得到。
+        if !context.userCalendarLines.isEmpty {
+            parts.append("""
+            【用户日历上的事】
+            \(context.userCalendarLines.joined(separator: "\n"))
+            这是他自己写在日历里的安排。你说的是你看到的，不是他告诉你的——
+            可以顺着它关心一句，也可以只放在心里。不要每轮都拿出来念。
+            """)
+        }
+
         if let track = context.currentTrack {
             parts.append("【正在听】\(track.artist) - \(track.title)")
         }
@@ -190,6 +234,11 @@ enum PromptBuilder {
         }
 
         return parts.joined(separator: "\n\n")
+    }
+
+    /// 「昨天」「前天」这类相对说法。格式化集中在 `TimeFormat`，这里只转发。
+    private static func relativeDayLabel(_ key: String, today: Date) -> String {
+        TimeFormat.dayLabel(key, today: today)
     }
 
     /// 关键词命中的设定条目。全局条目 + 本角色条目都参与。

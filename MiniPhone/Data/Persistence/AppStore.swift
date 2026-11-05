@@ -11,7 +11,8 @@ enum AppStore {
         Companion.self,
         StoredMessage.self,
         MomentPost.self,
-        WorldEntry.self
+        WorldEntry.self,
+        NoteItem.self
     ])
 
     /// 落盘的容器。建不出来时退回内存模式，让 App 还能打开——

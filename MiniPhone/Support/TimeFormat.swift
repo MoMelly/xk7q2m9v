@@ -58,6 +58,45 @@ enum TimeFormat {
 
     // MARK: - 日历用的短格式
 
+    /// 世界状态里的日期键。用 POSIX 而不是中文 locale：
+    /// 这里只做机器解析，不该受地区设置影响。
+    private static let dateKeyFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    /// 「2026-11-05」→ Date
+    static func date(fromKey key: String) -> Date? {
+        dateKeyFormatter.date(from: key)
+    }
+
+    /// 今天 / 昨天 / 前天 / 11/2
+    ///
+    /// 给角色写提示词和记忆页共用：说「昨天」才像人开口，
+    /// 说「11 月 3 日」模型多半会把日期原样复述一遍。
+    static func dayLabel(_ key: String, today: Date = Date()) -> String {
+        guard let date = date(fromKey: key) else { return key }
+        return dayLabel(date, today: today)
+    }
+
+    static func dayLabel(_ date: Date, today: Date = Date()) -> String {
+        let calendar = Calendar.current
+        let days = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: date),
+            to: calendar.startOfDay(for: today)
+        ).day ?? 0
+
+        switch days {
+        case 0: return "今天"
+        case 1: return "昨天"
+        case 2: return "前天"
+        default: return shortDate(date)
+        }
+    }
+
     private static let monthFormatter = make("M月")
     private static let yearFormatter = make("yyyy年")
     private static let weekdayNarrowFormatter = make("EEEEE")

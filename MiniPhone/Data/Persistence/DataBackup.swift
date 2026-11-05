@@ -6,7 +6,7 @@ import SwiftData
 /// 自签 App 的数据随时可能因为重签而消失，所以「能导出」不是备份功能，
 /// 是基本盘。格式用明文 JSON：换手机、改代码、甚至拿去喂给别的工具都能用。
 enum DataBackup {
-    static let currentVersion = 1
+    static let currentVersion = 2
 
     enum BackupError: LocalizedError {
         case unsupportedVersion(Int)
@@ -47,6 +47,21 @@ enum DataBackup {
             var memoryCursor: Date?
             var totalReplies: Int
             var messages: [Msg]
+            /// v2 新增。老备份里没有这些字段，所以全部可选。
+            var signature: String?
+            var tagsRaw: String?
+            var canReadCalendar: Bool?
+            var isNPC: Bool?
+        }
+
+        /// 我自己的备忘录。角色记忆在世界状态里，不走这里。
+        struct Note: Codable {
+            var title: String
+            var body: String
+            var folder: String
+            var isPinned: Bool
+            var createdAt: Date
+            var updatedAt: Date
         }
 
         struct Moment: Codable {
@@ -70,6 +85,8 @@ enum DataBackup {
         var characters: [Char]
         var moments: [Moment]
         var world: [World]
+        /// v2 新增。可选，否则 v1 的备份会整份解不开。
+        var notes: [Note]?
     }
 
     // MARK: - 导出
@@ -79,6 +96,7 @@ enum DataBackup {
         let characters = (try? context.fetch(FetchDescriptor<Companion>())) ?? []
         let moments = (try? context.fetch(FetchDescriptor<MomentPost>())) ?? []
         let world = (try? context.fetch(FetchDescriptor<WorldEntry>())) ?? []
+        let notes = (try? context.fetch(FetchDescriptor<NoteItem>())) ?? []
 
         let payload = Payload(
             version: currentVersion,
@@ -114,7 +132,11 @@ enum DataBackup {
                                     isNarration: $0.isNarration,
                                     createdAt: $0.createdAt
                                 )
-                            }
+                            },
+                        signature: character.signature,
+                        tagsRaw: character.tagsRaw,
+                        canReadCalendar: character.canReadCalendar,
+                        isNPC: character.isNPC
                     )
                 },
             moments: moments
@@ -136,7 +158,19 @@ enum DataBackup {
                     enabled: $0.enabled,
                     createdAt: $0.createdAt
                 )
-            }
+            },
+            notes: notes
+                .sorted { $0.updatedAt < $1.updatedAt }
+                .map {
+                    Payload.Note(
+                        title: $0.title,
+                        body: $0.body,
+                        folder: $0.folder,
+                        isPinned: $0.isPinned,
+                        createdAt: $0.createdAt,
+                        updatedAt: $0.updatedAt
+                    )
+                }
         )
 
         let encoder = JSONEncoder()
@@ -207,6 +241,9 @@ enum DataBackup {
         for item in (try? context.fetch(FetchDescriptor<WorldEntry>())) ?? [] {
             context.delete(item)
         }
+        for item in (try? context.fetch(FetchDescriptor<NoteItem>())) ?? [] {
+            context.delete(item)
+        }
 
         var messageCount = 0
 
@@ -233,6 +270,10 @@ enum DataBackup {
             character.memorySummary = item.memorySummary
             character.memoryCursor = item.memoryCursor
             character.totalReplies = item.totalReplies
+            character.signature = item.signature ?? ""
+            character.tagsRaw = item.tagsRaw ?? ""
+            character.canReadCalendar = item.canReadCalendar ?? false
+            character.isNPC = item.isNPC ?? false
             context.insert(character)
 
             for message in item.messages {
@@ -272,6 +313,14 @@ enum DataBackup {
             context.insert(entry)
         }
 
+        for item in payload.notes ?? [] {
+            let note = NoteItem(title: item.title, body: item.body, folder: item.folder)
+            note.isPinned = item.isPinned
+            note.createdAt = item.createdAt
+            note.updatedAt = item.updatedAt
+            context.insert(note)
+        }
+
         try context.save()
 
         var extras: [String] = []
@@ -287,6 +336,6 @@ enum DataBackup {
         }
 
         let suffix = extras.isEmpty ? "" : "，以及" + extras.joined(separator: "、")
-        return "恢复了 \(payload.characters.count) 个角色、\(messageCount) 条消息\(suffix)。"
+        return "恢复了 \(payload.characters.count) 个角色、\(messageCount) 条消息、\(payload.notes?.count ?? 0) 条备忘录\(suffix)。"
     }
 }

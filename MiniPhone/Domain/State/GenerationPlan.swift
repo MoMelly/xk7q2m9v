@@ -138,6 +138,8 @@ struct ReplyEnvelope {
         var scheduleNote: String?
         var moment: String?
         var voiceResolvedID: String?
+        /// 这一轮聊完之后，用一句「今天」视角的话概括聊了什么。写进角色当天的日子。
+        var dayLog: String?
         /// 刷新引擎要的增量。只有判定过要刷新的那一轮才该有值。
         var shop: [ShopDraft]?
         var feed: [FeedDraft]?
@@ -146,7 +148,7 @@ struct ReplyEnvelope {
 
         private enum CodingKeys: String, CodingKey {
             case mood, moodReason, voice, memory, scheduleNote, moment
-            case voiceResolvedID, shop, feed, feedComments
+            case voiceResolvedID, dayLog, shop, feed, feedComments
         }
 
         init(from decoder: Decoder) throws {
@@ -158,6 +160,7 @@ struct ReplyEnvelope {
             scheduleNote = try? container.decodeIfPresent(String.self, forKey: .scheduleNote)
             moment = try? container.decodeIfPresent(String.self, forKey: .moment)
             voiceResolvedID = try? container.decodeIfPresent(String.self, forKey: .voiceResolvedID)
+            dayLog = try? container.decodeIfPresent(String.self, forKey: .dayLog)
 
             let shopItems = (try? container.decodeIfPresent([Lenient<ShopDraft>].self, forKey: .shop)) ?? nil
             shop = shopItems?.compactMap(\.value)
