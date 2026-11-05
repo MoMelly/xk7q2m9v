@@ -12,7 +12,7 @@ jobs:
   build:
     runs-on: macos-26
     # 模拟器开机与截图服务都可能无响应，没有上限时 job 会一直挂到 360 分钟默认超时。
-    timeout-minutes: 32
+    timeout-minutes: 40
 
     steps:
       - name: Checkout
@@ -95,7 +95,7 @@ jobs:
         if: success()
         # 截图是验收材料，不是交付物本身。超时或某张失败时继续发布 ipa 与日志，
         # 不让整条构建被模拟器状态拖成 failure。
-        timeout-minutes: 24
+        timeout-minutes: 34
         continue-on-error: true
         run: |
           set -eux
@@ -108,8 +108,13 @@ jobs:
           }
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; c=[x for v in d.values() for x in v if x['name'].startswith('iPhone')]; print(c[0]['udid'] if c else '')")
           echo "simulator=$DEVICE_ID"
+          # 每次都是全新 runner，模拟器首次启动要 3–8 分钟，300 秒不够
+          # （2026-11-05 实际卡在 bootstatus 超时，11 张图一张没出）。
+          # 超时也不直接退出：它卡住时模拟器有时其实已经可用，继续 install
+          # 至少还有机会出图；真起不来会在 install 那一步失败。
+          xcrun simctl shutdown all >/dev/null 2>&1 || true
           guarded 120 xcrun simctl boot "$DEVICE_ID" || true
-          guarded 300 xcrun simctl bootstatus "$DEVICE_ID" -b || { echo "bootstatus timed out"; exit 1; }
+          guarded 540 xcrun simctl bootstatus "$DEVICE_ID" -b || echo "bootstatus timed out, continuing"
           APP="build-sim/Build/Products/Debug-iphonesimulator/MiniPhone.app"
           test -d "$APP"
           guarded 180 xcrun simctl install "$DEVICE_ID" "$APP" || { echo "install failed"; exit 1; }
