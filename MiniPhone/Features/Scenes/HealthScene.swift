@@ -26,6 +26,8 @@ struct HealthScene: View {
                     if settings.allowPhoneLookups {
                         deviceSection
                         usageSection
+                    } else {
+                        capabilitySection
                     }
                 }
                 .padding(.top, PhoneMetrics.Space.s)
@@ -55,6 +57,38 @@ struct HealthScene: View {
             .frame(minHeight: PhoneMetrics.Row.detailed)
             .onChange(of: settings.allowPhoneLookups) { _, _ in settings.persist() }
         }
+    }
+
+    /// 关掉的时候也要有内容，否则整页只剩一行开关和一大片空白。
+    /// 把「能查到什么、查不到什么」直接摊开，开关的意义才说得清。
+    private var capabilitySection: some View {
+        GroupedSection("开了之后能看到") {
+            capabilityRow(symbol: "battery.75", title: "电量、机型、系统版本")
+            RowDivider()
+            capabilityRow(symbol: "clock.arrow.circlepath", title: "在这台小手机里开过哪些页面、各待多久")
+            RowDivider()
+            capabilityRow(symbol: "heart.slash", title: "真实健康数据：拿不到，免费签名没有这项权限")
+            RowDivider()
+            capabilityRow(symbol: "hourglass.badge.slash", title: "其他 App 的屏幕使用时间：同样拿不到")
+        }
+    }
+
+    private func capabilityRow(symbol: String, title: String) -> some View {
+        HStack(spacing: PhoneMetrics.Space.s) {
+            Image(systemName: symbol)
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.secondaryLabel)
+                .frame(width: 22)
+
+            Text(title)
+                .font(.system(size: PhoneMetrics.FontSize.sub))
+                .foregroundStyle(Theme.label)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, PhoneMetrics.Space.m)
+        .frame(minHeight: PhoneMetrics.Row.single)
     }
 
     private var deviceSection: some View {

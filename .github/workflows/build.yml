@@ -127,7 +127,7 @@ jobs:
             # launch 失败就跳过，不要拍一张系统主屏冒充验收图。
             if guarded 25 xcrun simctl launch "$DEVICE_ID" com.melly.miniphone -previewState "$state"; then
               sleep 4
-              guarded 25 xcrun simctl io "$DEVICE_ID" screenshot "shots/$state.png" || true
+              guarded 45 xcrun simctl io "$DEVICE_ID" screenshot "shots/$state.png" || true
             else
               echo "skip $state: launch failed"
             fi

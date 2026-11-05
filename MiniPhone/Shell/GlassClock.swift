@@ -22,17 +22,31 @@ struct GlassClock: View {
                 .fill(.ultraThinMaterial)
                 .mask(glyph)
 
-            // 内发光：模拟玻璃厚度，只在笔画里面亮。
+            // 整体提亮，否则深色壁纸上字会发灰，读不出时间。
             glyph
-                .foregroundStyle(.white.opacity(0.55))
-                .blur(radius: 5)
+                .foregroundStyle(.white.opacity(0.30))
+
+            // 锐内边：让笔画边缘catch到光，玻璃的厚度感靠这一层。
+            glyph
+                .foregroundStyle(.white.opacity(0.90))
+                .blur(radius: 2)
                 .mask(glyph)
 
-            // 自上而下的柔光，避免整块字过于透明而读不出时间。
+            // 柔和内发光，把锐边和中间过渡开。
+            glyph
+                .foregroundStyle(.white.opacity(0.45))
+                .blur(radius: 7)
+                .mask(glyph)
+
+            // 自上而下的反射，上半亮、下半收。
             glyph
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [.white.opacity(0.46), .white.opacity(0.08)],
+                        stops: [
+                            .init(color: .white.opacity(0.62), location: 0),
+                            .init(color: .white.opacity(0.20), location: 0.55),
+                            .init(color: .white.opacity(0.06), location: 1)
+                        ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
