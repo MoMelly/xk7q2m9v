@@ -15,7 +15,18 @@ struct GlassClock: View {
             .monospacedDigit()
     }
 
+    /// 尺寸由这个不可见字形撑开。
+    ///
+    /// 不能直接把玻璃层当主体：`Rectangle()` 是可伸缩视图，放进 VStack 后
+    /// 会吃掉全部剩余高度，字形被垂直居中到屏幕正中，日期和数字之间空出一大片。
     var body: some View {
+        glyph
+            .opacity(0)
+            .overlay { glassLayers }
+            .accessibilityLabel(text)
+    }
+
+    private var glassLayers: some View {
         ZStack {
             // 玻璃本体。材质采样背后那张壁纸，被字形裁掉，只剩笔画内可见。
             Rectangle()
@@ -55,6 +66,5 @@ struct GlassClock: View {
         .compositingGroup()
         .shadow(color: .black.opacity(0.28), radius: 16, y: 6)
         .shadow(color: .white.opacity(0.18), radius: 1, y: -1)
-        .accessibilityLabel(text)
     }
 }

@@ -61,6 +61,12 @@ enum PhoneMetrics {
         static let card: CGFloat = 12
         static let widget: CGFloat = 22
         static let glass: CGFloat = 28
+        /// 列表里的封面缩略图。
+        static let cover: CGFloat = 6
+        /// 事件块、日期格这类小方块。
+        static let block: CGFloat = 8
+        /// 事件左侧的色条。
+        static let bar: CGFloat = 1.5
     }
 
     /// 列表行高。

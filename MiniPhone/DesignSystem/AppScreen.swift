@@ -11,6 +11,7 @@ struct AppScreen<Content: View>: View {
     var surface: AppSurface
     var onClose: (() -> Void)?
     var trailingTitle: String?
+    var trailingSymbol: String?
     var trailingAction: (() -> Void)?
     let content: Content
 
@@ -19,6 +20,7 @@ struct AppScreen<Content: View>: View {
         surface: AppSurface = .light,
         onClose: (() -> Void)? = nil,
         trailingTitle: String? = nil,
+        trailingSymbol: String? = nil,
         trailingAction: (() -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) {
@@ -26,6 +28,7 @@ struct AppScreen<Content: View>: View {
         self.surface = surface
         self.onClose = onClose
         self.trailingTitle = trailingTitle
+        self.trailingSymbol = trailingSymbol
         self.trailingAction = trailingAction
         self.content = content()
     }
@@ -54,9 +57,19 @@ struct AppScreen<Content: View>: View {
                                 .font(.system(size: PhoneMetrics.FontSize.body))
                         }
                     }
+
+                    if let trailingSymbol, let trailingAction {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(action: trailingAction) {
+                                Image(systemName: trailingSymbol)
+                                    .font(.system(size: PhoneMetrics.FontSize.body, weight: .semibold))
+                            }
+                        }
+                    }
                 }
                 .toolbarBackground(.visible, for: .navigationBar)
                 .toolbarBackground(surface.background, for: .navigationBar)
         }
+        .environment(\.colorScheme, surface.colorScheme)
     }
 }

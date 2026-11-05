@@ -34,10 +34,11 @@ struct PhoneShellView: View {
         case "settings": destination = .settings
         case "calendar": destination = .scene(.calendar)
         case "notes": destination = .scene(.notes)
-        case "photos": destination = .moments
         case "calls": destination = .scene(.calls)
         case "music": destination = .scene(.music)
         case "health": destination = .scene(.health)
+        case "shopping": destination = .scene(.shopping)
+        case "forum": destination = .scene(.forum)
         default: destination = nil
         }
         guard let destination else { return nil }

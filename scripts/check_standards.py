@@ -143,6 +143,40 @@ def check_launch_permissions(path: Path, lines: list[str]) -> None:
             )
 
 
+# DESIGN.md §8 的门禁：浅色 App 的页面里不许出现裸视觉值。
+DESIGN_GATED = (
+    "MiniPhone/Features/Scenes/",
+    "MiniPhone/Features/Settings/",
+)
+
+CORNER_LITERAL = re.compile(r"cornerRadius:\s*[0-9]")
+
+
+def check_design_gates(path: Path, lines: list[str]) -> None:
+    """浅色 App 的页面按 docs/DESIGN.md §8 卡。
+
+    这三条都踩过：给每行都加阴影，在 #F2F2F7 底上叠出一圈灰边；
+    用 whiteCard 包整段列表，八页共用一个形状；圆角各自写数字，
+    改了 token 对不齐。判断不了「像不像系统 App」，但能挡住裸值。
+    """
+    relative = rel(path)
+    if not relative.startswith(DESIGN_GATED):
+        return
+
+    for index, line in enumerate(lines, start=1):
+        if line.strip().startswith("//"):
+            continue
+
+        if ".shadow(" in line:
+            add_error(path, index, "浅色列表不用阴影；要阴影走 Theme.ShadowStyle，只给浮层")
+
+        if ".whiteCard()" in line:
+            add_error(path, index, "列表用 GroupedSection / GroupedRow，不要用 whiteCard 包整段列表")
+
+        if CORNER_LITERAL.search(line):
+            add_error(path, index, "圆角走 PhoneMetrics.Radius，不要写字面量")
+
+
 def check_file_size(path: Path, lines: list[str]) -> None:
     count = len(lines)
     if count > ERROR_LINES:
@@ -256,6 +290,7 @@ def main() -> int:
 
         check_layer_imports(path, lines)
         check_duplicate_wheels(path, lines)
+        check_design_gates(path, lines)
         check_launch_permissions(path, lines)
         check_file_size(path, lines)
         check_line_endings_and_brackets(path, raw, text)

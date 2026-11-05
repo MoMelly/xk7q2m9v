@@ -22,6 +22,7 @@ struct LockScreenView: View {
                 Spacer(minLength: 0).frame(height: 18)
 
                 dateLine
+                    .padding(.bottom, PhoneMetrics.Space.xxs)
                 clock
 
                 Spacer(minLength: 0)
@@ -49,7 +50,7 @@ struct LockScreenView: View {
     private var dateLine: some View {
         TimelineView(.everyMinute) { context in
             Text(TimeFormat.lockDate(context.date) + " · 农历" + TimeFormat.lunarMonthDay(context.date))
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.9))
                 .shadow(color: .black.opacity(0.35), radius: 4, y: 1)
         }

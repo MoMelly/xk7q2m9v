@@ -52,4 +52,16 @@ enum AppSurface {
         case .dark, .glass: return Theme.mint
         }
     }
+
+    /// 这一层要用的配色方案。
+    ///
+    /// 外壳固定在深色，系统控件（`Toggle` 的标签、`Picker` 的选项、`TextField`
+    /// 的占位）都会跟着继承成白字，落在浅色底上就是白底白字。整页声明一次，
+    /// 比给每个控件单独补 `foregroundStyle` 可靠——补漏一个就又是一处看不清。
+    var colorScheme: ColorScheme {
+        switch self {
+        case .light: return .light
+        case .dark, .glass: return .dark
+        }
+    }
 }

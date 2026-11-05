@@ -28,5 +28,6 @@ struct AppPage<Content: View>: View {
             .tint(surface.tint)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarBackground(surface.background, for: .navigationBar)
+            .environment(\.colorScheme, surface.colorScheme)
     }
 }

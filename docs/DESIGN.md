@@ -95,7 +95,7 @@ SF Pro。现有 `Theme.serif` 不用于系统 App 的界面标题，只留给信
 | tint | `#007AFF` | 现有 `Theme.mint` |
 | 分组标题 | 灰 13pt | 同左 |
 
-浅色 App：日历、设置、备忘录、相册、通话记录、健康、音乐、购物。
+浅色 App：日历、设置、备忘录、通话记录、健康、音乐、购物。
 深色 App：信息、动态、论坛，沿用现有玻璃体系。
 
 ### 4.5 阴影
@@ -152,12 +152,11 @@ SF Pro。现有 `Theme.serif` 不用于系统 App 的界面标题，只留给信
 |---|---|---|
 | 日历 | 月份标题与切换、周 / 日网格、日期数字、事件色点与时间轴、全天事件栏、右上角 +、底部工具栏（今天 / 日历 / 收件箱） | 6 张独立白卡列日程、把心情当事件标题后缀 |
 | 设置 | 整宽分组列表、行内分隔线、脚注贴分组下方、彩色圆角小图标、二级页 push + 返回 | 每组一张带阴影的独立大卡、分组标题飘在卡外 |
-| 备忘录 | 文件夹列表、搜索框、底部新建按钮 | 通用 row 列表 |
-| 相册 | 照片网格 + 年月分组、选中态 | 列表行 |
-| 通话记录 | 全部 / 未接分段控件、行内时间、右侧 info | 通用 row 列表 |
+| 备忘录 | 搜索框、文件夹列表、点进去的笔记列表 | 通用 row 列表 |
+| 通话记录 | 全部 / 未接分段控件、行内类型与时间、右侧 ⓘ | 通用 row 列表 |
 | 健康 | 摘要页 + 分类磁贴、顶部日期 | 两张白卡加大片空白 |
-| 音乐 | 资料库列表 + 底部正在播放条 | 只有导入按钮和空态说明 |
-| 购物 / 论坛 | 本地模板数据，按各自 App 的列表结构 | 与其他页共用通用 row |
+| 音乐 | 资料库分组列表 + 底部正在播放条、右上角导入 | 只有导入按钮和空态说明 |
+| 购物 / 论坛 | 本地模板数据，按各自 App 的列表结构（购物是订单分组，论坛是深色帖子流） | 与其他页共用通用 row |
 | 信息 / 动态 | 深色玻璃、气泡、输入条 | 白色分组列表 |
 
 ---
@@ -169,7 +168,8 @@ SF Pro。现有 `Theme.serif` 不用于系统 App 的界面标题，只留给信
 实际做法：
 
 - 浅色 App 声明 `AppSurface.light`，底色、主文字、次文字、分隔线全部取 `AppSurface` 给的绝对色值，不依赖配色方案翻转。
-- **系统控件必须显式给颜色**。`Toggle` / `Picker` / `Slider` / `Stepper` 的标签和 `tint` 都要写死，否则会继承深色模式的白字，落在白卡上就是白底白字——健康页那条开关之前就是这么看不清的。
+- **整页声明配色方案**。`AppScreen` / `AppPage` 会按 `surface.colorScheme` 给内容挂一次 `environment(\.colorScheme, …)`。系统控件（`Toggle` 的标签、`Picker` 的选项、`TextField` 的占位、`Speech` 的强调色）都从环境里取配色，光靠 `foregroundStyle` 补是补不完的——补漏一个就又是一处白底白字，健康页那条开关就是这么来的。整页挂一次，控件自然按浅色画。
+- 自己写的文字仍要显式给色（`Theme.label` / `surface.label`），因为那句 `environment` 只影响系统控件的内部样式，不会替我们改 `Text` 的颜色意图。
 - 锁屏和桌面跟随壁纸，不受 App 内页影响。
 - 语义色一律用绝对色值（`Theme` 已经这么做）。
 
@@ -179,9 +179,9 @@ SF Pro。现有 `Theme.serif` 不用于系统 App 的界面标题，只留给信
 
 | 项 | 做法 |
 |---|---|
-| 规范脚本 | `check_standards.py` 加规则：`Features/` / `Shell/` 禁止裸 `.shadow(`、裸 `Color(red:`、裸 `cornerRadius(` 字面量；场景页禁止 `.whiteCard()` 包列表；`Form` 仍然禁 |
+| 规范脚本 | `check_standards.py::check_design_gates` 已实现：`Features/Scenes/`、`Features/Settings/` 出现 `.shadow(`、`.whiteCard()`、`cornerRadius: <数字>` 直接判违规。外壳（`Shell/`）不在此列——锁屏和玻璃组件的投影是设计需要 |
 | 截图验收 | 每次改动后 CI 出对应页面截图，逐张对照 §6；截图清单由 `fetch_artifacts.py` 动态取 |
-| 新增截图状态 | `calendar`、`settings`、`health`、`notes`、`photos`、`calls`、`music`、`home`、`lock` |
+| 截图状态 | `lock`、`home`、`chat`、`moments`、`settings`、`calendar`、`notes`、`calls`、`music`、`health`、`shopping`、`forum` |
 | 真机校准 | §4 的数值以 15 Pro Max 真机截图为准；有出入先改 token，不改各页面 |
 
 ---

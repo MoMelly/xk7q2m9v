@@ -46,6 +46,16 @@ enum TimeFormat {
         shortDateFormatter.string(from: date)
     }
 
+    /// 通话记录里的时间：今天 11:45 / 昨天 09:12 / 10月3日 21:30。
+    ///
+    /// 系统通话记录不显示年份，同一天也不重复写日期，这里跟上。
+    static func callTime(_ date: Date) -> String {
+        let calendar = Calendar.current
+        if calendar.isDateInToday(date) { return "今天 " + clock(date) }
+        if calendar.isDateInYesterday(date) { return "昨天 " + clock(date) }
+        return monthDayTime(date)
+    }
+
     // MARK: - 日历用的短格式
 
     private static let monthFormatter = make("M月")

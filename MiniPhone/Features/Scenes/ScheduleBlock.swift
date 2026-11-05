@@ -18,7 +18,7 @@ struct ScheduleBlock: View {
                 .padding(.top, 11)
 
             HStack(alignment: .top, spacing: 9) {
-                RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.bar, style: .continuous)
                     .fill(tint)
                     .frame(width: 3)
 
@@ -45,7 +45,7 @@ struct ScheduleBlock: View {
             }
             .frame(maxWidth: .infinity)
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.block, style: .continuous)
                     .fill(tint.opacity(0.10))
             )
         }

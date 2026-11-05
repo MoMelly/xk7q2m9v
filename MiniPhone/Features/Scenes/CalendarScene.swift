@@ -108,7 +108,7 @@ struct CalendarScene: View {
             }
             .padding(PhoneMetrics.Space.s)
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.block, style: .continuous)
                     .fill(Theme.rowSurface)
             )
             .padding(.top, PhoneMetrics.Space.s)
