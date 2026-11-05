@@ -72,8 +72,8 @@ struct MusicScene: View {
             "歌曲",
             footer: "随包发布的是 Assets/Music/ 里那些，重装不会丢；导入的放在本机，不进备份。"
         ) {
-            ForEach(Array(tracks.enumerated()), id: \.element.id) { index, track in
-                songRow(track, index: index + 1)
+            ForEach(tracks) { track in
+                songRow(track)
                 if track.id != tracks.last?.id {
                     RowDivider()
                 }
@@ -81,7 +81,7 @@ struct MusicScene: View {
         }
     }
 
-    private func songRow(_ track: Track, index: Int) -> some View {
+    private func songRow(_ track: Track) -> some View {
         Button {
             toggle(track)
         } label: {
