@@ -122,7 +122,7 @@ struct PhoneShellView: View {
                 symbol: app.symbol,
                 colors: app.colors,
                 title: app.name,
-                body: page.notice.split(separator: "·").last.map { String($0).trimmingCharacters(in: .whitespaces) }
+                message: page.notice.split(separator: "·").last.map { String($0).trimmingCharacters(in: .whitespaces) }
                     ?? page.notice
             )
         }
