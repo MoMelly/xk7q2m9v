@@ -24,7 +24,7 @@
 | 逻辑画布 | 430 × 932 pt，@3x |
 | 顶部 | Dynamic Island / 状态栏区按系统高度留白，自绘状态栏不压内容 |
 | 底部 | Home Indicator 区 34 pt |
-| 页面左右边距 | 20 pt |
+| 页面左右边距 | 16 pt（系统设置的实际值，之前写的 20 偏宽） |
 | 单位 | 一律 pt，不用屏幕比例、不用百分比 |
 
 锁屏、桌面、状态栏、Home Indicator 都是自绘的，尺寸对齐这台机器；App 内页在这个画布里按系统 App 的度量排。
@@ -164,9 +164,14 @@ SF Pro。现有 `Theme.serif` 不用于系统 App 的界面标题，只留给信
 
 ## 7. 深浅与外壳
 
-- `MiniPhoneApp` 不再全局 `.preferredColorScheme(.dark)`。每个 App 显式声明 `AppSurface.light / .dark / .glass`，由 `AppScreen` 注入对应语义色。
+外壳（锁屏、桌面、聊天、动态）继续锁深色，App 层保留 `.preferredColorScheme(.dark)`。原本打算去掉全局深色、让每个页面自己声明，试算过代价：聊天页、动态页、消息气泡全都会跟着翻成黑字，改动面比收益大得多。
+
+实际做法：
+
+- 浅色 App 声明 `AppSurface.light`，底色、主文字、次文字、分隔线全部取 `AppSurface` 给的绝对色值，不依赖配色方案翻转。
+- **系统控件必须显式给颜色**。`Toggle` / `Picker` / `Slider` / `Stepper` 的标签和 `tint` 都要写死，否则会继承深色模式的白字，落在白卡上就是白底白字——健康页那条开关之前就是这么看不清的。
 - 锁屏和桌面跟随壁纸，不受 App 内页影响。
-- 语义色一律用绝对色值（`Theme` 已经这么做），不依赖系统配色方案。
+- 语义色一律用绝对色值（`Theme` 已经这么做）。
 
 ---
 
