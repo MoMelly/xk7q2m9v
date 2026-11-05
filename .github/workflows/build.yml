@@ -146,8 +146,24 @@ jobs:
             done
 
             if [ "$launched" = "1" ]; then
-              sleep 4
+              sleep 6
               guarded 45 xcrun simctl io "$DEVICE_ID" screenshot "shots/$state.png" || true
+              # 抢占的 runner 上冷启动会超过 4 秒，截到白底的启动图。
+              # 启动图没内容、压出来只有几十 KB，按大小判一次，重拍一张。
+              size=$(stat -f%z "shots/$state.png" 2>/dev/null || echo 0)
+              if [ "$size" -lt 200000 ]; then
+                echo "retake $state: ${size} bytes"
+                sleep 4
+                guarded 45 xcrun simctl io "$DEVICE_ID" screenshot "shots/$state.png" || true
+                size=$(stat -f%z "shots/$state.png" 2>/dev/null || echo 0)
+                echo "  after retake: ${size} bytes"
+                if [ "$size" -lt 200000 ]; then
+                  # 重拍还是空白，多半是崩溃而不是慢启动，留一份进程日志再往下走。
+                  echo "  $state still blank, dumping app log"
+                  guarded 60 xcrun simctl spawn "$DEVICE_ID" log show --last 40s \
+                    --predicate 'process == "MiniPhone"' 2>/dev/null | tail -30 || true
+                fi
+              fi
             else
               echo "skip $state: launch failed"
             fi
