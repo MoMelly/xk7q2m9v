@@ -69,7 +69,7 @@ struct HealthScene: View {
             RowDivider()
             capabilityRow(symbol: "heart.slash", title: "真实健康数据：拿不到，免费签名没有这项权限")
             RowDivider()
-            capabilityRow(symbol: "hourglass.badge.slash", title: "其他 App 的屏幕使用时间：同样拿不到")
+            capabilityRow(symbol: "nosign", title: "其他 App 的屏幕使用时间：同样拿不到")
         }
     }
 
