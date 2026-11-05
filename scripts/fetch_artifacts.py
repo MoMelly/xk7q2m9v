@@ -19,15 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "_artifacts" / "latest"
 INSTALLER_IPA = ROOT / "_artifacts" / "MiniPhone-unsigned.ipa"
 
-ALWAYS = ["STATUS.txt", "build.log", "sim-build.log"]
-ON_SUCCESS = [
-    "MiniPhone-unsigned.ipa",
-    "shots/lock.png",
-    "shots/home.png",
-    "shots/chat.png",
-    "shots/moments.png",
-    "shots/settings.png",
-]
+LOGS = ["STATUS.txt", "build.log", "sim-build.log"]
 
 
 def git(*args: str) -> bytes:
@@ -47,6 +39,28 @@ def write(name: str, data: bytes) -> int:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(data)
     return len(data)
+
+
+def shots_on_branch() -> list[str]:
+    """按分支实际内容列截图，而不是写死名单。
+
+    截图状态会随页面增减变化；写死名单会让新页面永远拉不回来，
+    还会把上一次残留的旧图当成这次的验收结果。
+    """
+    listing = git("ls-tree", "-r", "--name-only", "FETCH_HEAD", "shots")
+    return [
+        line.strip()
+        for line in listing.decode("utf-8").splitlines()
+        if line.strip().endswith(".png")
+    ]
+
+
+def clear_old_shots() -> None:
+    folder = OUT / "shots"
+    if not folder.is_dir():
+        return
+    for path in folder.glob("*.png"):
+        path.unlink()
 
 
 def main() -> int:
@@ -71,8 +85,8 @@ def main() -> int:
         f"status={status.get('status', '?')} built_at={status.get('built_at', '?')}"
     )
 
-    write("STATUS.txt", status_bytes)
-    for name in ALWAYS[1:]:
+    clear_old_shots()
+    for name in LOGS:
         data = fetch_blob(name)
         if data:
             write(name, data)
@@ -81,21 +95,27 @@ def main() -> int:
         print("构建未成功，只取回日志；装机用的 ipa 保持原样")
         return 1
 
-    success = True
-    for name in ON_SUCCESS:
+    ipa = fetch_blob("MiniPhone-unsigned.ipa")
+    if ipa is None:
+        print("缺少 MiniPhone-unsigned.ipa，装机文件保持原样")
+        return 1
+
+    print(f"  {len(ipa):9d}  MiniPhone-unsigned.ipa")
+    write("MiniPhone-unsigned.ipa", ipa)
+    INSTALLER_IPA.parent.mkdir(parents=True, exist_ok=True)
+    INSTALLER_IPA.write_bytes(ipa)
+    print(f"\n装机文件：{INSTALLER_IPA}")
+
+    shots = shots_on_branch()
+    for name in shots:
         data = fetch_blob(name)
         if data is None:
             print(f"  缺少 {name}")
-            success = False
             continue
         print(f"  {len(data):9d}  {name}")
         write(name, data)
-
-    if success:
-        INSTALLER_IPA.write_bytes((OUT / "MiniPhone-unsigned.ipa").read_bytes())
-        print(f"\n装机文件：{INSTALLER_IPA}")
-        print(f"截图：{OUT / 'shots'}")
-    return 0 if success else 1
+    print(f"\n截图 {len(shots)} 张：{OUT / 'shots'}")
+    return 0
 
 
 if __name__ == "__main__":

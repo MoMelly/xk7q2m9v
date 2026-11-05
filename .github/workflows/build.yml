@@ -11,8 +11,8 @@ permissions:
 jobs:
   build:
     runs-on: macos-26
-    # 模拟器截图服务偶尔无响应，没有上限时 job 会一直挂到 360 分钟默认超时。
-    timeout-minutes: 25
+    # 模拟器开机与截图服务都可能无响应，没有上限时 job 会一直挂到 360 分钟默认超时。
+    timeout-minutes: 32
 
     steps:
       - name: Checkout
@@ -95,28 +95,34 @@ jobs:
         if: success()
         # 截图是验收材料，不是交付物本身。超时或某张失败时继续发布 ipa 与日志，
         # 不让整条构建被模拟器状态拖成 failure。
-        timeout-minutes: 15
+        timeout-minutes: 24
         continue-on-error: true
         run: |
           set -eux
           # macOS runner 不带 GNU timeout。perl 的 alarm 在 exec 后仍然生效，
-          # 用它给每条 simctl 套 25 秒上限：截图服务无响应时只丢这一条，不拖死整个 job。
+          # 用它给每条 simctl 套上限。开机要等几分钟，不能和截图命令共用 25 秒，
+          # 否则截图会拍到 Apple logo 和系统主屏（2026-11-05 实际踩过）。
           guarded() {
-            perl -e 'alarm shift @ARGV; exec @ARGV' 25 "$@" || true
+            local secs="$1"; shift
+            perl -e 'alarm shift @ARGV; exec @ARGV' "$secs" "$@"
           }
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; c=[x for v in d.values() for x in v if x['name'].startswith('iPhone')]; print(c[0]['udid'] if c else '')")
           echo "simulator=$DEVICE_ID"
-          guarded xcrun simctl boot "$DEVICE_ID"
-          guarded xcrun simctl bootstatus "$DEVICE_ID" -b
+          guarded 120 xcrun simctl boot "$DEVICE_ID" || true
+          guarded 300 xcrun simctl bootstatus "$DEVICE_ID" -b || { echo "bootstatus timed out"; exit 1; }
           APP="build-sim/Build/Products/Debug-iphonesimulator/MiniPhone.app"
           test -d "$APP"
-          guarded xcrun simctl install "$DEVICE_ID" "$APP"
+          guarded 180 xcrun simctl install "$DEVICE_ID" "$APP" || { echo "install failed"; exit 1; }
           mkdir -p shots
           for state in lock home chat moments settings calendar music health; do
-            guarded xcrun simctl launch "$DEVICE_ID" com.melly.miniphone -previewState "$state"
-            sleep 4
-            guarded xcrun simctl io "$DEVICE_ID" screenshot "shots/$state.png"
-            guarded xcrun simctl terminate "$DEVICE_ID" com.melly.miniphone
+            # launch 失败就跳过，不要拍一张系统主屏冒充验收图。
+            if guarded 25 xcrun simctl launch "$DEVICE_ID" com.melly.miniphone -previewState "$state"; then
+              sleep 4
+              guarded 25 xcrun simctl io "$DEVICE_ID" screenshot "shots/$state.png" || true
+              guarded 25 xcrun simctl terminate "$DEVICE_ID" com.melly.miniphone || true
+            else
+              echo "skip $state: launch failed"
+            fi
             sleep 1
           done
           ls -lh shots
