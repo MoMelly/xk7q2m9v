@@ -101,6 +101,20 @@ struct SettingsView: View {
                                 showsChevron: true
                             )
                         }
+
+                        RowDivider()
+
+                        rowLink {
+                            RawReplyPage()
+                        } label: {
+                            GroupedRow(
+                                symbol: "curlybraces",
+                                symbolTint: Theme.IconTint.green,
+                                title: "原始回复",
+                                value: "\(RawReplyLog.shared.records.count) 条",
+                                showsChevron: true
+                            )
+                        }
                     }
 
                     GroupedSection(

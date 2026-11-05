@@ -9,7 +9,7 @@ struct NotificationBanner: View {
     let symbol: String
     let colors: [Color]
     let title: String
-    let body: String
+    let message: String
     var onTap: (() -> Void)?
 
     var body: some View {
@@ -30,7 +30,7 @@ struct NotificationBanner: View {
                         .foregroundStyle(.white.opacity(0.55))
                 }
 
-                Text(body)
+                Text(message)
                     .font(.system(size: PhoneMetrics.FontSize.sub))
                     .foregroundStyle(.white.opacity(0.82))
                     .lineLimit(2)
@@ -74,7 +74,7 @@ struct NotificationStack: View {
         let symbol: String
         let colors: [Color]
         let title: String
-        let body: String
+        let message: String
     }
 
     var body: some View {
@@ -84,7 +84,7 @@ struct NotificationStack: View {
                     symbol: notice.symbol,
                     colors: notice.colors,
                     title: notice.title,
-                    body: notice.body,
+                    message: notice.message,
                     onTap: onDismiss
                 )
                 .transition(.move(edge: .top).combined(with: .opacity))

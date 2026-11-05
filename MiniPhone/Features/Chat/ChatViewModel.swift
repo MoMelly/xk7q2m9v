@@ -133,6 +133,13 @@ final class ChatViewModel {
             }
 
             let envelope = ReplyEnvelope.parse(streamingText)
+            // 原文先记下来再看能不能用：解析失败的时候，这份是唯一的线索。
+            RawReplyLog.shared.append(
+                characterName: character.name,
+                model: settings.model,
+                raw: streamingText,
+                envelope: envelope
+            )
             let reply = envelope.visibleText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !reply.isEmpty else {
                 errorText = "模型一个字都没返回。可能是余额不足，或者这个模型不支持流式。"

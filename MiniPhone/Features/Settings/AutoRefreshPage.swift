@@ -58,7 +58,7 @@ struct AutoRefreshPage: View {
 
     private var rulesSection: some View {
         GroupedSection(
-            title: "页面",
+            "页面",
             footer: "概率是「到轮次之后有多大概率换一批」。调高会更热闹，也更费 token。"
         ) {
             ForEach(Array(RefreshPage.allCases.enumerated()), id: \.element) { index, page in
@@ -138,7 +138,7 @@ struct AutoRefreshPage: View {
     }
 
     private var billingNote: some View {
-        GroupedSection(title: "计费方式的影响", footer: nil) {
+        GroupedSection("计费方式的影响") {
             VStack(alignment: .leading, spacing: PhoneMetrics.Space.xs) {
                 Text("按次计费：判定要刷的那一轮，页面内容跟聊天回复在同一个请求里返回，不额外调用。多个页面可以同时刷。")
                 Text("按量计费：同样按上面的概率判定，但一轮最多只放一个页面进来，把多出来的 token 压到最小。")

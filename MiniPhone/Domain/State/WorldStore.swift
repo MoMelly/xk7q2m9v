@@ -19,7 +19,12 @@ enum WorldStateFile {
 final class WorldStore {
     static let shared = WorldStore()
 
-    private(set) var state: WorldState
+    /// 世界状态。
+    ///
+    /// 写入口只有 `WorldStore` 自己的方法（包括同模块下的 `+Refresh` 扩展）。
+    /// setter 放开到 internal 是因为刷新流拆在另一个文件里，`private(set)`
+    /// 在扩展里改不了；业务代码一律通过方法写，不要直接赋值。
+    var state: WorldState
     /// 刚发生的刷新，界面弹一次就清掉。按页面记，用来配对应的图标。
     private(set) var pendingNotices: [RefreshPage] = []
 

@@ -181,6 +181,8 @@ struct ReplyEnvelope {
 
     let visibleText: String
     let meta: Meta?
+    /// 状态块原文，没解析过的样子。设置里的「原始回复」要展示它。
+    let rawMeta: String?
 
     /// 流式过程中也要把标签之后的内容藏起来，否则用户会看着 JSON 一个字一个字冒出来。
     ///
@@ -204,7 +206,11 @@ struct ReplyEnvelope {
             visible = trailing.text.trimmingCharacters(in: .whitespacesAndNewlines)
             json = trailing.json
         } else {
-            return ReplyEnvelope(visibleText: raw.trimmingCharacters(in: .whitespacesAndNewlines), meta: nil)
+            return ReplyEnvelope(
+                visibleText: raw.trimmingCharacters(in: .whitespacesAndNewlines),
+                meta: nil,
+                rawMeta: nil
+            )
         }
 
         guard let json,
@@ -212,10 +218,10 @@ struct ReplyEnvelope {
               let meta = try? JSONDecoder().decode(Meta.self, from: data) else {
             // 块坏掉时只丢状态增量，正文照常上屏。
             // 之前的兜底是把整段原文当正文，用户会看到裸露的 JSON。
-            return ReplyEnvelope(visibleText: visible, meta: nil)
+            return ReplyEnvelope(visibleText: visible, meta: nil, rawMeta: json)
         }
 
-        return ReplyEnvelope(visibleText: visible, meta: meta)
+        return ReplyEnvelope(visibleText: visible, meta: meta, rawMeta: json)
     }
 
     /// 找开标签。块写在正文前面时，正文要取闭标签之后的半段。
