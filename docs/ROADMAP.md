@@ -198,3 +198,56 @@ P0–P5 范围内的代码（39 个 Swift 文件、4515 行）已在 Xcode 26.6 
 ### 执行顺序
 
 01 接口 → 05–08 外观 → 03/09/10/14/15/17 场景与资源 → 02/11/12/13 内核。本轮按这个顺序一次落地，编译截图验证后再往上叠功能。
+
+---
+
+## 7. 第三轮定案（2026-11-05 傍晚）
+
+本轮先对齐偏好再动代码。下表按提问编号登记结论，「代码落点」是计划改的地方，均未实现。
+
+| 提问编号 | 定案 | 代码落点 |
+|---|---|---|
+| 1 | 锁屏照当前真机系统锁屏做 | `Shell/LockScreenView.swift`、新增 `DesignSystem/GlassGlyph.swift`；**待补真机截图 + 机型 / 系统版本** |
+| 2 | 脏的来源定位为阴影 | `DesignSystem/Theme.swift`、`WhiteCard.swift`、`AppIconTile.swift`；阴影收口成一套枚举，`check_standards.py` 拦截业务层自写 `.shadow(` |
+| 3 | 数字本身液态玻璃，按参考图 | 同上 `GlassGlyph`；**待补参考图** |
+| 4 | 锁屏与主屏都放小组件 | 新增 `Domain/State/HomeLayout`、`Features/Home/HomeWidgetView` |
+| 5 | 可拖拽、可分页、可建文件夹 | `Features/Home/HomeScreenView`、`HomeLayout` |
+| 6 | 设置既要系统设置式分组与二级页，也要更多可调参数 | `Features/Settings/` 拆子页 |
+| 7 | 架构按真 iPhone 的系统 App 分类 | `Shell/AppCatalog.swift`、`Features/Scenes/` |
+| 8 | 抬头 = 每轮提示词最前面固定那段 | `Domain/Roleplay/PromptBuilder.swift` |
+| 9 | 随包预置 + 可自定义；全局一套，角色可覆盖；进备份；导入角色卡时抬头保持在最前 | `Assets/PromptPresets/`、新增 `Domain/Roleplay/PromptPreset`、`Documents/PromptPresets/`、`DataBackup` |
+| 10 | **未答**：初始风格预设与世界书形态 | `PromptPreset.style`、`WorldEntry` |
+| 11 | 小组件与角色状态联动 | `WorldStore` → `HomeWidgetView` 单向数据绑定 |
+| 12 | 动效算在高拟真范围内 | `PhoneShellView`、`HomeScreenView`、新增控制中心覆盖层 |
+| 13 | 小组件种类写死随包；自定义配置、桌面排布、世界书进备份；内置提示词随包 | `DataBackup` 备份文件夹新增 `home-layout.json`、`PromptPresets/`、`world-entries.json` |
+
+### 新增需求 18–21（线下模式）
+
+| 编号 | 条目 | 说明 |
+|---|---|---|
+| 18 | 角色看板（乙游男主式常驻立绘） | 主屏大尺寸特殊小组件 + 点开全屏看板页；读 `WorldState` 的心情、日程、正在听 |
+| 19 | 角色立绘 / Live2D 资产导入 | 门槛与许可结论见 §8 |
+| 20 | 线下剧情模式 | 本地脚本驱动，不调 API，完全离线 |
+| 21 | 文字游戏 / 选项分支 | 与 20 共用一套脚本引擎，换脚本模板即可 |
+
+### 执行顺序（待点头）
+
+外观（1/2/3/12）→ 桌面与设置架构（4/5/6/7/11/13）→ 内容系统（8/9/10 + 18–21）。参考图到位前不动锁屏数字。
+
+---
+
+## 8. Live2D 许可与集成核查（2026-11-05）
+
+查的是 Live2D 官方 SDK 发行许可页、帮助中心与 Cubism SDK 手册。
+
+| 项 | 结论 |
+|---|---|
+| 开发 / 试用阶段 | 免费，下载 SDK 时同意 Proprietary Software 与 Open Software 两份协议即可，不需要发行许可 |
+| 正式发行 | 发行前需签 SDK 发行许可（出版许可协议）；普通用户与年销售额低于 1000 万日元的小规模事业者免签免费 |
+| **可扩展性 APP 例外** | 官方明文把「以 Live2D 作为 AI / 聊天机器人界面的内容」「虚拟化身系统」列入可扩展性 APP；这类无论个人还是企业，每部作品都要单独签约，不适用上面的豁免 |
+| 我们的位置 | 私有仓库 + SideStore 自签 + 个人自用，属于开发 / 试用范围，当前不阻塞。但 19 的形态是「用户可导入任意角色模型」，正好落在可扩展性 APP 的定义里；以后只要对外分发就要先签约 |
+| 集成形态 | Cubism SDK for Native 是 C++ Core + Native Framework，iOS 走 Metal，官方 sample 为 Objective-C++（`.mm`）；SwiftUI 需经 Objective-C++ 桥接 + `MTKView` / `UIViewRepresentable` 包一层 |
+| 模型文件 | `.model3.json`、`.moc3`、`.motion3.json`、`.physics3.json`、`.exp3.json`、`.pose3.json`、`.cdi3.json` + 贴图，一整套 runtime 目录 |
+| 渲染工作量 | Metal device / command buffer / clipping manager / offscreen surface 都要自己管，不是接个库就能显示 |
+
+所以 19 分两层：先用分层 PNG 立绘 + 呼吸 / 眨眼 / 视差 / 点击换表情把 18 的看板做出来，零依赖、体积小、随包可发；真 Live2D 作为可插拔渲染器放第二阶段，模型从沙盒导入、不随包。
