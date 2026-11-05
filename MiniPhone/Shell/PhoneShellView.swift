@@ -33,6 +33,9 @@ struct PhoneShellView: View {
         case "moments": destination = .moments
         case "settings": destination = .settings
         case "calendar": destination = .scene(.calendar)
+        case "notes": destination = .scene(.notes)
+        case "photos": destination = .scene(.photos)
+        case "calls": destination = .scene(.calls)
         case "music": destination = .scene(.music)
         case "health": destination = .scene(.health)
         default: destination = nil

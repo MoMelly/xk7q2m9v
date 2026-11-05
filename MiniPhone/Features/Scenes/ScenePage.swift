@@ -61,7 +61,23 @@ struct ScenePage: View {
     @State private var showMusicImporter = false
     @State private var notice: String?
 
+    @ViewBuilder
     var body: some View {
+        switch kind {
+        case .calendar:
+            CalendarScene(world: world, onClose: onExit)
+        case .health:
+            HealthScene(settings: settings, world: world, onClose: onExit)
+        case .notes, .photos, .calls, .music, .shopping, .forum:
+            legacyPage
+        }
+    }
+
+    /// 还没按各自 App 的结构重排的页面。
+    ///
+    /// 这一批先把日历和健康改成系统结构，其余六页沿用旧容器，
+    /// 下一批逐个换掉——一次改八个页面没有编译机会，出错了也定位不到。
+    private var legacyPage: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {

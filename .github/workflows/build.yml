@@ -114,7 +114,7 @@ jobs:
           test -d "$APP"
           guarded 180 xcrun simctl install "$DEVICE_ID" "$APP" || { echo "install failed"; exit 1; }
           mkdir -p shots
-          for state in lock home chat moments settings calendar music health; do
+          for state in lock home chat moments settings calendar notes photos calls music health; do
             # -previewState 只在冷启动时读。上一次没退干净就会变成热启动，
             # 参数不生效、界面停在上一个状态，拍出来的图会张冠李戴。
             guarded 25 xcrun simctl terminate "$DEVICE_ID" com.melly.miniphone || true

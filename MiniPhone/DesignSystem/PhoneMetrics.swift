@@ -29,12 +29,53 @@ enum PhoneMetrics {
     /// 状态栏内容高度。真机安全区另有额外留白，这里只做内容基线。
     static let statusBarHeight: CGFloat = 44
 
-    /// 锁屏时钟字号。
-    static let lockClockFontSize: CGFloat = 84
+    /// 锁屏时钟字号。真机是接近满宽的大字，84 明显偏小。
+    static let lockClockFontSize: CGFloat = 110
 
     /// 锁屏上滑解锁的位移阈值。
     static let unlockDragThreshold: CGFloat = 90
 
     /// 打开 App 时，图标从多大开始放大。
     static let appLaunchStartScale: CGFloat = 0.86
+
+    // MARK: - 系统 App 的度量
+
+    /// 基准机逻辑画布（iPhone 15 Pro Max）。只用于对照，布局本身不按它写死。
+    static let referenceSize = CGSize(width: 430, height: 932)
+
+    /// 间距梯度。页面里不再出现裸数字。
+    enum Space {
+        static let xxs: CGFloat = 4
+        static let xs: CGFloat = 8
+        static let s: CGFloat = 12
+        static let m: CGFloat = 16
+        static let l: CGFloat = 20
+        static let xl: CGFloat = 24
+        /// iOS grouped 分组之间。
+        static let section: CGFloat = 35
+    }
+
+    /// 圆角。分组列表 10、浮层卡片 12、小组件 22、玻璃容器 28。
+    enum Radius {
+        static let grouped: CGFloat = 10
+        static let card: CGFloat = 12
+        static let widget: CGFloat = 22
+        static let glass: CGFloat = 28
+    }
+
+    /// 列表行高。
+    enum Row {
+        static let single: CGFloat = 44
+        static let detailed: CGFloat = 58
+    }
+
+    /// 系统 App 的字阶。
+    enum FontSize {
+        static let largeTitle: CGFloat = 34
+        static let navTitle: CGFloat = 17
+        static let body: CGFloat = 17
+        static let sub: CGFloat = 15
+        static let footnote: CGFloat = 13
+        static let caption: CGFloat = 12
+    }
 }
