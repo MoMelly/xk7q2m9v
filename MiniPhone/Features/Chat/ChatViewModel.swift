@@ -14,14 +14,10 @@ final class ChatViewModel {
     private(set) var isStreaming = false
     private(set) var errorText: String?
 
-    /// 送进模型的上下文窗口。40 条大约覆盖两三千字，再长就该靠摘要了。
-    private let contextWindow = 40
-    /// 未压缩消息超过这个数就触发一次摘要。
-    private let compressionThreshold = 40
-    /// 压缩时永远保留最近这么多条原文，保证短期细节不丢。
-    private let keepRecent = 20
-
-    var displayedStreamingText: String { streamingText }
+    /// 上屏用的正文。按次计费时回复尾部带一段状态块，不能让用户看见。
+    var displayedStreamingText: String {
+        ReplyEnvelope.streamingVisible(streamingText)
+    }
 
     // MARK: - 发送
 
@@ -77,10 +73,14 @@ final class ChatViewModel {
             streamingText = ""
         }
 
+        let plan = settings.generationPlan
+        let world = WorldStore.shared
+        let names = relatedNames(for: character)
+
         let history = Array(
             character.messages
                 .sorted { $0.createdAt < $1.createdAt }
-                .suffix(contextWindow)
+                .suffix(plan.contextWindow)
         )
 
         let trigger = history
@@ -90,11 +90,21 @@ final class ChatViewModel {
             .joined(separator: "\n")
 
         let allEntries = (try? context.fetch(FetchDescriptor<WorldEntry>())) ?? []
+        let worldContext = world.context(
+            for: names,
+            deviceLines: DeviceSnapshot.lines(allowPhoneLookups: settings.allowPhoneLookups)
+        )
+        if !worldContext.voices.isEmpty {
+            world.markReferenced(worldContext.voices)
+        }
+
         let system = PromptBuilder.systemPrompt(
             character: character,
             worldEntries: allEntries,
             triggerText: trigger,
-            lastMessageAt: history.dropLast().last?.createdAt
+            lastMessageAt: history.dropLast().last?.createdAt,
+            worldContext: worldContext,
+            metaBlockRequired: plan.mergesSideEffects
         )
 
         var request: [ChatMessage] = [ChatMessage(role: .system, text: system)]
@@ -107,13 +117,22 @@ final class ChatViewModel {
                 streamingText += piece
             }
 
-            let reply = streamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+            let envelope = ReplyEnvelope.parse(streamingText)
+            let reply = envelope.visibleText.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !reply.isEmpty else {
                 errorText = "模型一个字都没返回。可能是余额不足，或者这个模型不支持流式。"
                 return
             }
 
-            persist(reply, for: character, context: context, settings: settings)
+            persist(
+                reply,
+                meta: envelope.meta,
+                names: names,
+                plan: plan,
+                for: character,
+                context: context,
+                settings: settings
+            )
         } catch {
             errorText = error.localizedDescription
             AppLog.ui.error("生成失败: \(error.localizedDescription, privacy: .public)")
@@ -124,6 +143,9 @@ final class ChatViewModel {
 
     private func persist(
         _ reply: String,
+        meta: ReplyEnvelope.Meta?,
+        names: [String],
+        plan: GenerationPlan,
         for character: Companion,
         context: ModelContext,
         settings: SettingsStore
@@ -149,11 +171,15 @@ final class ChatViewModel {
 
         character.totalReplies += 1
         character.lastMessageAt = Date()
+        applySideEffects(meta, names: names, character: character, context: context)
         save(context)
 
         if settings.notifyReplies {
             ReplyNotifier.notifyReply(characterName: character.name, text: lastText)
         }
+
+        // 按次计费时状态增量已经在同一次回复里带回，不再单独发起压缩调用。
+        guard !plan.mergesSideEffects else { return }
 
         Task { @MainActor [weak self] in
             await self?.compressMemoryIfNeeded(
@@ -162,6 +188,57 @@ final class ChatViewModel {
                 settings: settings
             )
         }
+    }
+
+    /// 状态块里带回来的增量统一写进 WorldStore。
+    ///
+    /// 群聊里发生的事按所有相关人物归档，所以回到单聊时读得到同一份记忆。
+    private func applySideEffects(
+        _ meta: ReplyEnvelope.Meta?,
+        names: [String],
+        character: Companion,
+        context: ModelContext
+    ) {
+        guard let meta else { return }
+        let world = WorldStore.shared
+
+        if let raw = meta.mood, let mood = Mood(rawValue: raw) {
+            world.updateMood(mood, reason: meta.moodReason ?? "", source: .chat)
+        }
+        if let voice = meta.voice {
+            world.appendVoice(person: character.name, text: voice, source: .chat)
+        }
+        if let memory = meta.memory {
+            for name in names {
+                world.recordFact(person: name, text: memory, sourceName: character.name)
+            }
+        }
+        if let note = meta.scheduleNote, !note.isEmpty {
+            world.recordFact(person: character.name, text: "日程：\(note)", sourceName: character.name)
+        }
+        if let moment = meta.moment, !moment.isEmpty {
+            context.insert(
+                MomentPost(
+                    characterUID: character.uid,
+                    characterName: character.name,
+                    text: moment
+                )
+            )
+        }
+        if let raw = meta.voiceResolvedID, let id = UUID(uuidString: raw) {
+            world.resolveVoice(id: id)
+        }
+    }
+
+    private func relatedNames(for character: Companion) -> [String] {
+        var names = [character.name]
+        if character.isGroup {
+            names.append(contentsOf: character.membersNote
+                .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" || $0 == "\n" })
+                .map { String($0).trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty })
+        }
+        return Array(Set(names))
     }
 
     private func save(_ context: ModelContext) {
@@ -176,21 +253,21 @@ final class ChatViewModel {
 
     /// 老消息压成一段摘要，原消息保留在库里但不再送进上下文。
     ///
-    /// 不做向量检索那套：单人自用、单个角色，滚动的文字摘要已经够用，
-    /// 而且它可读——出问题时能直接看到「它以为记住了什么」。
+    /// 摘要同时归档到人物级记忆：群聊和单聊读同一份，不会各存各的。
     private func compressMemoryIfNeeded(
         character: Companion,
         context: ModelContext,
         settings: SettingsStore
     ) async {
+        let plan = settings.generationPlan
         let cursor = character.memoryCursor ?? .distantPast
         let pending = character.messages
             .filter { $0.createdAt > cursor }
             .sorted { $0.createdAt < $1.createdAt }
 
-        guard pending.count > compressionThreshold else { return }
+        guard pending.count > plan.compressionThreshold else { return }
 
-        let batch = Array(pending.prefix(pending.count - keepRecent))
+        let batch = Array(pending.prefix(pending.count - plan.keepRecent))
         guard !batch.isEmpty else { return }
 
         let transcript = batch
@@ -218,11 +295,18 @@ final class ChatViewModel {
                 ChatMessage(role: .user, text: prompt)
             ])
 
-            character.memorySummary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            let clean = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            character.memorySummary = clean
             if let lastDate = batch.last?.createdAt {
                 character.memoryCursor = lastDate
             }
             save(context)
+
+            let world = WorldStore.shared
+            world.appendMemorySummary(person: character.name, text: clean)
+            for name in relatedNames(for: character) {
+                world.recordFact(person: name, text: clean, sourceName: character.name)
+            }
         } catch {
             // 压缩失败不影响聊天，下次再压。
             AppLog.storage.error("记忆压缩失败: \(error.localizedDescription, privacy: .public)")

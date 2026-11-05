@@ -16,6 +16,10 @@ final class SettingsStore {
         static let temperature = "llm.temperature"
         static let maxTokens = "llm.maxTokens"
         static let notifyReplies = "notify.replies"
+        static let billingMode = "llm.billingMode"
+        static let billingByModel = "llm.billingByModel"
+        static let allowPhoneLookups = "privacy.allowPhoneLookups"
+        static let videoWallpaper = "shell.videoWallpaper"
     }
 
     private static let keychainAccount = "llm.apiKey"
@@ -28,6 +32,14 @@ final class SettingsStore {
     var maxTokens: Int = 900
     /// 回复到了但 App 不在前台时，发一条本地通知（不需要推送证书）。
     var notifyReplies: Bool = true
+    /// 当前模型的计费模式。按模型名记住，换模型时自动带出对应值。
+    var billingModeRaw: String = BillingMode.perToken.rawValue
+    /// 关掉时，电量、机型、使用记录一律不进提示词。默认关。
+    var allowPhoneLookups: Bool = false
+    var videoWallpaperEnabled: Bool = false
+
+    /// model → BillingMode.rawValue。
+    private var billingByModel: [String: String] = [:]
 
     init() {
         let defaults = UserDefaults.standard
@@ -49,6 +61,12 @@ final class SettingsStore {
         if defaults.object(forKey: DefaultsKey.notifyReplies) != nil {
             notifyReplies = defaults.bool(forKey: DefaultsKey.notifyReplies)
         }
+        billingByModel = defaults.dictionary(forKey: DefaultsKey.billingByModel) as? [String: String] ?? [:]
+        billingModeRaw = billingByModel[model]
+            ?? defaults.string(forKey: DefaultsKey.billingMode)
+            ?? BillingMode.perToken.rawValue
+        allowPhoneLookups = defaults.bool(forKey: DefaultsKey.allowPhoneLookups)
+        videoWallpaperEnabled = defaults.bool(forKey: DefaultsKey.videoWallpaper)
         if let storedKey = KeychainStore.string(for: Self.keychainAccount) {
             apiKey = storedKey
         }
@@ -72,6 +90,28 @@ final class SettingsStore {
         WallpaperTheme(rawValue: wallpaperRaw) ?? .midnight
     }
 
+    var billingMode: BillingMode {
+        BillingMode(rawValue: billingModeRaw) ?? .perToken
+    }
+
+    var generationPlan: GenerationPlan {
+        GenerationPlan(mode: billingMode)
+    }
+
+    func setBillingMode(_ mode: BillingMode) {
+        billingModeRaw = mode.rawValue
+        billingByModel[model] = mode.rawValue
+        persist()
+    }
+
+    /// 换模型后把该模型上次选的计费模式带出来。
+    func syncBillingModeForModel() {
+        let expected = billingByModel[model] ?? BillingMode.perToken.rawValue
+        if billingModeRaw != expected {
+            billingModeRaw = expected
+        }
+    }
+
     func setWallpaper(_ theme: WallpaperTheme) {
         guard wallpaperRaw != theme.rawValue else { return }
         wallpaperRaw = theme.rawValue
@@ -86,6 +126,10 @@ final class SettingsStore {
         defaults.set(temperature, forKey: DefaultsKey.temperature)
         defaults.set(maxTokens, forKey: DefaultsKey.maxTokens)
         defaults.set(notifyReplies, forKey: DefaultsKey.notifyReplies)
+        defaults.set(billingModeRaw, forKey: DefaultsKey.billingMode)
+        defaults.set(billingByModel, forKey: DefaultsKey.billingByModel)
+        defaults.set(allowPhoneLookups, forKey: DefaultsKey.allowPhoneLookups)
+        defaults.set(videoWallpaperEnabled, forKey: DefaultsKey.videoWallpaper)
         KeychainStore.set(apiKey, for: Self.keychainAccount)
     }
 }

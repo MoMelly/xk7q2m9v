@@ -7,12 +7,13 @@ import SwiftUI
 struct LockScreenView: View {
     let wallpaper: WallpaperTheme
     let onUnlock: () -> Void
+    var videoWallpaperEnabled: Bool = false
 
     @State private var dragOffset: CGFloat = 0
 
     var body: some View {
         ZStack {
-            WallpaperView(theme: wallpaper)
+            WallpaperBackdrop(theme: wallpaper, videoEnabled: videoWallpaperEnabled)
 
             VStack(spacing: 0) {
                 StatusBarView()
@@ -52,13 +53,27 @@ struct LockScreenView: View {
         }
     }
 
+    /// 玻璃数字时钟。
+    ///
+    /// 时间源与状态栏同为 `TimelineView(.everyMinute)` 读系统时间，天然同步；
+    /// 缺的是质感，用渐变数字 + 内高光 + 原生玻璃容器补上。
     private var clock: some View {
         TimelineView(.everyMinute) { context in
             Text(TimeFormat.clock(context.date))
                 .font(.system(size: PhoneMetrics.lockClockFontSize, weight: .thin, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.32), radius: 14, y: 5)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [.white, .white.opacity(0.74)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .shadow(color: .black.opacity(0.3), radius: 14, y: 5)
+                .shadow(color: .white.opacity(0.22), radius: 1, y: -1)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 2)
+                .glassSurface(cornerRadius: 28)
         }
     }
 

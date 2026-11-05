@@ -24,6 +24,11 @@ targets:
     platform: iOS
     sources:
       - path: MiniPhone
+      # 随包发布的歌单。folder reference 保留目录结构，
+      # App 里用 Bundle.main.url(forResource: "Music", withExtension: nil) 遍历。
+      - path: Assets/Music
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melly.miniphone

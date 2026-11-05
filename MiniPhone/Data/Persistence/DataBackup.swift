@@ -146,10 +146,27 @@ enum DataBackup {
 
         let stamp = ISO8601DateFormatter().string(from: Date())
             .replacingOccurrences(of: ":", with: "-")
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("miniphone-\(stamp).json")
-        try data.write(to: url, options: .atomic)
-        return url
+        let folder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("miniphone-backup-\(stamp)", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try data.write(to: folder.appendingPathComponent("data.json"), options: .atomic)
+
+        // 视频壁纸和世界状态是 Documents 下的独立文件，直接拷进备份目录。
+        // 不做 base64 内嵌：一个几十 MB 的视频会让 JSON 体积和解码内存同时翻几倍。
+        if VideoWallpaperStore.exists {
+            let video = try Data(contentsOf: VideoWallpaperStore.fileURL)
+            try video.write(
+                to: folder.appendingPathComponent(VideoWallpaperStore.fileName),
+                options: .atomic
+            )
+        }
+        if let world = try? Data(contentsOf: WorldStateFile.url) {
+            try world.write(
+                to: folder.appendingPathComponent("world-state.json"),
+                options: .atomic
+            )
+        }
+        return folder
     }
 
     // MARK: - 恢复
@@ -159,7 +176,14 @@ enum DataBackup {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
-        let data = try Data(contentsOf: url)
+        var isDirectory: ObjCBool = false
+        let isFolder = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            && isDirectory.boolValue
+        // 兼容两种选法：直接选备份文件夹，或选旧版那种单独的 json。
+        let jsonURL = isFolder ? url.appendingPathComponent("data.json") : url
+        let folder = isFolder ? url : url.deletingLastPathComponent()
+
+        let data = try Data(contentsOf: jsonURL)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let payload = try decoder.decode(Payload.self, from: data)
@@ -249,6 +273,20 @@ enum DataBackup {
         }
 
         try context.save()
-        return "恢复了 \(payload.characters.count) 个角色、\(messageCount) 条消息。"
+
+        var extras: [String] = []
+        let videoSource = folder.appendingPathComponent(VideoWallpaperStore.fileName)
+        if let video = try? Data(contentsOf: videoSource) {
+            try? VideoWallpaperStore.replace(with: video)
+            extras.append("视频壁纸")
+        }
+        let worldSource = folder.appendingPathComponent("world-state.json")
+        if let snapshot = try? Data(contentsOf: worldSource) {
+            try? snapshot.write(to: WorldStateFile.url, options: .atomic)
+            extras.append("世界状态")
+        }
+
+        let suffix = extras.isEmpty ? "" : "，以及" + extras.joined(separator: "、")
+        return "恢复了 \(payload.characters.count) 个角色、\(messageCount) 条消息\(suffix)。"
     }
 }

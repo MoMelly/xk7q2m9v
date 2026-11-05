@@ -134,3 +134,24 @@ struct WallpaperView: View {
         .ignoresSafeArea()
     }
 }
+
+/// 锁屏与桌面共用的背景层。
+///
+/// 代码壁纸始终打底：视频没导入、解码失败或正在后台时不会露出黑屏。
+/// 视频层只负责循环播放，暂停逻辑在 VideoWallpaperView 里按 scenePhase 处理。
+struct WallpaperBackdrop: View {
+    let theme: WallpaperTheme
+    var videoEnabled: Bool = false
+
+    var body: some View {
+        ZStack {
+            WallpaperView(theme: theme)
+
+            if videoEnabled, VideoWallpaperStore.exists {
+                VideoWallpaperView(url: VideoWallpaperStore.fileURL)
+                    .ignoresSafeArea()
+            }
+        }
+        .ignoresSafeArea()
+    }
+}

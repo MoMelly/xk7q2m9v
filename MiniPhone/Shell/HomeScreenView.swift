@@ -7,10 +7,11 @@ import SwiftUI
 struct HomeScreenView: View {
     let wallpaper: WallpaperTheme
     let onOpen: (PhoneApp) -> Void
+    var videoWallpaperEnabled: Bool = false
 
     var body: some View {
         ZStack {
-            WallpaperView(theme: wallpaper)
+            WallpaperBackdrop(theme: wallpaper, videoEnabled: videoWallpaperEnabled)
                 .blur(radius: 0.8)
                 .overlay(Color.black.opacity(0.1))
 

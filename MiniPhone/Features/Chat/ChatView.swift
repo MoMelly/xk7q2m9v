@@ -119,7 +119,7 @@ struct ChatView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
-                    if messages.isEmpty && viewModel.streamingText.isEmpty {
+                    if messages.isEmpty && viewModel.displayedStreamingText.isEmpty {
                         emptyState
                     }
 
@@ -139,7 +139,7 @@ struct ChatView: View {
 
                     if viewModel.isStreaming {
                         MessageBubble(
-                            text: viewModel.streamingText,
+                            text: viewModel.displayedStreamingText,
                             isUser: false,
                             isNarration: false,
                             isStreaming: true

@@ -13,6 +13,7 @@ struct MiniPhoneApp: App {
             // 需不需要提醒。请求点放在设置开关与第一条回复投递前。
             PhoneShellView(settings: settings)
                 .preferredColorScheme(.dark)
+                .environment(WorldStore.shared)
         }
         .modelContainer(AppStore.container)
     }

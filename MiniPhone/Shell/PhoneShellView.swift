@@ -6,18 +6,18 @@ import SwiftUI
 /// 因为真机是没有导航栏的，页面之间的关系是「盖上去」而不是「推过去」。
 struct PhoneShellView: View {
     @Bindable var settings: SettingsStore
+    @Environment(WorldStore.self) private var world
 
     @State private var isLocked: Bool = PhoneShellView.previewLocked
     @State private var openedApp: PhoneApp? = PhoneShellView.previewApp
+    @State private var openedAt: Date?
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
 
     // MARK: - 截图用的启动状态
 
-    /// 启动参数 `-previewState lock|home|chat|moments|settings` 让外壳直接落到指定状态。
-    ///
-    /// 用途是截图流水线：模拟器里没法用手指上滑，只好用启动参数一步到位。
-    /// 不带参数时行为和正常启动完全一致（停在锁屏）。
+    /// 启动参数 `-previewState lock|home|chat|moments|settings|calendar|music|health`
+    /// 让外壳直接落到指定状态。截图流水线靠它跳过手势。
     private static var previewState: String {
         UserDefaults.standard.string(forKey: "previewState") ?? "lock"
     }
@@ -32,6 +32,9 @@ struct PhoneShellView: View {
         case "chat": destination = .chat
         case "moments": destination = .moments
         case "settings": destination = .settings
+        case "calendar": destination = .scene(.calendar)
+        case "music": destination = .scene(.music)
+        case "health": destination = .scene(.health)
         default: destination = nil
         }
         guard let destination else { return nil }
@@ -41,11 +44,19 @@ struct PhoneShellView: View {
     var body: some View {
         ZStack {
             if isLocked {
-                LockScreenView(wallpaper: settings.wallpaperTheme, onUnlock: unlock)
-                    .transition(.opacity)
+                LockScreenView(
+                    wallpaper: settings.wallpaperTheme,
+                    onUnlock: unlock,
+                    videoWallpaperEnabled: settings.videoWallpaperEnabled
+                )
+                .transition(.opacity)
             } else {
-                HomeScreenView(wallpaper: settings.wallpaperTheme, onOpen: open)
-                    .transition(.opacity)
+                HomeScreenView(
+                    wallpaper: settings.wallpaperTheme,
+                    onOpen: open,
+                    videoWallpaperEnabled: settings.videoWallpaperEnabled
+                )
+                .transition(.opacity)
             }
 
             if let app = openedApp {
@@ -68,6 +79,10 @@ struct PhoneShellView: View {
         .animation(.spring(response: 0.36, dampingFraction: 0.84), value: openedApp)
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
+        .task { @MainActor in
+            world.ensureToday(wakeHour: 7, sleepHour: 23)
+            world.seedSceneContentIfNeeded()
+        }
     }
 
     // MARK: - App 层
@@ -81,6 +96,8 @@ struct PhoneShellView: View {
             MomentsView(settings: settings, onExit: closeApp)
         case .settings:
             SettingsView(settings: settings, onExit: closeApp)
+        case .scene(let kind):
+            ScenePage(kind: kind, settings: settings, world: world, onExit: closeApp)
         case .placeholder:
             // 占位图标不会走进来，open(_:) 里已经拦掉了。
             EmptyView()
@@ -130,14 +147,19 @@ struct PhoneShellView: View {
 
     private func open(_ app: PhoneApp) {
         switch app.destination {
-        case .chat, .moments, .settings:
+        case .chat, .moments, .settings, .scene:
             openedApp = app
+            openedAt = Date()
         case .placeholder:
             showToast("「\(app.name)」还没做")
         }
     }
 
     private func closeApp() {
+        if let app = openedApp, let start = openedAt {
+            world.noteUsage(appName: app.name, seconds: Date().timeIntervalSince(start))
+        }
         openedApp = nil
+        openedAt = nil
     }
 }

@@ -101,7 +101,7 @@ jobs:
           test -d "$APP"
           xcrun simctl install "$DEVICE_ID" "$APP"
           mkdir -p shots
-          for state in lock home chat moments settings; do
+          for state in lock home chat moments settings calendar music health; do
             xcrun simctl launch "$DEVICE_ID" com.melly.miniphone -previewState "$state" || true
             sleep 4
             xcrun simctl io "$DEVICE_ID" screenshot "shots/$state.png" || true

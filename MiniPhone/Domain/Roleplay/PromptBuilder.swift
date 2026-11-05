@@ -11,7 +11,9 @@ enum PromptBuilder {
         worldEntries: [WorldEntry],
         triggerText: String,
         now: Date = Date(),
-        lastMessageAt: Date?
+        lastMessageAt: Date?,
+        worldContext: WorldContext? = nil,
+        metaBlockRequired: Bool = false
     ) -> String {
         var blocks: [String] = []
 
@@ -48,6 +50,14 @@ enum PromptBuilder {
             blocks.append("【你记得的往事】\n" + memory)
         }
 
+        // 跨会话世界状态：人物记忆、心声、日程、心情、设备快照。
+        if let worldContext {
+            let block = worldBlock(worldContext)
+            if !block.isEmpty {
+                blocks.append(block)
+            }
+        }
+
         // 设定集命中
         let hits = matchedEntries(worldEntries, triggerText: triggerText, character: character)
         if !hits.isEmpty {
@@ -63,7 +73,69 @@ enum PromptBuilder {
         - 不要在结尾追问「还有什么可以帮你的」这类助手式收尾。
         """)
 
+        // 按次计费时，把状态增量挤进同一次回复，省掉后台那些独立调用。
+        if metaBlockRequired {
+            blocks.append("""
+            【附加状态块】
+            正文之后另起一行，输出一段机器可读的 JSON，以 <<<meta>>> 开头、<<<end>>> 结尾。
+            字段全部可选：mood（calm/glad/focused/tired/annoyed/low/excited）、moodReason、
+            voice（这一轮没说出口的一句心里话）、memory（这一轮新记住的一个事实）、
+            scheduleNote、moment（一条可以发出去的动态）、voiceResolvedID（某个心结被解开了就填它的 id）。
+            只有确实发生了变化才填对应字段，没有就输出 {}。
+            正文里不要提到这个块，也不要把它写进台词。
+            """)
+        }
+
         return blocks.joined(separator: "\n\n")
+    }
+
+    /// 世界状态进提示词的唯一装配点。
+    ///
+    /// 心声带 id 是为了让模型能明确指认「哪件心结了结了」；
+    /// 带 lastReferencedAt 的心声仍会保留，但要求别每轮重复念一遍。
+    private static func worldBlock(_ context: WorldContext) -> String {
+        var parts: [String] = []
+
+        var memoryLines = context.summaries
+        memoryLines.append(contentsOf: context.facts.map { "- \($0.text)" })
+        if !memoryLines.isEmpty {
+            parts.append("【共同记得的事】\n" + memoryLines.joined(separator: "\n"))
+        }
+
+        if !context.voices.isEmpty {
+            let lines = context.voices.map { voice in
+                "- [\(voice.id.uuidString)] \(voice.personName)：\(voice.text)"
+            }
+            parts.append("""
+            【还没放下的心事】
+            \(lines.joined(separator: "\n"))
+            这些心事会一直延续，不要每一轮都复述；有推进时自然带一句，被解开时把它的 id 填进状态块。
+            """)
+        }
+
+        if let schedule = context.schedule, !schedule.items.isEmpty {
+            let lines = schedule.items.map { "- \($0.timeText) \($0.title)（\($0.mood.label)）" }
+            parts.append("【今天的安排】\n" + lines.joined(separator: "\n"))
+        }
+
+        if let mood = context.mood {
+            parts.append("【此刻的状态】\(mood.mood.label)，因为\(mood.reason)。状态有惯性，不要一句话就换一种。")
+        }
+
+        if let track = context.currentTrack {
+            parts.append("【正在听】\(track.artist) - \(track.title)")
+        }
+
+        if !context.location.isEmpty {
+            parts.append("【此刻在哪】\(context.location)")
+        }
+
+        if !context.deviceLines.isEmpty || !context.usageLines.isEmpty {
+            let lines = context.deviceLines + context.usageLines.map { "小手机里：\($0)" }
+            parts.append("【你查到的手机记录】\n" + lines.joined(separator: "\n"))
+        }
+
+        return parts.joined(separator: "\n\n")
     }
 
     /// 关键词命中的设定条目。全局条目 + 本角色条目都参与。

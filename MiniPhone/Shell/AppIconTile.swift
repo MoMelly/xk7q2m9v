@@ -38,6 +38,10 @@ struct AppIconTile: View {
                     )
                 )
 
+            // 整体薄雾：把饱和底色提亮成半通透，避免图标看起来像实心塑料块。
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color.white.opacity(0.16))
+
             // 顶部高光：玻璃表面最强的反射在靠上三分之一的区域。
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .fill(
@@ -81,6 +85,6 @@ struct AppIconTile: View {
                     lineWidth: 0.8
                 )
         }
-        .shadow(color: .black.opacity(0.32), radius: size * 0.09, y: size * 0.05)
+        .shadow(color: .black.opacity(0.2), radius: size * 0.08, y: size * 0.04)
     }
 }

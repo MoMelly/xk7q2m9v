@@ -11,6 +11,12 @@ enum Theme {
     /// 错误提示用的暖红。压暗过，深色底上不刺眼。
     static let warning = Color(red: 1.0, green: 0.62, blue: 0.55)
 
+    /// 设置页与场景页的浅色体系。外壳是深色模式，这三个必须写成绝对色值，
+    /// 不能用 `.primary` / `.secondary` 之类会跟着配色方案翻转的语义色。
+    static let settingsBackground = Color(red: 0.95, green: 0.96, blue: 0.97)
+    static let cardSurface = Color(red: 1.0, green: 1.0, blue: 1.0)
+    static let secondaryInk = Color(red: 0.43, green: 0.45, blue: 0.48)
+
     static var backgroundGradient: LinearGradient {
         LinearGradient(
             colors: [deepGreen, ink],
