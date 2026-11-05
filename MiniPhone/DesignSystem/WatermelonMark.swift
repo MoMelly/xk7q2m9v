@@ -43,7 +43,8 @@ struct WatermelonMark: View {
                 )
                 .padding(size * 0.13)
 
-            ForEach(Array(seeds.enumerated()), id: \.offset) { _, seed in
+            // 小尺寸下籽会糊成一团黑点，只留三颗反而看得出来是西瓜。
+            ForEach(Array(seeds.prefix(size < 20 ? 3 : seeds.count).enumerated()), id: \.offset) { _, seed in
                 Capsule()
                     .fill(Theme.Watermelon.seed.opacity(0.82))
                     .frame(width: size * 0.055, height: size * 0.10)

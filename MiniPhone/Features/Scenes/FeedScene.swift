@@ -166,8 +166,8 @@ struct FeedScene: View {
     private func estimatedHeight(of note: FeedNote, width: CGFloat) -> CGFloat {
         let ratio = FeedCard.aspectRatio(for: note.coverSeed)
         let cover = width / ratio
-        let titleLines = min(2, max(1, note.title.count / 9 + 1))
-        return cover + CGFloat(titleLines) * 20 + 40 + PhoneMetrics.Space.xs
+        // 封面 + 作者行 + 间距。卡片下方不再重复标题，高度就固定了。
+        return cover + 22 + PhoneMetrics.Space.xs
     }
 }
 
@@ -212,19 +212,13 @@ struct FeedCard: View {
                 .frame(width: width, height: width / Self.aspectRatio(for: note.coverSeed))
                 .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.grouped, style: .continuous))
 
-            Text(note.title)
-                .font(.system(size: PhoneMetrics.FontSize.sub, weight: .medium))
-                .foregroundStyle(AppSurface.light.label)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, PhoneMetrics.Space.xs)
-
+            // 封面本身就是那张文字图，这里再写一遍标题等于同一句话出现两次。
+            // 标题只留在封面上，下面这行只放作者和赞。
             HStack(spacing: 4) {
                 FeedAvatar(
                     name: note.authorName,
                     isCharacter: note.authorUID != nil,
-                    size: 15
+                    size: 17
                 )
 
                 Text(note.authorName)
