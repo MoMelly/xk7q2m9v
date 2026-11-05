@@ -13,7 +13,9 @@ struct FeedScene: View {
     @State private var phoneTab: PhoneTab = .home
     @State private var feedTab: FeedTab = .discover
     @State private var isComposing = false
-    @State private var refresher = RefreshService.shared
+    /// 直接取单例而不是存进 @State：@State 的初始化不在 body 里，
+    /// 拿 @MainActor 的 shared 会踩隔离检查。在 body 里读一次，观察照样成立。
+    private var refresher: RefreshService { .shared }
     @State private var statusText: String?
     @State private var statusTask: Task<Void, Never>?
 

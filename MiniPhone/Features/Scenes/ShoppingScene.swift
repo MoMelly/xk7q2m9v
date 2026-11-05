@@ -12,7 +12,7 @@ struct ShoppingScene: View {
 
     @State private var tab: Tab = .home
     @State private var category: String?
-    @State private var refresher = RefreshService.shared
+    private var refresher: RefreshService { .shared }
     @State private var statusText: String?
     @State private var statusTask: Task<Void, Never>?
 

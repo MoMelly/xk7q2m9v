@@ -36,6 +36,11 @@ final class Companion {
     /// 默认关：能看别人的日程是一件要被明确交出去的事。
     var canReadCalendar: Bool = false
 
+    /// 这个会话里「我」是谁。空表示用默认人设。
+    ///
+    /// 换身份不换记忆：角色记得的事挂在会话上，人设只决定他以为在跟谁说话。
+    var personaUID: String = ""
+
     var wakeHour: Int = 7
     var sleepHour: Int = 23
 
@@ -154,10 +159,60 @@ final class StoredMessage {
     }
 }
 
+/// 「我」在这部手机里的身份。
+///
+/// 一个人可以有多个身份：用小号去逗某个角色、换一个名字重新认识同一个人。
+/// 身份只决定角色以为在跟谁说话，记忆挂在会话上不跟着换——
+/// 换身份不等于换世界，那件事由多存档解决。
+@Model
+final class UserProfile {
+    var uid: UUID = UUID()
+    var name: String = "我"
+    /// 一句话签名，角色在提示词里能看到。
+    var signature: String = ""
+    /// 自我介绍，可以写年龄、职业、跟这个角色什么关系。
+    var bio: String = ""
+    var tagsRaw: String = ""
+    /// 头像底色，和角色一样存色名而不是 RGB。
+    var avatarTintRaw: String = "mint"
+    /// 新会话默认用哪个。
+    var isDefault: Bool = false
+    var createdAt: Date = Date()
+
+    init(
+        name: String,
+        signature: String = "",
+        bio: String = "",
+        tagsRaw: String = "",
+        avatarTintRaw: String = "mint",
+        isDefault: Bool = false
+    ) {
+        self.uid = UUID()
+        self.name = name
+        self.signature = signature
+        self.bio = bio
+        self.tagsRaw = tagsRaw
+        self.avatarTintRaw = avatarTintRaw
+        self.isDefault = isDefault
+        self.createdAt = Date()
+    }
+
+    var tags: [String] {
+        get {
+            tagsRaw
+                .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" || $0 == " " })
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }
+        set {
+            tagsRaw = newValue.joined(separator: ",")
+        }
+    }
+}
+
 /// 角色发的动态，进「照片」App。
 @Model
-final class MomentPost {
-    var uid: UUID = UUID()
+final class MomentPost {    var uid: UUID = UUID()
     var characterUID: UUID = UUID()
     var characterName: String = ""
     var text: String = ""

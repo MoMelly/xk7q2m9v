@@ -79,6 +79,19 @@ struct SettingsView: View {
                         RowDivider()
 
                         rowLink {
+                            PersonaPage()
+                        } label: {
+                            GroupedRow(
+                                symbol: "theatermasks.fill",
+                                symbolTint: Theme.IconTint.orange,
+                                title: "我的人设",
+                                showsChevron: true
+                            )
+                        }
+
+                        RowDivider()
+
+                        rowLink {
                             AppearancePage(settings: settings)
                         } label: {
                             GroupedRow(

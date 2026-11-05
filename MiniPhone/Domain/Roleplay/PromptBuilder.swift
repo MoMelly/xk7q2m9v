@@ -15,7 +15,8 @@ enum PromptBuilder {
         worldContext: WorldContext? = nil,
         metaBlockRequired: Bool = false,
         refresh: RefreshRequest? = nil,
-        callMode: Bool = false
+        callMode: Bool = false,
+        userIdentity: UserIdentity? = nil
     ) -> String {
         var blocks: [String] = []
 
@@ -33,6 +34,23 @@ enum PromptBuilder {
         if !character.tags.isEmpty { profile.append("标签：" + character.tags.joined(separator: "、")) }
         if !profile.isEmpty {
             blocks.append("【你在主页上怎么写自己】\n" + profile.joined(separator: "\n"))
+        }
+
+        // 对方是谁。同一个人可以换身份来聊，角色得跟着换称呼和态度。
+        if let userIdentity {
+            var lines: [String] = ["他叫\(userIdentity.name)。"]
+            let userSignature = userIdentity.signature.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !userSignature.isEmpty { lines.append("签名：\(userSignature)") }
+            let bio = userIdentity.bio.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !bio.isEmpty { lines.append("他自己写的介绍：\(bio)") }
+            if !userIdentity.tags.isEmpty {
+                lines.append("标签：" + userIdentity.tags.joined(separator: "、"))
+            }
+            if userIdentity.isBlank {
+                lines.append("你没见过他别的资料。不知道的事就问，不要替他补设定。")
+            }
+            lines.append("按这个身份跟他说话：称呼、语气、分寸都按你和他现在的关系来。")
+            blocks.append("【对方是谁】\n" + lines.joined(separator: "\n"))
         }
 
         // 玩法

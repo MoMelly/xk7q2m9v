@@ -14,10 +14,11 @@ struct CharacterDetailPage: View {
     var onClose: () -> Void
 
     @Environment(\.modelContext) private var context
+    @Query(sort: \UserProfile.createdAt, order: .forward) private var profiles: [UserProfile]
     @State private var showEditor = false
     @State private var showClearConfirm = false
     @State private var calendarDenied = false
-    @State private var letterService = LetterService.shared
+    private var letterService: LetterService { .shared }
     @State private var letterMessage: String?
 
     private var person: PersonMemory? {
@@ -26,6 +27,15 @@ struct CharacterDetailPage: View {
 
     private var factCount: Int {
         person?.facts.count ?? 0
+    }
+
+    /// 这一段会话用的身份名。空串表示用默认的，界面上不写字。
+    private var personaName: String {
+        if !character.personaUID.isEmpty,
+           let matched = profiles.first(where: { $0.uid.uuidString == character.personaUID }) {
+            return matched.name
+        }
+        return profiles.first(where: { $0.isDefault })?.name ?? "我"
     }
 
     var body: some View {
@@ -102,6 +112,21 @@ struct CharacterDetailPage: View {
                                 symbol: "text.badge.checkmark",
                                 symbolTint: Theme.IconTint.green,
                                 title: "人设、签名与标签",
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        RowDivider()
+
+                        NavigationLink {
+                            PersonaPickerPage(character: character)
+                        } label: {
+                            GroupedRow(
+                                symbol: "theatermasks.fill",
+                                symbolTint: Theme.IconTint.indigo,
+                                title: "我以谁的身份",
+                                value: personaName,
                                 showsChevron: true
                             )
                         }

@@ -116,6 +116,18 @@ final class ChatViewModel {
 
         let allEntries = (try? context.fetch(FetchDescriptor<WorldEntry>())) ?? []
 
+        // 这个会话用哪个身份。角色记得的事不跟着换，换的只是他以为在跟谁说话。
+        let identity = UserProfileBook
+            .resolve(uid: character.personaUID, in: context)
+            .map { profile in
+                UserIdentity(
+                    name: profile.name,
+                    signature: profile.signature,
+                    bio: profile.bio,
+                    tags: profile.tags
+                )
+            }
+
         // 日历只在角色被允许读的时候才去取。默认关，关着就连查都不查。
         let calendarLines = character.canReadCalendar
             ? UserCalendarBridge.upcomingLines()
@@ -152,7 +164,8 @@ final class ChatViewModel {
             worldContext: worldContext,
             metaBlockRequired: plan.mergesSideEffects,
             refresh: refresh,
-            callMode: callMode
+            callMode: callMode,
+            userIdentity: identity
         )
 
         var request: [ChatMessage] = [ChatMessage(role: .system, text: system)]

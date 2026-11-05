@@ -7,6 +7,7 @@ import SwiftUI
 struct PhoneShellView: View {
     @Bindable var settings: SettingsStore
     @Environment(WorldStore.self) private var world
+    @Environment(\.modelContext) private var context
 
     @State private var isLocked: Bool = PhoneShellView.previewLocked
     @State private var openedApp: PhoneApp? = PhoneShellView.previewApp
@@ -98,6 +99,7 @@ struct PhoneShellView: View {
         .task { @MainActor in
             world.ensureToday(wakeHour: 7, sleepHour: 23)
             world.seedSceneContentIfNeeded()
+            UserProfileBook.ensureDefault(in: context)
         }
         .onChange(of: world.pendingNotices) { _, pages in
             guard !pages.isEmpty else { return }
