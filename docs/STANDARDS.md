@@ -47,6 +47,7 @@ App          组装入口
 | 角色头像配色 | `AvatarTint` | 另造一套色板 |
 | 壁纸 | `WallpaperTheme` + `WallpaperView` | 新建渐变枚举 |
 | 系统提示词 | `PromptBuilder` | 视图里写 `"""你在扮演…"""` |
+| 取回 CI 产物 | `scripts/fetch_artifacts.py` | 手写 `git show ... > xxx.ipa`；PowerShell 会把二进制写成 UTF-16 |
 
 `Color(red:...)` 允许出现在三处：`Theme`、`AvatarTint`、`AppCatalog`（图标底色本身就是要一堆具体颜色，抽成主题色反而更难读）。
 

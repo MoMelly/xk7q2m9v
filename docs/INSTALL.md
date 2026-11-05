@@ -1,114 +1,85 @@
-# 装机：从零到手机上的图标
+# 装机：把 ipa 装进手机
 
-P0 的目标只有一个：证明这条链路走得通。
-走完这篇，你手机上会多一个叫「小手机」的图标，点开能和你配置的模型聊一句。
+代码在私有仓库 `MoMelly/miniphone`，云端编译已经跑通。这篇只讲装机，不讲怎么建仓库。
 
 ---
 
-## 需要准备的四样
+## 当前产物
 
-| 东西 | 说明 |
+| 项 | 值 |
 |---|---|
-| iPhone | iOS 26 或更新 |
-| Windows 电脑 + 数据线 | 一次装机用，之后不用 |
-| Apple ID | 用那个港区号，别用主号 |
-| GitHub 账号 | 借它的 Mac 编译 |
+| 本地 ipa | `_artifacts/MiniPhone-unsigned.ipa`（583,178 字节，2026-11-05 构建） |
+| 构建结果 | 全绿：规范检查、Xcode 26.6 编译、未签名 ipa、模拟器编译、5 张截图 |
+| 截图 | `_artifacts/latest/shots/`：lock / home / chat / moments / settings |
+| 编译日志 | `_artifacts/latest/build.log`（无 error） |
+
+ipa 已经在这台电脑上了，**不用去 GitHub 网页下载 artifact**。要更新版本时从 `artifacts` 分支取，见最后一节。
 
 ---
 
-## 第一步：把代码放上 GitHub
+## 最短路径（环境已经配好）
 
-这台电脑上没有 Xcode，iOS 的包编不出来。所以借 GitHub 免费的 macOS 机器来编。
+1. 数据线连手机，确认「信任此电脑」还有效
+2. 打开手机上的 LocalDevVPN，让它连着
+3. SideStore → **My Apps** → 右上角 **+** → 选 `_artifacts/MiniPhone-unsigned.ipa`
+4. 装完去 设置 → 通用 → VPN 与设备管理 → 点你的 Apple ID → **信任**
+5. 打开小手机，上滑解锁，点桌面「设置」图标，填接口 / 模型 / 密钥，点**完成**
+6. 回桌面点「信息」→ 右上角 **+** 新建角色，发第一句
 
-1. 打开 <https://github.com/new>
-2. 仓库名填 `miniphone`
-3. **选 Public**（私有仓库每月只有 200 分钟 macOS 编译额度，公有无限制）
-4. 不要勾 "Add a README"
-5. 点 Create repository
-
-然后在 Windows 的终端里，进到这个文件夹：
-
-```
-cd C:\Users\melly\WorkBuddy\2026-11-04-17-35-56\miniphone
-```
-
-跑这两行（把 `你的用户名` 换成你的 GitHub 用户名）：
-
-```
-git remote add origin https://github.com/你的用户名/miniphone.git
-git push -u origin main
-```
-
-第一次会弹窗让你登录 GitHub，点授权就行。
+第 3 步是覆盖安装还是新装，取决于 SideStore 里是否已有同 bundle id（`com.melly.miniphone`）的条目。**重装会清空 App 沙盒**，聊天记录先用设置页的导出留一份。
 
 ---
 
-## 第二步：等云端编译
+## 环境只配一次
 
-1. 打开 `https://github.com/你的用户名/miniphone/actions`
-2. 看到一条 **Build unsigned IPA** 正在跑，等 5–8 分钟
-3. 变成绿色对勾后点进去，页面最下面有个 **Artifacts**
-4. 下载 `MiniPhone-unsigned-ipa`，解压得到 `MiniPhone-unsigned.ipa`
+已经装过 SideStore 的话整节跳过。
 
-**如果变成红色叉**：点进去，展开报错的那一步，把最后 30 行发我。这一步大概率会失败一次，正常。
+| 步骤 | 操作 |
+|---|---|
+| 1 | 装 iTunes：微软商店或苹果官网下，iLoader 靠它连手机 |
+| 2 | 下载 iLoader：<https://github.com/nab138/iloader/releases> |
+| 3 | 数据线连手机，点「信任此电脑」 |
+| 4 | 打开 iLoader → 登录港区 Apple ID → **Install SideStore** |
+| 5 | 手机：设置 → 隐私与安全性 → 开发者模式 → 打开 → 重启 → 再确认一次 |
+| 6 | 手机：设置 → 通用 → VPN 与设备管理 → 点 Apple ID → 信任 |
+| 7 | App Store 装 **LocalDevVPN**（旧名 StosVPN），点一下连接，之后一直开着 |
+| 8 | 设置 → Wi-Fi → 当前网络右边的 ⓘ → 关掉**私有 Wi-Fi 地址** |
 
----
+第 8 条不是可选项：这个开关会不停换设备地址，是登录和续签失败最常见的原因。
 
-## 第三步：Windows 上装 SideStore
-
-SideStore 是那个负责给 App 签名的壳子，装一次能用很久。
-
-1. 装 iTunes。微软商店搜 iTunes，或者苹果官网下载。**必须装**，iLoader 要用它连手机。
-2. 下载 iLoader：<https://github.com/nab138/iloader/releases>
-3. 数据线连手机，手机上点「信任此电脑」
-4. 打开 iLoader，登录你的港区 Apple ID
-5. 点 **Install SideStore**
-
-手机上接下来三步：
-
-6. 设置 → 隐私与安全性 → **开发者模式** → 打开 → 重启手机 → 重启后再确认一次
-7. 设置 → 通用 → VPN 与设备管理 → 点你的 Apple ID → **信任**
-8. App Store 搜 **LocalDevVPN**（旧名 StosVPN），装上，点一下连接 → **让它一直开着**
-
-> 顺手关一个坑：设置 → Wi-Fi → 点当前网络右边的 ⓘ → **私有 Wi-Fi 地址关掉**。
-> 这个开关会不停换设备地址，是登录和续签失败最常见的原因。
+签名用港区号，不碰系统里登录 iCloud 的主号。免费签名不要求专用手机号，也不需要新号。
 
 ---
 
-## 第四步：把小手机装进去
+## 填 Key 发第一句
 
-1. 打开 SideStore → **My Apps** → 右上角 **+**
-2. 选刚才那个 `MiniPhone-unsigned.ipa`
-3. 等它签名、安装
-4. 装完同样去 设置 → VPN 与设备管理 → 信任一次
+设置页的默认值：
 
-图标现在是空白的，正常。P1 才做图标。
+| 项 | 默认 |
+|---|---|
+| 接口 | `https://api.siliconflow.cn/v1` |
+| 模型 | `deepseek-ai/DeepSeek-V4-Flash` |
+| 密钥 | 空，显示 `sk-...` 占位 |
 
----
+密钥存在 Keychain（`whenUnlockedThisDeviceOnly`），不进备份、不导出、不打日志。模型名以硅基流动控制台里的准确 ID 为准；换别家 OpenAI 兼容服务就改接口地址。
 
-## 第五步：填 Key，发第一句
+发出去看到文字逐字上屏，链路就是通的。
 
-1. 打开小手机，点右上角齿轮
-2. **接口**：`https://api.siliconflow.cn/v1`
-3. **模型名**：填你硅基流动账号里能用的那个，去控制台复制准确的 ID
-4. **密钥**：`sk-...`
-5. 点完成，回主界面发一句
-
-看到文字一个一个蹦出来，P0 就成了。
+通知权限不会在启动时弹框。只有两种情况会申请：在设置里打开「回复到了提醒我」，或者切到别的 App 后收到第一条回复。拒绝不影响聊天。
 
 ---
 
-## 第六步：让它自己续签
+## 续签自动化
 
-免费签名只有 7 天。这一步配好了，之后基本不用管。
+免费签名 7 天有效。
 
-1. 打开「快捷指令」App → 新建
-2. 搜索 **SideStore** → 添加动作「刷新全部应用」
-3. 在它前面再加一个「设定 VPN」→ 选 LocalDevVPN
-4. 存下来，命名「续签」
-5. 切到「自动化」→ 新建 → 时间 → 每周一、周四 08:00 → 执行「续签」→ **关掉「运行前询问」**
+1. 手机「快捷指令」→ 新建
+2. 搜 **SideStore** → 加「刷新全部应用」
+3. 前面加「设定 VPN」→ 选 LocalDevVPN
+4. 命名「续签」存下来
+5. 自动化 → 新建 → 时间 → 每周一、周四 08:00 → 执行「续签」→ 关掉「运行前询问」
 
-前提只有两条：手机连着 Wi-Fi、LocalDevVPN 开着。
+前提是手机连 Wi-Fi、LocalDevVPN 开着。自动化偶尔会失败，届时打开 SideStore 点一次 Refresh All。
 
 ---
 
@@ -116,18 +87,35 @@ SideStore 是那个负责给 App 签名的壳子，装一次能用很久。
 
 | 现象 | 原因 | 怎么办 |
 |---|---|---|
-| Actions 红色叉 | 代码编译不过 | 把报错最后 30 行发我 |
-| 装的时候提示 1414 | Wi-Fi 或 LocalDevVPN 没开 | 两个都开着重试 |
-| 打开提示「不受信任的开发者」 | 没信任 | 设置 → VPN 与设备管理 → 信任 |
-| 发消息报 HTTP 401 | Key 不对 | 重新填一次 |
-| 发消息报 HTTP 400 | 模型名不对 | 去控制台复制准确 ID |
-| App 打不开，没提示 | 签名过期了 | 打开 SideStore 点 Refresh All |
-| 提示装不下更多 App | 免费账号限 3 个 | SideStore 自己算一个，删掉别的 |
+| `device does not have pairing file` | 配对记录过期（常见于 iOS 升级后） | 删 `C:\ProgramData\Apple\Lockdown` 下旧记录，重新插线信任 |
+| 安装提示 1414 | Wi-Fi 或 LocalDevVPN 没开 | 两个都开着重试 |
+| 「不受信任的开发者」 | 没信任描述文件 | 设置 → VPN 与设备管理 → 信任 |
+| HTTP 401 | Key 不对 | 重新填 |
+| HTTP 400 | 模型名不对 | 去控制台复制准确 ID |
+| App 打不开，没提示 | 签名过期 | SideStore → Refresh All |
+| 装不下更多 App | 免费账号限 3 个 | SideStore 占一个，删掉别的 |
 
 ---
 
-## 已知的三件事
+## 已知事项
 
-- **图标是白的**：P1 做图标。
+- **SpringBoard 上的 App 图标是白的**：工程里没有 AppIcon 资源。假手机内部的 24 个图标是自绘的，不受影响。
 - **最多 3 个 App**，SideStore 占一个。
-- **7 天要续签**：配了第六步就基本无感，偶尔失败点一下 Refresh All。
+- **7 天续签**，自动化不能覆盖全部情况。
+- **重装清沙盒**：导出文件要留在手机之外，或者放到能拿回来的地方。
+
+---
+
+## 产物与构建通道
+
+`main` 每次推送会触发 `.github/workflows/build.yml`：规范检查 → XcodeGen 生成工程 → `xcodebuild` 出未签名 ipa → 模拟器编译 + 5 张截图 → 把日志、ipa、截图写回 `artifacts` 孤儿分支。
+
+取最新产物不用开网页，在项目根目录跑：
+
+```
+python scripts/fetch_artifacts.py
+```
+
+脚本读 `STATUS.txt` 里的 `run_id` / `sha` / `status` / `built_at`，确认 `status=success` 后才覆盖 `_artifacts/MiniPhone-unsigned.ipa` 和 `_artifacts/latest/`；构建失败时只取回日志，不动装机文件。
+
+**不要用 shell 的 `>` 导出 ipa**：Windows PowerShell 会把二进制重编码成 UTF-16，文件看着变大了但装不上。脚本全程按 bytes 读写。
