@@ -122,7 +122,6 @@ struct CharacterDay: Codable, Identifiable {
         dateKey = try container.decodeIfPresent(String.self, forKey: .dateKey) ?? ""
         items = try container.decodeIfPresent([ScheduleItem].self, forKey: .items) ?? []
         if let raw = try? container.decodeIfPresent(String.self, forKey: .mood),
-           let raw,
            let parsed = Mood(rawValue: raw) {
             mood = parsed
         } else {
