@@ -218,7 +218,7 @@ struct FeedCard: View {
                 FeedAvatar(
                     name: note.authorName,
                     isCharacter: note.authorUID != nil,
-                    size: 17
+                    size: 20
                 )
 
                 Text(note.authorName)
