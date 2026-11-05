@@ -151,7 +151,8 @@ miniphone/
 │   ├── Domain/
 │   │   ├── Entities/         ChatMessage
 │   │   ├── Protocols/        LLMProviding
-│   │   └── Roleplay/         玩法包、作息、提示词拼装、回复解析
+│   │   ├── Roleplay/         玩法包、作息、提示词拼装、回复解析
+│   │   └── State/            世界状态、日程心情、计费策略、状态块解析
 │   ├── Data/
 │   │   ├── Persistence/      SwiftData 模型 / 容器 / 全量导出恢复
 │   │   ├── Remote/           OpenAI 兼容客户端
@@ -161,9 +162,11 @@ miniphone/
 │   │   ├── Chat/             对话页
 │   │   ├── Conversations/    会话列表、角色编辑、设定集
 │   │   ├── Moments/          动态墙
+│   │   ├── Scenes/           只读场景页（日历/备忘录/相册/通话记录/健康/音乐/购物/论坛）
 │   │   └── Settings/         设置
-│   ├── DesignSystem/         玻璃、色板、尺寸、壁纸、头像
-│   └── Support/              日志、Keychain、通知、时间格式化、分享面板
+│   ├── DesignSystem/         玻璃、白卡、色板、尺寸、壁纸、头像
+│   ├── Support/              日志、Keychain、通知、时间格式化、分享面板、设备快照、歌单与视频壁纸
+│   └── Assets/Music/         随包发布的歌单（folder reference）
 ```
 
 垂直切分。禁止 `Views/` `Models/` `Helpers/` 这种大杂烩目录。
@@ -201,12 +204,14 @@ miniphone/
 
 `ChatMessage`（Domain 实体）与 `StoredMessage`（持久化模型）是两种东西：前者是送给模型的最小结构（role + text），后者还带说话人和旁白标记。转换点只有 `StoredMessage.asChatMessage` 一处。
 
+跨会话的世界状态不是第五个 SwiftData 实体：`Domain/State/WorldState` 是一份 Codable JSON，由 `WorldStore.shared` 单独存取。人物级记忆、心声、当日日程、心情、当前曲目、使用记录都在这里，加字段不用迁移，备份直接拷文件。会话级摘要仍在 `Companion.memorySummary`，两者不重复。
+
 ### 6.3 提示词装配
 
 `PromptBuilder.systemPrompt` 是唯一入口，顺序固定：
 
 ```
-身份 → 人设 → 对话形式 → 群聊规则 → 长度 → 时间与作息 → 记忆摘要 → 设定集命中 → 输出约束
+身份 → 人设 → 对话形式 → 群聊规则 → 长度 → 时间与作息 → 会话记忆摘要 → 世界状态（人物事实 / 未了结的心声 / 日程 / 心情 / 正在听 / 可查的手机记录）→ 设定集命中 → 输出约束 →（仅按次计费）状态块格式说明
 ```
 
 每段独立可读，出问题时能一眼看出是哪一段注入坏了。`Features/` 层不允许自己拼提示词，`check_standards.py` 会扫特征字符串。
@@ -226,7 +231,7 @@ v1 写过"所有业务时间走 `VirtualClock.now()`"。**没有做**：它只�
 | 聊天记录 | 沙盒内，显式 `NSFileProtectionComplete` |
 | 网络 | 强制 HTTPS，不放宽 ATS |
 | 日志 | `os.Logger` 分级，prompt 全文只在 debug 打 |
-| 导出 | 加密 zip（可选密码） |
+| 导出 | 明文文件夹（`data.json` + `wallpaper.mov` + `world-state.json`），不含 API Key；要保密就存到系统文件的加密位置 |
 | 隐藏手势 | 沿 mydol：一键把锁屏换成普通壁纸 |
 
 ---

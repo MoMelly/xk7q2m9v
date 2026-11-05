@@ -11,6 +11,8 @@ permissions:
 jobs:
   build:
     runs-on: macos-26
+    # 模拟器截图服务偶尔无响应，没有上限时 job 会一直挂到 360 分钟默认超时。
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -91,21 +93,30 @@ jobs:
 
       - name: Capture screenshots
         if: success()
+        # 截图是验收材料，不是交付物本身。超时或某张失败时继续发布 ipa 与日志，
+        # 不让整条构建被模拟器状态拖成 failure。
+        timeout-minutes: 15
+        continue-on-error: true
         run: |
           set -eux
+          # macOS runner 不带 GNU timeout。perl 的 alarm 在 exec 后仍然生效，
+          # 用它给每条 simctl 套 25 秒上限：截图服务无响应时只丢这一条，不拖死整个 job。
+          guarded() {
+            perl -e 'alarm shift @ARGV; exec @ARGV' 25 "$@" || true
+          }
           DEVICE_ID=$(xcrun simctl list devices available -j | python3 -c "import json,sys; d=json.load(sys.stdin)['devices']; c=[x for v in d.values() for x in v if x['name'].startswith('iPhone')]; print(c[0]['udid'] if c else '')")
           echo "simulator=$DEVICE_ID"
-          xcrun simctl boot "$DEVICE_ID" || true
-          xcrun simctl bootstatus "$DEVICE_ID" -b
+          guarded xcrun simctl boot "$DEVICE_ID"
+          guarded xcrun simctl bootstatus "$DEVICE_ID" -b
           APP="build-sim/Build/Products/Debug-iphonesimulator/MiniPhone.app"
           test -d "$APP"
-          xcrun simctl install "$DEVICE_ID" "$APP"
+          guarded xcrun simctl install "$DEVICE_ID" "$APP"
           mkdir -p shots
           for state in lock home chat moments settings calendar music health; do
-            xcrun simctl launch "$DEVICE_ID" com.melly.miniphone -previewState "$state" || true
+            guarded xcrun simctl launch "$DEVICE_ID" com.melly.miniphone -previewState "$state"
             sleep 4
-            xcrun simctl io "$DEVICE_ID" screenshot "shots/$state.png" || true
-            xcrun simctl terminate "$DEVICE_ID" com.melly.miniphone || true
+            guarded xcrun simctl io "$DEVICE_ID" screenshot "shots/$state.png"
+            guarded xcrun simctl terminate "$DEVICE_ID" com.melly.miniphone
             sleep 1
           done
           ls -lh shots

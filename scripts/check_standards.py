@@ -31,6 +31,12 @@ COLOR_LITERAL_ALLOWED = {
     "MiniPhone/Shell/AppCatalog.swift",
 }
 
+# 状态块标记只允许出现在装配方和解析器里。
+META_TAG_ALLOWED = {
+    "MiniPhone/Domain/Roleplay/PromptBuilder.swift",
+    "MiniPhone/Domain/State/GenerationPlan.swift",
+}
+
 WARN_LINES = 400
 ERROR_LINES = 600
 
@@ -93,6 +99,21 @@ def check_duplicate_wheels(path: Path, lines: list[str]) -> None:
         if "Color(red:" in line and relative not in COLOR_LITERAL_ALLOWED:
             if relative.startswith("MiniPhone/Features/") or relative.startswith("MiniPhone/Shell/"):
                 add_warning(path, index, "主题色走 Theme / AvatarTint，视图里不要直接写字面色值")
+
+        # 外壳强制深色模式，Form 的 grouped 单元格会跟着变黑，
+        # 叠在深色背景上就是那层「脏灰框」。设置页已改白卡，先守住这一处。
+        if relative.startswith("MiniPhone/Features/Settings/") and (
+            "Form {" in line or "Form{" in line
+        ):
+            add_error(path, index, "设置页不用 Form；改 whiteCard 分组")
+
+        if ("WorldStore(" in line) and (
+            relative.startswith("MiniPhone/Features/") or relative.startswith("MiniPhone/Shell/")
+        ):
+            add_error(path, index, "世界状态只用 WorldStore.shared，不要另建实例")
+
+        if "<<<meta>>>" in line and relative not in META_TAG_ALLOWED:
+            add_error(path, index, "状态块标记只允许出现在 PromptBuilder 与 ReplyEnvelope")
 
         # 提示词只允许出现在 PromptBuilder。
         if relative.startswith("MiniPhone/Features/"):

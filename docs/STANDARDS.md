@@ -10,7 +10,7 @@
 ## 1. 分层与依赖方向
 
 ```
-Domain       实体、规则、提示词拼装。只依赖 Foundation / Observation
+Domain       实体、规则、提示词拼装、世界状态。只依赖 Foundation / Observation
 Data         网络、持久化、导入导出。可以依赖 Domain
 DesignSystem 颜色、间距、可复用组件。可以依赖 Domain
 Shell        假手机外壳（锁屏、桌面、状态栏）
@@ -47,6 +47,13 @@ App          组装入口
 | 角色头像配色 | `AvatarTint` | 另造一套色板 |
 | 壁纸 | `WallpaperTheme` + `WallpaperView` | 新建渐变枚举 |
 | 系统提示词 | `PromptBuilder` | 视图里写 `"""你在扮演…"""` |
+| 浅色页面卡片 | `.whiteCard(cornerRadius:)` | 各自写一遍白底 + 白描边 + 阴影 |
+| 跨会话状态 | `WorldStore.shared` | 页面里另存一份心情 / 日程 / 记忆 |
+| 场景类只读页 | `ScenePage(kind:)` | 每个假 App 单写一套列表布局 |
+| 歌单文件 | `MusicLibrary` | 视图里直接翻 Bundle / Documents |
+| 视频壁纸 | `VideoWallpaperStore` + `WallpaperBackdrop` | 锁屏和桌面各接一份 AVPlayer |
+| 回复状态块 | `ReplyEnvelope.parse(_:)` | 视图里手写字符串切分 |
+| 真机数据 | `DeviceSnapshot.lines(allowPhoneLookups:)` | 页面里直接读 `UIDevice` |
 | 取回 CI 产物 | `scripts/fetch_artifacts.py` | 手写 `git show ... > xxx.ipa`；PowerShell 会把二进制写成 UTF-16 |
 
 `Color(red:...)` 允许出现在三处：`Theme`、`AvatarTint`、`AppCatalog`（图标底色本身就是要一堆具体颜色，抽成主题色反而更难读）。
@@ -60,6 +67,9 @@ App          组装入口
 - **关系上显式写删除规则。** `@Relationship(deleteRule: .cascade, inverse:)`，别靠默认值。
 - **写操作后必须 `save`，失败必须记日志。** 直接 `try?` 吞掉会让「保存失败」表现成「数据莫名丢了」。
 - **查询在视图用 `@Query`，在 Service 用 `FetchDescriptor`。** 不要在视图里手搓 predicate 字符串。
+- **跨会话状态不放 SwiftData。** 人物记忆、心声、日程、心情、使用记录走 `WorldStore` 的那一份 JSON；加字段不用迁移，备份直接拷文件。会话级摘要仍留在 `Companion.memorySummary`，两者职责不同：一个是原文压缩，一个是跨会话索引。
+- **备份是一个文件夹，不是一个 json。** `data.json` 之外还要带 `wallpaper.mov` 和 `world-state.json`；二进制不进 JSON，避免 base64 把体积和解码内存一起放大。
+- **恢复后要刷新两套存储。** SwiftData 由 `DataBackup.restore` 写入，世界状态文件写回后必须调 `WorldStore.shared.reload()`，否则页面还显示旧状态。
 
 ---
 
@@ -69,6 +79,8 @@ App          组装入口
 - **视图不发起网络请求。** 请求在 ViewModel 或 Data 层，视图只读结果。
 - 长生命周期 `Task` 捕获 `self` 用 `weak`，避免 ViewModel 被任务吊住。
 - 流式输出期间不允许重入：`isStreaming` 为真时直接返回。
+- **一次回复产生几个后台调用，由 `GenerationPlan` 决定，不散在各处判断。** 按次计费时心情、心声、记忆增量、动态文案都并进正文后的状态块，不再单独发压缩调用；按量计费时才走独立压缩。
+- **状态块解析失败要降级成普通回复。** 模型偶尔写坏 JSON，不能让「解析失败」表现成「这条消息丢了」。
 
 ---
 
@@ -133,6 +145,9 @@ chore:    杂项（忽略规则、格式化）
 | 免费签名重装即清库 | 聊天记录、API Key 全丢 | 设置页必须能一键导出，且导出要早于任何结构改动 |
 | 配对文件随系统升级失效 | iLoader 报 `device does not have pairing file`，实际是记录过期 | 删掉 `C:\ProgramData\Apple\Lockdown` 下旧记录，重新插线信任 |
 | 启动即申请通知权限 | 2026-11-05 首轮全绿构建，5 张截图全被「Would Like to Send You Notifications」盖住，界面等于没验收 | 删掉 App 入口的 `.task`；权限绑定到设置开关与第一条回复投递前，后者成功即补发 |
+| 深色模式里用 `Form` | 外壳 `.preferredColorScheme(.dark)` 会把 grouped 单元格染黑，叠深色渐变后是一层脏灰框，白色背景也救不回来 | 设置页改自绘 `whiteCard` 分组；`check_standards.py` 拦住 `Features/Settings/` 里的 `Form` |
+| `Text` 拼接里调 `lineSpacing` | `lineSpacing` 返回 `some View`，`base + Text(...)` 立刻失效 | 行距移到下游视图，拼接只在 `Text` 之间做 |
+| 心情每轮都变 | 模型每回一句就换个状态，角色像没有脾气 | `DayScheduleEngine.shouldUpdateMood` 卡三道：同状态不变、无起因不变、30 分钟冷却内不变 |
 
 ---
 
@@ -193,6 +208,6 @@ python scripts/check_standards.py
 
 本地随时可跑；构建时会在生成工程之前跑一次，不通过就直接失败。
 
-脚本能查的是机械规则（分层 import、重复造轮子的特征字符串、启动路径的系统权限申请、文件行数、密钥泄漏、换行符、括号平衡）。
+脚本能查的是机械规则（分层 import、重复造轮子的特征字符串、启动路径的系统权限申请、设置页的 `Form`、世界状态只有一个实例、状态块标记的落点、文件行数、密钥泄漏、换行符、括号平衡）。
 查不出的部分——比如「这个组件该不该抽」——靠第 2 节的表和评审时的一句话：
 **这段代码，项目里是不是已经有一份了？**
