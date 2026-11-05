@@ -8,9 +8,9 @@
 
 | 项 | 值 |
 |---|---|
-| 本地 ipa | `_artifacts/MiniPhone-unsigned.ipa`（583,178 字节，2026-11-05 构建） |
-| 构建结果 | 全绿：规范检查、Xcode 26.6 编译、未签名 ipa、模拟器编译、5 张截图 |
-| 截图 | `_artifacts/latest/shots/`：lock / home / chat / moments / settings |
+| 本地 ipa | `_artifacts/MiniPhone-unsigned.ipa`（830,923 字节，2026-11-05 构建） |
+| 构建结果 | 全绿：规范检查、Xcode 26.6 编译、未签名 ipa、模拟器编译、逐页截图 |
+| 截图 | `_artifacts/latest/shots/`：`fetch_artifacts.py` 按本次构建实际产出的清单拉全，会自动清掉上一轮残留的旧图 |
 | 编译日志 | `_artifacts/latest/build.log`（无 error） |
 
 ipa 已经在这台电脑上了，**不用去 GitHub 网页下载 artifact**。要更新版本时从 `artifacts` 分支取，见最后一节。
@@ -115,7 +115,7 @@ ipa 已经在这台电脑上了，**不用去 GitHub 网页下载 artifact**。�
 
 ## 产物与构建通道
 
-`main` 每次推送会触发 `.github/workflows/build.yml`：规范检查 → XcodeGen 生成工程 → `xcodebuild` 出未签名 ipa → 模拟器编译 + 5 张截图 → 把日志、ipa、截图写回 `artifacts` 孤儿分支。
+`main` 每次推送会触发 `.github/workflows/build.yml`：规范检查 → XcodeGen 生成工程 → `xcodebuild` 出未签名 ipa → 模拟器编译 + 逐页截图 → 把日志、ipa、截图写回 `artifacts` 孤儿分支。截图是验收材料，模拟器开机或截图服务超时不会把 ipa 拖成失败。
 
 取最新产物不用开网页，在项目根目录跑：
 

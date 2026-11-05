@@ -148,6 +148,7 @@ chore:    杂项（忽略规则、格式化）
 | 深色模式里用 `Form` | 外壳 `.preferredColorScheme(.dark)` 会把 grouped 单元格染黑，叠深色渐变后是一层脏灰框，白色背景也救不回来 | 设置页改自绘 `whiteCard` 分组；`check_standards.py` 拦住 `Features/Settings/` 里的 `Form` |
 | `Text` 拼接里调 `lineSpacing` | `lineSpacing` 返回 `some View`，`base + Text(...)` 立刻失效 | 行距移到下游视图，拼接只在 `Text` 之间做 |
 | 心情每轮都变 | 模型每回一句就换个状态，角色像没有脾气 | `DayScheduleEngine.shouldUpdateMood` 卡三道：同状态不变、无起因不变、30 分钟冷却内不变 |
+| 模拟器截图张冠李戴 | 开机没完成就截图会拍到 Apple logo / 系统主屏；app 没退干净时 `-previewState` 不生效，会拍到上一个状态的界面 | 开机与安装单独放宽超时；每次截图前先 `terminate` 再冷启动；launch 失败直接跳过，不拍假图；`fetch_artifacts.py` 按分支实际清单拉图并先清旧图 |
 
 ---
 
