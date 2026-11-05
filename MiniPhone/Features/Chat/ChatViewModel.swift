@@ -98,13 +98,28 @@ final class ChatViewModel {
             world.markReferenced(worldContext.voices)
         }
 
+        // 刷新判定放在发请求之前：判定结果要进提示词，模型才知道这一轮带不带页面内容。
+        let recentTitles = world.state.feed
+            .sorted { $0.postedAt > $1.postedAt }
+            .prefix(3)
+            .map(\.title)
+        let refresh = RefreshEngine.request(
+            plan: plan,
+            state: world.state,
+            rules: settings.refreshRules,
+            interval: settings.refreshInterval,
+            recentTitles: Array(recentTitles),
+            roll: { Double.random(in: 0..<1) }
+        )
+
         let system = PromptBuilder.systemPrompt(
             character: character,
             worldEntries: allEntries,
             triggerText: trigger,
             lastMessageAt: history.dropLast().last?.createdAt,
             worldContext: worldContext,
-            metaBlockRequired: plan.mergesSideEffects
+            metaBlockRequired: plan.mergesSideEffects,
+            refresh: refresh
         )
 
         var request: [ChatMessage] = [ChatMessage(role: .system, text: system)]
@@ -129,6 +144,7 @@ final class ChatViewModel {
                 meta: envelope.meta,
                 names: names,
                 plan: plan,
+                refresh: refresh,
                 for: character,
                 context: context,
                 settings: settings
@@ -146,6 +162,7 @@ final class ChatViewModel {
         meta: ReplyEnvelope.Meta?,
         names: [String],
         plan: GenerationPlan,
+        refresh: RefreshRequest?,
         for character: Companion,
         context: ModelContext,
         settings: SettingsStore
@@ -172,6 +189,12 @@ final class ChatViewModel {
         character.totalReplies += 1
         character.lastMessageAt = Date()
         applySideEffects(meta, names: names, character: character, context: context)
+        applyRefresh(
+            meta,
+            refresh: refresh,
+            enabledPages: settings.refreshRules.filter(\.enabled).map(\.page),
+            for: character
+        )
         save(context)
 
         if settings.notifyReplies {
@@ -227,6 +250,46 @@ final class ChatViewModel {
         }
         if let raw = meta.voiceResolvedID, let id = UUID(uuidString: raw) {
             world.resolveVoice(id: id)
+        }
+    }
+
+    /// 把这一轮带回来的页面增量写进世界状态。
+    ///
+    /// 判定过要刷、模型却什么都没给，是正常会发生的（它觉得最近没线索）。
+    /// 这种情况不清零计数，下一轮还能再判一次，不会白等六轮。
+    private func applyRefresh(
+        _ meta: ReplyEnvelope.Meta?,
+        refresh: RefreshRequest?,
+        enabledPages: [RefreshPage],
+        for character: Companion
+    ) {
+        let world = WorldStore.shared
+
+        guard let refresh, let meta else {
+            world.noteTurn(pages: enabledPages)
+            return
+        }
+
+        var added = 0
+        if refresh.wantsShop {
+            added += world.applyShopDrafts(meta.shop ?? [], limit: refresh.shopLimit)
+        }
+        if refresh.wantsFeed {
+            added += world.applyFeedDrafts(
+                meta.feed ?? [],
+                author: character.name,
+                authorUID: character.uid.uuidString,
+                limit: refresh.feedLimit
+            )
+            added += world.applyFeedComments(meta.feedComments ?? [], limit: refresh.commentLimit)
+        }
+
+        if added > 0 {
+            world.markRefreshed(refresh.pages)
+            // App 不在前台时补一条本地通知；在前台由外壳弹玻璃横幅，不走系统通知。
+            ReplyNotifier.notifyRefresh(text: refresh.notices.joined(separator: "\n"))
+        } else {
+            world.noteTurn(pages: enabledPages)
         }
     }
 

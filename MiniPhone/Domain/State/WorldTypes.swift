@@ -139,6 +139,61 @@ struct ShoppingItem: Codable, Identifiable {
     var orderedAt: Date
 }
 
+/// 一条由模型推出来的商品。
+///
+/// 和上面的 `ShoppingItem` 不是一回事：那个是手写的订单清单，这个是
+/// 「按你最近聊到的东西推给你」的候选。`reason` 存的是当时那句话，
+/// 界面要把它显示出来——推荐如果不是从聊天里长出来的，就只是普通广告。
+struct ShopItem: Codable, Identifiable, Hashable {
+    var id: UUID
+    var title: String
+    /// 存分，避免用浮点算钱。
+    var priceCents: Int
+    /// 一句话推荐语，界面上显示在标题下面。
+    var note: String
+    /// 从哪句聊天推出来的，空表示这次没给依据。
+    var reason: String
+    var category: String
+    /// 封面配色的种子。同一条商品每次渲染颜色一致。
+    var imageSeed: Int
+    var addedAt: Date
+    var inCart: Bool
+
+    var priceText: String {
+        let yuan = priceCents / 100
+        let cent = priceCents % 100
+        return cent == 0 ? "¥\(yuan)" : String(format: "¥%d.%02d", yuan, cent)
+    }
+}
+
+struct NoteComment: Codable, Identifiable, Hashable {
+    var id: UUID
+    var authorName: String
+    var text: String
+    var postedAt: Date
+    /// 角色发的评论和路人发的在界面上要区分开。
+    var isCharacter: Bool
+}
+
+/// 小红书式的一条笔记。
+///
+/// 封面不是图片文件，是由标题和 `coverSeed` 现场排出来的文字图——
+/// 用真图就要么占包体、要么调生图接口，两种都不划算。
+struct FeedNote: Codable, Identifiable, Hashable {
+    var id: UUID
+    var authorName: String
+    /// 角色发的笔记带上 uid，用来点进角色主页。
+    var authorUID: String?
+    var title: String
+    var body: String
+    var tag: String
+    var likes: Int
+    var comments: [NoteComment]
+    var postedAt: Date
+    var coverSeed: Int
+}
+
+/// 兼容用的旧结构，只为了让老存档还能解开。新代码不再往里写。
 struct ForumPost: Codable, Identifiable {
     var id: UUID
     var author: String
@@ -149,6 +204,10 @@ struct ForumPost: Codable, Identifiable {
 }
 
 /// 一份完整快照。所有 App 只读这一份，写入也只走 WorldStore。
+///
+/// `init(from:)` 是手写的：合成的解码要求每个 key 都存在，只要加一个字段，
+/// 老用户的 world-state.json 就整份解不开、全部重置。改成逐字段
+/// `decodeIfPresent` 之后，加字段只影响新字段本身。
 struct WorldState: Codable {
     var version: Int = 1
     var people: [PersonMemory] = []
@@ -159,7 +218,40 @@ struct WorldState: Codable {
     var usage: [AppUsageRecord] = []
     var shopping: [ShoppingItem] = []
     var forum: [ForumPost] = []
+    /// 购物页的推荐流，由刷新引擎写入。
+    var shop: [ShopItem] = []
+    /// 小红书笔记。
+    var feed: [FeedNote] = []
+    /// 上一轮刷新增量的时间。
+    var lastRefreshAt: Date?
+    /// 每个页面各自「距上次刷新过了几轮」。key 是 `RefreshPage.rawValue`。
+    var refreshTurns: [String: Int] = [:]
     var updatedAt: Date = Date()
+
+    init() {}
+
+    private enum CodingKeys: String, CodingKey {
+        case version, people, schedule, mood, currentTrack, location, usage
+        case shopping, forum, shop, feed, lastRefreshAt, refreshTurns, updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
+        people = try container.decodeIfPresent([PersonMemory].self, forKey: .people) ?? []
+        schedule = try container.decodeIfPresent(DaySchedule.self, forKey: .schedule)
+        mood = try container.decodeIfPresent(MoodState.self, forKey: .mood)
+        currentTrack = try container.decodeIfPresent(Track.self, forKey: .currentTrack)
+        location = try container.decodeIfPresent(String.self, forKey: .location) ?? ""
+        usage = try container.decodeIfPresent([AppUsageRecord].self, forKey: .usage) ?? []
+        shopping = try container.decodeIfPresent([ShoppingItem].self, forKey: .shopping) ?? []
+        forum = try container.decodeIfPresent([ForumPost].self, forKey: .forum) ?? []
+        shop = try container.decodeIfPresent([ShopItem].self, forKey: .shop) ?? []
+        feed = try container.decodeIfPresent([FeedNote].self, forKey: .feed) ?? []
+        lastRefreshAt = try container.decodeIfPresent(Date.self, forKey: .lastRefreshAt)
+        refreshTurns = try container.decodeIfPresent([String: Int].self, forKey: .refreshTurns) ?? [:]
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+    }
 
     static let empty = WorldState()
 

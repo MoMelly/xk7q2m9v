@@ -44,6 +44,12 @@ enum PhoneMetrics {
     static let referenceSize = CGSize(width: 430, height: 932)
 
     /// 间距梯度。页面里不再出现裸数字。
+    /// 通知横幅距屏幕顶部的距离。
+    ///
+    /// 真机通知是贴着灵动岛下沿出现的。系统的状态栏被我们隐藏了，安全区会变矮，
+    /// 所以这里写绝对值，不跟安全区走。
+    static let notificationTopInset: CGFloat = 62
+
     enum Space {
         static let xxs: CGFloat = 4
         static let xs: CGFloat = 8
@@ -67,6 +73,10 @@ enum PhoneMetrics {
         static let block: CGFloat = 8
         /// 事件左侧的色条。
         static let bar: CGFloat = 1.5
+        /// 通知横幅。真机通知的圆角比普通卡片大得多。
+        static let notification: CGFloat = 26
+        /// 设置行左侧的 29×29 小图标。
+        static let iconTile: CGFloat = 7
     }
 
     /// 列表行高。

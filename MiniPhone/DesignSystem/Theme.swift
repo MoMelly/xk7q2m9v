@@ -43,6 +43,12 @@ enum Theme {
     static let separator = Color(red: 0.776, green: 0.776, blue: 0.784)
     /// 系统蓝。浅色 App 的 tint。
     static let tint = Color(red: 0.0, green: 0.478, blue: 1.0)
+    /// 小红书 / 淘宝那一系的品牌红。选中态、加购按钮、价格都用它。
+    static let brand = Color(red: 0.94, green: 0.35, blue: 0.30)
+    /// 价格数字，比品牌红再深一点，白底上更立得住。
+    static let price = Color(red: 0.92, green: 0.26, blue: 0.20)
+    /// 笔记里的话题链接蓝。
+    static let link = Color(red: 0.20, green: 0.42, blue: 0.86)
 
     /// 设置页、场景页左侧彩色小图标的底色。视图里不写字面色值，都从这里取。
     enum IconTint {

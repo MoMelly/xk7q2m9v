@@ -30,20 +30,34 @@ enum ReplyNotifier {
     /// 已拒绝则直接跳过，系统不会重复弹框。
     @MainActor
     static func notifyReply(characterName: String, text: String) {
+        deliver(title: characterName, body: String(text.prefix(120)))
+    }
+
+    /// 页面自己刷新了（购物换了一批、小红书有人发帖）。
+    ///
+    /// 这是本地通知，不需要推送证书。App 在前台时不发——
+    /// 那时外壳会弹一条自己画的玻璃横幅，两条一起出现就重了。
+    @MainActor
+    static func notifyRefresh(text: String) {
+        deliver(title: "小手机", body: String(text.prefix(160)))
+    }
+
+    @MainActor
+    private static func deliver(title: String, body: String) {
         guard UIApplication.shared.applicationState != .active else { return }
 
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in
             switch settings.authorizationStatus {
             case .authorized, .provisional, .ephemeral:
-                post(characterName: characterName, text: text, to: center)
+                post(title: title, body: body, to: center)
             case .notDetermined:
                 center.requestAuthorization(options: options) { granted, error in
                     if let error {
                         AppLog.ui.error("通知授权失败: \(error.localizedDescription, privacy: .public)")
                     }
                     if granted {
-                        post(characterName: characterName, text: text, to: center)
+                        post(title: title, body: body, to: center)
                     }
                 }
             case .denied:
@@ -54,10 +68,10 @@ enum ReplyNotifier {
         }
     }
 
-    private static func post(characterName: String, text: String, to center: UNUserNotificationCenter) {
+    private static func post(title: String, body: String, to center: UNUserNotificationCenter) {
         let content = UNMutableNotificationContent()
-        content.title = characterName
-        content.body = String(text.prefix(120))
+        content.title = title
+        content.body = body
         content.sound = .default
 
         let request = UNNotificationRequest(

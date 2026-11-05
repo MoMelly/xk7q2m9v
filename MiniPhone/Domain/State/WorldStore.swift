@@ -20,13 +20,28 @@ final class WorldStore {
     static let shared = WorldStore()
 
     private(set) var state: WorldState
+    /// 刚发生的刷新，界面弹一次就清掉。按页面记，用来配对应的图标。
+    private(set) var pendingNotices: [RefreshPage] = []
+
+    /// 刷新提示的写入入口。
+    ///
+    /// `pendingNotices` 的 setter 是 private，扩展在另一个文件里改不了，
+    /// 所以留这一对方法给它用。
+    func showNotices(_ pages: [RefreshPage]) {
+        pendingNotices = pages
+    }
+
+    /// 界面上弹出过之后调用。
+    func consumeNotice() {
+        pendingNotices = []
+    }
     private let fileURL: URL
 
     init(fileURL: URL? = nil) {
         let url = fileURL ?? WorldStateFile.url
         self.fileURL = url
         if let data = try? Data(contentsOf: url),
-           let decoded = try? JSONDecoder().decode(WorldState.self, from: data) {
+           let decoded = WorldStore.decode(data) {
             self.state = decoded
         } else {
             self.state = .empty
@@ -36,11 +51,25 @@ final class WorldStore {
     /// 备份恢复后重新读盘。SwiftData 和世界状态是两套存储，必须分别刷新。
     func reload() {
         if let data = try? Data(contentsOf: fileURL),
-           let decoded = try? JSONDecoder().decode(WorldState.self, from: data) {
+           let decoded = WorldStore.decode(data) {
             state = decoded
         } else {
             state = .empty
         }
+    }
+
+    /// 写盘用 ISO8601，读盘必须用同一个策略。
+    ///
+    /// 这里之前读盘用的是默认解码器（自 2001 起的秒数），和写盘不一致，
+    /// 导致每次启动都解不开、静默退回空状态——跨会话的记忆就是这样丢的。
+    /// 两种策略都试一遍，是为了把不同版本写出来的存档都认下来。
+    private static func decode(_ data: Data) -> WorldState? {
+        let iso = JSONDecoder()
+        iso.dateDecodingStrategy = .iso8601
+        if let value = try? iso.decode(WorldState.self, from: data) {
+            return value
+        }
+        return try? JSONDecoder().decode(WorldState.self, from: data)
     }
 
     // MARK: - 存取
@@ -210,30 +239,36 @@ final class WorldStore {
     // MARK: - 场景页数据
 
     /// 第一次进入时铺一层静态内容，之后一直读同一份，不会每次打开都换。
+    ///
+    /// 只铺小红书：这几条是路人发的，和聊天无关，用来让版面第一次打开就有东西看。
+    /// 购物不铺——那一页的意义就是「从你跟谁聊了什么推出来的」，
+    /// 预置几件凭空出现的商品反而把这件事讲反了。
     func seedSceneContentIfNeeded(now: Date = Date()) {
-        var changed = false
-        if state.shopping.isEmpty {
-            changed = true
-            state.shopping = [
-                ShoppingItem(id: UUID(), title: "便携保温杯", price: "¥129", status: "已送达",
-                             orderedAt: now.addingTimeInterval(-86_400 * 2)),
-                ShoppingItem(id: UUID(), title: "一本没读完的小说", price: "¥42", status: "运输中",
-                             orderedAt: now.addingTimeInterval(-86_400)),
-                ShoppingItem(id: UUID(), title: "耳机收纳盒", price: "¥39", status: "待付款",
-                             orderedAt: now)
-            ]
+        guard state.feed.isEmpty else { return }
+
+        let seeds: [(title: String, body: String, tag: String, likes: Int)] = [
+            ("周末去了趟旧书店", "三楼靠窗那排全是八九十年代的画册，蹲了一个下午。", "旧书", 47),
+            ("这个季节最好吃的东西", "楼下水果摊的橘子，皮很薄，剥开一手都是味。", "橘子", 159),
+            ("通勤路上拍到的云", "一整天都不太顺，但抬头的时候还是停了两秒。", "云", 75)
+        ]
+
+        state.feed = seeds.enumerated().map { index, item in
+            FeedNote(
+                id: UUID(),
+                authorName: ["阿绿", "小林", "南南"][index % 3],
+                authorUID: nil,
+                title: item.title,
+                body: item.body,
+                tag: item.tag,
+                likes: item.likes,
+                comments: [],
+                postedAt: now.addingTimeInterval(-Double(index + 1) * 5_400),
+                coverSeed: StableSeed.of(item.title)
+            )
         }
-        if state.forum.isEmpty {
-            changed = true
-            state.forum = [
-                ForumPost(id: UUID(), author: "路人甲", title: "今晚的月亮", body: "拍糊了，但舍不得删。",
-                          postedAt: now.addingTimeInterval(-3_600 * 5), replyCount: 12),
-                ForumPost(id: UUID(), author: "楼下咖啡", title: "新到的豆子", body: "偏酸，喝不惯的人别点。",
-                          postedAt: now.addingTimeInterval(-3_600 * 20), replyCount: 4)
-            ]
-        }
-        if changed { save() }
+        save()
     }
+
 
     // MARK: - 提示词上下文
 

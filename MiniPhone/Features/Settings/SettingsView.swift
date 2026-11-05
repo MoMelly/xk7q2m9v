@@ -48,6 +48,20 @@ struct SettingsView: View {
                                 showsChevron: true
                             )
                         }
+
+                        RowDivider()
+
+                        rowLink {
+                            AutoRefreshPage(settings: settings)
+                        } label: {
+                            GroupedRow(
+                                symbol: "arrow.triangle.2.circlepath",
+                                symbolTint: Theme.IconTint.indigo,
+                                title: "自动刷新",
+                                value: "每 \(settings.refreshInterval) 轮",
+                                showsChevron: true
+                            )
+                        }
                     }
 
                     GroupedSection {

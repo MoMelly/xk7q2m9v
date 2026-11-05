@@ -13,7 +13,8 @@ enum PromptBuilder {
         now: Date = Date(),
         lastMessageAt: Date?,
         worldContext: WorldContext? = nil,
-        metaBlockRequired: Bool = false
+        metaBlockRequired: Bool = false,
+        refresh: RefreshRequest? = nil
     ) -> String {
         var blocks: [String] = []
 
@@ -74,7 +75,8 @@ enum PromptBuilder {
         """)
 
         // 按次计费时，把状态增量挤进同一次回复，省掉后台那些独立调用。
-        if metaBlockRequired {
+        // 要刷新页面的那一轮也必须有这个块，否则刷出来的内容没地方放。
+        if metaBlockRequired || refresh != nil {
             blocks.append("""
             【附加状态块】
             正文之后另起一行，输出一段机器可读的 JSON，以 <<<meta>>> 开头、<<<end>>> 结尾。
@@ -86,7 +88,59 @@ enum PromptBuilder {
             """)
         }
 
+        if let refresh {
+            blocks.append(refreshBlock(refresh))
+        }
+
         return blocks.joined(separator: "\n\n")
+    }
+
+    /// 刷新的指令。
+    ///
+    /// 单独成块而不是塞进状态块说明里：这一块只在被判定的轮次出现，
+    /// 混在一起会让模型以为每轮都要产商品。
+    private static func refreshBlock(_ request: RefreshRequest) -> String {
+        var lines: [String] = [
+            "【这一轮顺便刷新】",
+            "用户会在这部手机里打开下面这些页面。这一轮把它们的内容换一批，写进状态块的对应字段，",
+            "不要写进台词，也不要在对话里提「我给你刷新了」之类的话——他看到的就是页面自己变了。"
+        ]
+
+        if request.wantsShop {
+            lines.append("""
+            - shop：\(request.shopLimit - 1)~\(request.shopLimit) 件商品。
+              title 商品名（12 字内）；price 数字，单位元，按普通学生能接受的水平，几十到一百多；
+              note 你自己的一句反应或推荐（20 字内，可以有情绪）；
+              reason 你依据的那件事，尽量引用他刚说过的原话（30 字内）；
+              category 一个词：数码 / 吃的 / 日用 / 书 / 穿的。
+              依据必须是最近对话里真实出现过的东西或需求。他随口提一句「耳机又坏了」才推耳机，
+              什么线索都没有就别写这个字段。
+            """)
+        }
+
+        if request.wantsFeed {
+            lines.append("""
+            - feed：\(request.feedLimit) 条笔记。
+              title 20 字内，body 60 字内，tag 一个话题词，
+              author 是发这条的账号名（可以是你自己，也可以是别人的号），
+              comments 给 0~2 句底下的人说的话。
+              内容是用户最近聊到的事延伸出去的，不要凭空编一个跟他无关的话题。
+            """)
+        }
+
+        if !request.commentTargets.isEmpty {
+            let titles = request.commentTargets.map { "「\($0)」" }.joined(separator: "、")
+            lines.append("""
+            - feedComments：给你自己以前发过的笔记补 \(request.commentLimit) 条评论。
+              title 字段原样照抄下面其中一个标题：\(titles)
+              author 写评论的人（可以是别的角色，也可以是路人），text 一句话，30 字内。
+              这是「过了一段时间又有人来留言」，语气要像隔了一阵子才看到，不要复读原帖。
+              没什么可说的就不写。
+            """)
+        }
+
+        lines.append("两个字段都可以不写。宁可这一次什么都不刷，也不要硬凑。")
+        return lines.joined(separator: "\n")
     }
 
     /// 世界状态进提示词的唯一装配点。

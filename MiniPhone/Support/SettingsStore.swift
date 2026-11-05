@@ -20,6 +20,8 @@ final class SettingsStore {
         static let billingByModel = "llm.billingByModel"
         static let allowPhoneLookups = "privacy.allowPhoneLookups"
         static let videoWallpaper = "shell.videoWallpaper"
+        static let refreshRules = "refresh.rules"
+        static let refreshInterval = "refresh.interval"
     }
 
     private static let keychainAccount = "llm.apiKey"
@@ -37,6 +39,11 @@ final class SettingsStore {
     /// 关掉时，电量、机型、使用记录一律不进提示词。默认关。
     var allowPhoneLookups: Bool = false
     var videoWallpaperEnabled: Bool = false
+
+    /// 每个会自己更新的页面各自的开关与概率。
+    var refreshRules: [RefreshRule] = RefreshRule.default
+    /// 两个页面共用同一个间隔：攒够这么多轮才开始掷骰子。
+    var refreshInterval: Int = 6
 
     /// model → BillingMode.rawValue。
     private var billingByModel: [String: String] = [:]
@@ -67,6 +74,13 @@ final class SettingsStore {
             ?? BillingMode.perToken.rawValue
         allowPhoneLookups = defaults.bool(forKey: DefaultsKey.allowPhoneLookups)
         videoWallpaperEnabled = defaults.bool(forKey: DefaultsKey.videoWallpaper)
+        if let data = defaults.data(forKey: DefaultsKey.refreshRules),
+           let decoded = try? JSONDecoder().decode([RefreshRule].self, from: data) {
+            refreshRules = merged(decoded)
+        }
+        if defaults.object(forKey: DefaultsKey.refreshInterval) != nil {
+            refreshInterval = min(30, max(2, defaults.integer(forKey: DefaultsKey.refreshInterval)))
+        }
         if let storedKey = KeychainStore.string(for: Self.keychainAccount) {
             apiKey = storedKey
         }
@@ -118,6 +132,31 @@ final class SettingsStore {
         persist()
     }
 
+    // MARK: - 刷新配置
+
+    /// 存档里少一个页面（版本升级新加的）就补默认值，多的丢掉。
+    private func merged(_ stored: [RefreshRule]) -> [RefreshRule] {
+        RefreshPage.allCases.map { page in
+            stored.first { $0.page == page }
+                ?? RefreshRule.default.first { $0.page == page }
+                ?? RefreshRule(page: page, enabled: true, probability: 0.2)
+        }
+    }
+
+    func rule(for page: RefreshPage) -> RefreshRule {
+        refreshRules.first { $0.page == page }
+            ?? RefreshRule(page: page, enabled: true, probability: 0.2)
+    }
+
+    func updateRule(_ rule: RefreshRule) {
+        if let index = refreshRules.firstIndex(where: { $0.page == rule.page }) {
+            refreshRules[index] = rule
+        } else {
+            refreshRules.append(rule)
+        }
+        persist()
+    }
+
     func persist() {
         let defaults = UserDefaults.standard
         defaults.set(baseURL, forKey: DefaultsKey.baseURL)
@@ -130,6 +169,10 @@ final class SettingsStore {
         defaults.set(billingByModel, forKey: DefaultsKey.billingByModel)
         defaults.set(allowPhoneLookups, forKey: DefaultsKey.allowPhoneLookups)
         defaults.set(videoWallpaperEnabled, forKey: DefaultsKey.videoWallpaper)
+        if let data = try? JSONEncoder().encode(refreshRules) {
+            defaults.set(data, forKey: DefaultsKey.refreshRules)
+        }
+        defaults.set(refreshInterval, forKey: DefaultsKey.refreshInterval)
         KeychainStore.set(apiKey, for: Self.keychainAccount)
     }
 }

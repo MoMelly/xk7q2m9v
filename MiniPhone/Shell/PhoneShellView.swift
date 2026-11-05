@@ -13,6 +13,7 @@ struct PhoneShellView: View {
     @State private var openedAt: Date?
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
+    @State private var noticeTask: Task<Void, Never>?
 
     // MARK: - 截图用的启动状态
 
@@ -38,7 +39,7 @@ struct PhoneShellView: View {
         case "music": destination = .scene(.music)
         case "health": destination = .scene(.health)
         case "shopping": destination = .scene(.shopping)
-        case "forum": destination = .scene(.forum)
+        case "feed": destination = .scene(.feed)
         default: destination = nil
         }
         guard let destination else { return nil }
@@ -78,14 +79,68 @@ struct PhoneShellView: View {
                 toast(toastText)
                     .zIndex(3)
             }
+
+            if !world.pendingNotices.isEmpty {
+                VStack(spacing: 0) {
+                    NotificationStack(notices: notices, onDismiss: dismissNotice)
+                        .padding(.top, PhoneMetrics.notificationTopInset)
+                    Spacer(minLength: 0)
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(4)
+            }
         }
         .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isLocked)
         .animation(.spring(response: 0.36, dampingFraction: 0.84), value: openedApp)
+        .animation(.spring(response: 0.34, dampingFraction: 0.86), value: world.pendingNotices)
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .task { @MainActor in
             world.ensureToday(wakeHour: 7, sleepHour: 23)
             world.seedSceneContentIfNeeded()
+        }
+        .onChange(of: world.pendingNotices) { _, pages in
+            guard !pages.isEmpty else { return }
+            scheduleNoticeDismiss()
+        }
+    }
+
+    // MARK: - 通知横幅
+
+    /// 把刷新页面映射回桌面图标，横幅上用的就是用户认得的那个 App 图标。
+    private var notices: [NotificationStack.Notice] {
+        world.pendingNotices.compactMap { page -> NotificationStack.Notice? in
+            let destination: PhoneApp.Destination
+            switch page {
+            case .shop: destination = .scene(.shopping)
+            case .feed: destination = .scene(.feed)
+            }
+            guard let app = AppCatalog.home.first(where: { $0.destination == destination }) else {
+                return nil
+            }
+            return NotificationStack.Notice(
+                symbol: app.symbol,
+                colors: app.colors,
+                title: app.name,
+                body: page.notice.split(separator: "·").last.map { String($0).trimmingCharacters(in: .whitespaces) }
+                    ?? page.notice
+            )
+        }
+    }
+
+    private func scheduleNoticeDismiss() {
+        noticeTask?.cancel()
+        noticeTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            guard !Task.isCancelled else { return }
+            dismissNotice()
+        }
+    }
+
+    private func dismissNotice() {
+        noticeTask?.cancel()
+        withAnimation(.easeOut(duration: 0.22)) {
+            world.consumeNotice()
         }
     }
 
