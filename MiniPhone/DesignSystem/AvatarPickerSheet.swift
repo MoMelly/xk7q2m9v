@@ -22,6 +22,8 @@ struct AvatarPickerSheet: View {
     @State private var picked: PhotosPickerItem?
     @State private var isWorking = false
     @State private var errorText = ""
+    /// 默认给大半屏：四组头像加相册入口，半屏得滚很久才看得完。
+    @State private var detent: PresentationDetent = .large
 
     private let columns = Array(
         repeating: GridItem(.flexible(), spacing: PhoneMetrics.Space.xs),
@@ -33,10 +35,10 @@ struct AvatarPickerSheet: View {
             ScrollView {
                 VStack(spacing: PhoneMetrics.Space.l) {
                     preview
+                    uploadSection
                     ForEach(AvatarGroup.allCases) { group in
                         builtInSection(group)
                     }
-                    uploadSection
                     if !errorText.isEmpty {
                         Text(errorText)
                             .font(.system(size: PhoneMetrics.FontSize.footnote))
@@ -58,7 +60,7 @@ struct AvatarPickerSheet: View {
             }
         }
         .environment(\.colorScheme, ThemeStore.shared.isNight ? .dark : .light)
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.medium, .large], selection: $detent)
         .onChange(of: picked) { _, item in
             guard let item else { return }
             Task { await importPhoto(item) }
@@ -79,7 +81,7 @@ struct AvatarPickerSheet: View {
 
     private var preview: some View {
         GroupedSection {
-            VStack(spacing: PhoneMetrics.Space.xs) {
+            HStack(spacing: PhoneMetrics.Space.m) {
                 Group {
                     if let photo = currentPhoto {
                         Image(uiImage: photo)
@@ -89,12 +91,12 @@ struct AvatarPickerSheet: View {
                         Circle().fill(Theme.separator.opacity(0.35))
                             .overlay {
                                 Image(systemName: "person.fill")
-                                    .font(.system(size: 30))
+                                    .font(.system(size: 22))
                                     .foregroundStyle(Theme.secondaryLabel)
                             }
                     }
                 }
-                .frame(width: 88, height: 88)
+                .frame(width: 56, height: 56)
                 .clipShape(Circle())
                 .overlay {
                     Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1)
@@ -103,10 +105,12 @@ struct AvatarPickerSheet: View {
                 Text(currentPhoto == nil ? fallbackNote : "现在用的是这张")
                     .font(.system(size: PhoneMetrics.FontSize.caption))
                     .foregroundStyle(Theme.secondaryLabel)
-                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, PhoneMetrics.Space.m)
+            .padding(.horizontal, PhoneMetrics.Space.m)
+            .frame(minHeight: PhoneMetrics.Row.detailed)
         }
     }
 
