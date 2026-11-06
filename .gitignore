@@ -18,3 +18,7 @@ Thumbs.db
 # 本地配置（永远不要提交密钥）
 Secrets/
 *.local.xcconfig
+
+# CLI 登录过程的一次性输出，不属于源码
+_ghauth.log
+*.log

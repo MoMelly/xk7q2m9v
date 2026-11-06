@@ -161,8 +161,9 @@ chore:    杂项（忽略规则、格式化）
 ### 9.1 先分清「没触发」和「触发了但没机器」
 
 ```
-gh run list --repo MoMelly/miniphone --limit 5
-gh api repos/MoMelly/miniphone/actions/runs/<id>/jobs
+gh run list --limit 5
+gh run view <id>
+gh api repos/<owner>/<repo>/actions/runs/<id>/jobs
 ```
 
 看 job 的 `runner_name` 字段：
