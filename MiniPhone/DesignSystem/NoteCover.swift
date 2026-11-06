@@ -9,13 +9,15 @@ import SwiftUI
 /// 八种版式的正文排版在 `NoteCoverStyles.swift`。
 struct NoteCover: View {
     let title: String
-    let body: String
+    /// 正文文本。内部不能叫 `body`：`View` 协议要求同名的视图体属性，会重复声明。
+    /// 初始化器的外部标签仍保留 `body:`，调用方不需要跟着改。
+    let coverBody: String
     let tag: String
     let seed: Int
 
     init(title: String, body: String = "", tag: String, seed: Int) {
         self.title = title
-        self.body = body
+        self.coverBody = body
         self.tag = tag
         self.seed = seed
     }
@@ -28,7 +30,7 @@ struct NoteCover: View {
     /// 硬排会变成「标题 + 一行正文」的假清单，不如退回海报。
     var style: CoverStyle {
         let picked = CoverStyle.of(seed)
-        if picked == .checklist, CoverText.sentences(body, limit: 3).count < 2 {
+        if picked == .checklist, CoverText.sentences(coverBody, limit: 3).count < 2 {
             return .poster
         }
         return picked

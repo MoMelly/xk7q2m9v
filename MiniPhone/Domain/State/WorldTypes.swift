@@ -247,7 +247,8 @@ struct Letter: Codable, Identifiable, Hashable {
     var isRead: Bool
 }
 
-/// 西瓜皮式的一条笔记。///
+/// 西瓜皮式的一条笔记。
+///
 /// 封面不是图片文件，是由标题和 `coverSeed` 现场排出来的文字图——
 /// 用真图就要么占包体、要么调生图接口，两种都不划算。
 struct FeedNote: Codable, Identifiable, Hashable {

@@ -108,7 +108,7 @@ extension NoteCover {
                 .padding(.top, 6)
 
             VStack(alignment: .leading, spacing: 5) {
-                ForEach(Array(CoverText.sentences(body, limit: 3).enumerated()), id: \.offset) { _, line in
+                ForEach(Array(CoverText.sentences(coverBody, limit: 3).enumerated()), id: \.offset) { _, line in
                     HStack(alignment: .top, spacing: 5) {
                         Circle()
                             .fill(pair.accent)
@@ -319,7 +319,7 @@ extension NoteCover {
     /// 海报版式下面那条深色小条：取正文第一句的前半截。
     var highlight: String? {
         guard style == .poster else { return nil }
-        let line = CoverText.sentences(body, limit: 1).first?
+        let line = CoverText.sentences(coverBody, limit: 1).first?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard line.count >= 2 else { return nil }
         return String(line.prefix(11))

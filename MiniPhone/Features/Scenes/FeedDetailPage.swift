@@ -167,7 +167,7 @@ struct NoteComposer: View {
     var onClose: () -> Void
 
     @State private var title = ""
-    @State private var body_ = ""
+    @State private var composeBody = ""
     @State private var tag = ""
 
     private var canPost: Bool {
@@ -181,7 +181,7 @@ struct NoteComposer: View {
                     .font(.system(size: 19, weight: .semibold))
                     .lineLimit(1...2)
 
-                TextField("正文，随便写点", text: $body_, axis: .vertical)
+                TextField("正文，随便写点", text: $composeBody, axis: .vertical)
                     .font(.system(size: PhoneMetrics.FontSize.body))
                     .lineLimit(4...10)
 
@@ -211,7 +211,7 @@ struct NoteComposer: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("发布") {
-                        world.publishNote(title: title, body: body_, tag: tag)
+                        world.publishNote(title: title, body: composeBody, tag: tag)
                         onClose()
                     }
                     .disabled(!canPost)
