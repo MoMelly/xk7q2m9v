@@ -13,6 +13,8 @@ struct AppScreen<Content: View>: View {
     var trailingTitle: String?
     var trailingSymbol: String?
     var trailingAction: (() -> Void)?
+    /// 顶栏透明、让内容里的封面图一直铺到状态栏下面；按钮和标题仍然保留。
+    var transparentBar: Bool = false
     let content: Content
 
     init(
@@ -22,6 +24,7 @@ struct AppScreen<Content: View>: View {
         trailingTitle: String? = nil,
         trailingSymbol: String? = nil,
         trailingAction: (() -> Void)? = nil,
+        transparentBar: Bool = false,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
@@ -30,46 +33,57 @@ struct AppScreen<Content: View>: View {
         self.trailingTitle = trailingTitle
         self.trailingSymbol = trailingSymbol
         self.trailingAction = trailingAction
+        self.transparentBar = transparentBar
         self.content = content()
     }
 
     var body: some View {
         NavigationStack {
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(surface.background.ignoresSafeArea())
-                .navigationTitle(title)
-                .navigationBarTitleDisplayMode(.inline)
-                .tint(surface.tint)
-                .toolbar {
-                    if let onClose {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(action: onClose) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                        }
-                    }
+            // 先设 hidden 再设 style 会把可见性改回 visible，两条只能走不同分支。
+            if transparentBar {
+                stackContent
+                    .toolbarBackground(.hidden, for: .navigationBar)
+            } else {
+                stackContent
+                    .toolbarBackground(.visible, for: .navigationBar)
+                    .toolbarBackground(surface.background, for: .navigationBar)
+            }
+        }
+        .environment(\.colorScheme, surface.colorScheme)
+    }
 
-                    if let trailingTitle, let trailingAction {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(trailingTitle, action: trailingAction)
-                                .font(.system(size: PhoneMetrics.FontSize.body))
-                        }
-                    }
-
-                    if let trailingSymbol, let trailingAction {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button(action: trailingAction) {
-                                Image(systemName: trailingSymbol)
-                                    .font(.system(size: PhoneMetrics.FontSize.body, weight: .semibold))
-                            }
+    private var stackContent: some View {
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(surface.background.ignoresSafeArea())
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .tint(surface.tint)
+            .toolbar {
+                if let onClose {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(action: onClose) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 16, weight: .semibold))
                         }
                     }
                 }
-                .toolbarBackground(.visible, for: .navigationBar)
-                .toolbarBackground(surface.background, for: .navigationBar)
-        }
-        .environment(\.colorScheme, surface.colorScheme)
+
+                if let trailingTitle, let trailingAction {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(trailingTitle, action: trailingAction)
+                            .font(.system(size: PhoneMetrics.FontSize.body))
+                    }
+                }
+
+                if let trailingSymbol, let trailingAction {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(action: trailingAction) {
+                            Image(systemName: trailingSymbol)
+                                .font(.system(size: PhoneMetrics.FontSize.body, weight: .semibold))
+                        }
+                    }
+                }
+            }
     }
 }

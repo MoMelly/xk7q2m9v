@@ -53,14 +53,17 @@ struct FeedScene: View {
 
     var body: some View {
         AppScreen(
-            title: "西瓜皮",
+            title: phoneTab == .mine ? "" : "西瓜皮",
             surface: .light,
             onClose: onClose,
             trailingSymbol: "arrow.clockwise",
-            trailingAction: refreshFeed
+            trailingAction: refreshFeed,
+            transparentBar: phoneTab == .mine
         ) {
             VStack(spacing: 0) {
-                searchBar
+                if phoneTab == .home {
+                    searchBar
+                }
 
                 if phoneTab == .home {
                     feedTabs
@@ -74,6 +77,7 @@ struct FeedScene: View {
                     content
                 } else {
                     FeedProfilePage(world: world, onCompose: { isComposing = true })
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
 
                 bottomBar

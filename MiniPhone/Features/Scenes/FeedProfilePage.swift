@@ -8,6 +8,8 @@ struct FeedProfilePage: View {
     let world: WorldStore
     var onCompose: () -> Void
 
+    @State private var backdropVariant = 0
+
     private var myNotes: [FeedNote] {
         world.state.feed
             .filter { $0.authorName == "我" }
@@ -19,34 +21,52 @@ struct FeedProfilePage: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                banner
-                identity
-                stats
-                grid
+        GeometryReader { proxy in
+            // 背景图占内容区上半；ScrollView 顶到安全区外，
+            // 配合 AppScreen 的透明导航栏，整块屏幕上半都是这张图。
+            let bannerHeight = max(260, proxy.size.height * 0.46)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    banner(height: bannerHeight)
+                    identity
+                    stats
+                    grid
+                }
+                .padding(.bottom, PhoneMetrics.Space.xl)
             }
-            .padding(.bottom, PhoneMetrics.Space.xl)
+            .ignoresSafeArea(edges: .top)
         }
     }
 
     // MARK: - 头部
 
-    private var banner: some View {
-        ZStack(alignment: .trailing) {
-            LinearGradient(
-                colors: [Theme.brand.opacity(0.22), Theme.brand.opacity(0.05)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+    private func banner(height: CGFloat) -> some View {
+        ZStack(alignment: .bottomTrailing) {
+            ProfileBackdrop(variant: backdropVariant, height: height)
 
-            // 右边一块淡淡的水印，跟下面头像呼应
-            WatermelonMark(size: 76)
-                .opacity(0.35)
-                .padding(.trailing, PhoneMetrics.Space.m)
-                .offset(y: -12)
+            HStack(spacing: PhoneMetrics.Space.xs) {
+                Text("我的主页")
+                    .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Color.black.opacity(0.18)))
+
+                Button {
+                    backdropVariant += 1
+                } label: {
+                    Label("换一张", systemImage: "photo")
+                        .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Color.black.opacity(0.18)))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(PhoneMetrics.Space.m)
         }
-        .frame(height: 96)
+        .frame(height: height)
         .clipped()
     }
 
@@ -62,7 +82,7 @@ struct FeedProfilePage: View {
                 .overlay(
                     Circle().strokeBorder(AppSurface.light.rowSurface, lineWidth: 3)
                 )
-                .offset(y: -18)
+                .offset(y: -33)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("我")

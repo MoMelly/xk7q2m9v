@@ -12,6 +12,29 @@ struct AppIconTile: View {
 
     private var cornerRadius: CGFloat { size * 0.224 }
 
+    /// 反光条本身比图标宽，直接放进主 ZStack 会把 ZStack 的测量尺寸撑到 1.6 倍，
+    /// 底层圆角渐变也跟着被拉宽；外层 `.frame(width: size)` 只定外框、不裁溢出。
+    /// 先塞进固定尺寸容器并裁掉溢出，主 ZStack 量到的才还是 size × size。
+    private var sheen: some View {
+        ZStack {
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        colors: [.white.opacity(0), .white.opacity(0.30), .white.opacity(0)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: size * 1.6, height: size * 0.26)
+                .rotationEffect(.degrees(-32))
+                .offset(x: -size * 0.14, y: -size * 0.26)
+                .blur(radius: size * 0.02)
+                .blendMode(.plusLighter)
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+
     var body: some View {
         VStack(spacing: size * 0.1) {
             iconBody
@@ -92,20 +115,7 @@ struct AppIconTile: View {
 
                 // 斜穿整个图标的一道反光。玻璃的通透感来自「表面有光在走」，
                 // 只提亮边缘的话，中间还是一片实心红。
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [.white.opacity(0), .white.opacity(0.30), .white.opacity(0)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: size * 1.6, height: size * 0.26)
-                    .rotationEffect(.degrees(-32))
-                    .offset(x: -size * 0.14, y: -size * 0.26)
-                    .blur(radius: size * 0.02)
-                    .blendMode(.plusLighter)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+                sheen
             } else {
                 Image(systemName: app.symbol)
                     .font(.system(size: size * 0.42, weight: .medium))
@@ -114,6 +124,7 @@ struct AppIconTile: View {
             }
         }
         .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                 .strokeBorder(
