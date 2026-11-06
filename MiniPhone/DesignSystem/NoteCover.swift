@@ -6,7 +6,8 @@ import SwiftUI
 /// 版式从八种里按 seed 挑一种，标题、正文摘要、话题按各自的规则排上去。
 /// seed 由标题算出，所以同一条笔记每次打开都是同一张，不会刷一次换一张脸。
 ///
-/// 八种版式的正文排版在 `NoteCoverStyles.swift`。
+/// 十二种版式的正文排版在 `NoteCoverStyles.swift`；底色与版式各取各的 seed，
+/// 不绑定，所以同一种排版会落在各种浅色上。
 struct NoteCover: View {
     let title: String
     /// 正文文本。内部不能叫 `body`：`View` 协议要求同名的视图体属性，会重复声明。
@@ -23,7 +24,7 @@ struct NoteCover: View {
     }
 
     var pair: CoverPalette.Pair {
-        CoverPalette.pairs[StableSeed.index(seed, count: CoverPalette.pairs.count)]
+        CoverPalette.pair(for: seed)
     }
 
     /// 清单版式要拿正文拆出几行短句。正文只有一句时拆不出来，
@@ -92,6 +93,30 @@ struct NoteCover: View {
                 .fill(pair.ink.opacity(0.05))
                 .frame(width: 120, height: 120)
                 .offset(x: 50, y: -40)
+        case .bubble:
+            base
+            Circle()
+                .fill(pair.accent.opacity(0.10))
+                .frame(width: 150, height: 150)
+                .offset(x: 55, y: 60)
+        case .marker:
+            base
+            CoverRules(color: pair.ink.opacity(0.07), spacing: 26)
+        case .split:
+            base
+            GeometryReader { proxy in
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(pair.accent)
+                        .frame(height: proxy.size.height * 0.34)
+                    Color.clear
+                }
+            }
+        case .receipt:
+            base
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .strokeBorder(pair.ink.opacity(0.10), lineWidth: 0.6)
+                .padding(9)
         case .photo:
             photoBackdrop
         }
@@ -156,6 +181,10 @@ struct NoteCover: View {
         case .vertical: vertical
         case .ticket: ticket
         case .photo: photo
+        case .bubble: bubble
+        case .marker: marker
+        case .split: split
+        case .receipt: receipt
         }
     }
 }

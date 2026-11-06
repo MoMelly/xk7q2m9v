@@ -4,7 +4,9 @@ import SwiftUI
 ///
 /// 小红书那种「文字图片」不是一种排版，是很多种：大字压角、便签、清单、编号、
 /// 竖排、票根……同一屏里混着出现，才像真人一张张做的。
-/// 这里给八种，seed 决定用哪一种，同一条笔记每次打开都是同一张。
+/// 这里给十二种，seed 决定用哪一种，同一条笔记每次打开都是同一张。
+/// 新加的版式一律排在后面，rawValue 即版式编号。版式总数变化时取模基数跟着变，
+/// 已有笔记会重新排一次版；封面是现场生成的、不落图片文件，所以只是换张脸，不丢数据。
 enum CoverStyle: Int, CaseIterable {
     case poster
     case sticky
@@ -14,15 +16,21 @@ enum CoverStyle: Int, CaseIterable {
     case vertical
     case ticket
     case photo
+    case bubble
+    case marker
+    case split
+    case receipt
 
     static func of(_ seed: Int) -> CoverStyle {
         CoverStyle(rawValue: StableSeed.index(seed, count: CoverStyle.allCases.count)) ?? .poster
     }
 }
 
-/// 封面配色。浅色底 + 同色系深字 + 一个强调色，强调色用来压高亮块。
+/// 封面配色。
 ///
-/// 全部低饱和：真图封面很少用纯红纯绿，饱和度一高就像广告位。
+/// 底色按 seed 现算一个低饱和浅色，而不是从固定色卡里挑：色卡里的第十组
+/// 永远配第十种版式，看几屏就能看出规律。色相、饱和度、明度各自带一点浮动，
+/// 文字色和强调色由同一个色相压出来，保证浅底深字始终读得清。
 enum CoverPalette {
     struct Pair {
         let top: Color
@@ -31,48 +39,26 @@ enum CoverPalette {
         let accent: Color
     }
 
-    static let pairs: [Pair] = [
-        Pair(top: Color(red: 0.99, green: 0.96, blue: 0.91),
-             bottom: Color(red: 0.98, green: 0.89, blue: 0.79),
-             ink: Color(red: 0.27, green: 0.20, blue: 0.14),
-             accent: Color(red: 0.86, green: 0.42, blue: 0.28)),
-        Pair(top: Color(red: 0.93, green: 0.96, blue: 0.99),
-             bottom: Color(red: 0.83, green: 0.90, blue: 0.97),
-             ink: Color(red: 0.12, green: 0.23, blue: 0.35),
-             accent: Color(red: 0.24, green: 0.45, blue: 0.78)),
-        Pair(top: Color(red: 0.95, green: 0.97, blue: 0.92),
-             bottom: Color(red: 0.85, green: 0.93, blue: 0.83),
-             ink: Color(red: 0.16, green: 0.26, blue: 0.18),
-             accent: Color(red: 0.33, green: 0.54, blue: 0.34)),
-        Pair(top: Color(red: 0.98, green: 0.94, blue: 0.96),
-             bottom: Color(red: 0.94, green: 0.85, blue: 0.90),
-             ink: Color(red: 0.28, green: 0.16, blue: 0.24),
-             accent: Color(red: 0.78, green: 0.35, blue: 0.50)),
-        Pair(top: Color(red: 1.00, green: 0.98, blue: 0.90),
-             bottom: Color(red: 0.98, green: 0.92, blue: 0.74),
-             ink: Color(red: 0.30, green: 0.25, blue: 0.11),
-             accent: Color(red: 0.86, green: 0.62, blue: 0.18)),
-        Pair(top: Color(red: 0.94, green: 0.94, blue: 0.95),
-             bottom: Color(red: 0.85, green: 0.87, blue: 0.88),
-             ink: Color(red: 0.16, green: 0.20, blue: 0.21),
-             accent: Color(red: 0.38, green: 0.46, blue: 0.48)),
-        Pair(top: Color(red: 0.96, green: 0.94, blue: 0.99),
-             bottom: Color(red: 0.88, green: 0.84, blue: 0.96),
-             ink: Color(red: 0.21, green: 0.16, blue: 0.32),
-             accent: Color(red: 0.50, green: 0.36, blue: 0.74)),
-        Pair(top: Color(red: 0.99, green: 0.94, blue: 0.92),
-             bottom: Color(red: 0.97, green: 0.84, blue: 0.80),
-             ink: Color(red: 0.32, green: 0.17, blue: 0.14),
-             accent: Color(red: 0.88, green: 0.36, blue: 0.32)),
-        Pair(top: Color(red: 0.92, green: 0.96, blue: 0.97),
-             bottom: Color(red: 0.80, green: 0.89, blue: 0.92),
-             ink: Color(red: 0.12, green: 0.24, blue: 0.28),
-             accent: Color(red: 0.26, green: 0.52, blue: 0.60)),
-        Pair(top: Color(red: 0.99, green: 0.97, blue: 0.94),
-             bottom: Color(red: 0.95, green: 0.90, blue: 0.84),
-             ink: Color(red: 0.24, green: 0.19, blue: 0.16),
-             accent: Color(red: 0.62, green: 0.38, blue: 0.24))
-    ]
+    /// 颜色种子走一次字符串哈希，和版式用的 seed 取模完全分开。
+    /// 同一版式因此能落在任意浅色上，同一种浅色也能配任意版式。
+    static func pair(for seed: Int) -> Pair {
+        let colorSeed = StableSeed.of("cover-color:\(seed)")
+        let hue = Double(StableSeed.index(colorSeed, count: 360)) / 360.0
+        let saturation = 0.10 + Double(StableSeed.index(colorSeed / 7, count: 9)) / 100.0
+        let brightness = 0.95 + Double(StableSeed.index(colorSeed / 13, count: 4)) / 100.0
+        let accentHue = hue + 0.08 > 1 ? hue - 0.92 : hue + 0.08
+
+        return Pair(
+            top: Color(hue: hue, saturation: saturation, brightness: brightness),
+            bottom: Color(
+                hue: hue,
+                saturation: min(saturation + 0.06, 0.28),
+                brightness: brightness - 0.06
+            ),
+            ink: Color(hue: hue, saturation: min(saturation + 0.22, 0.42), brightness: 0.20),
+            accent: Color(hue: accentHue, saturation: 0.52, brightness: 0.52)
+        )
+    }
 }
 
 /// 封面上的文字处理：切句、挑 emoji、挑数字。

@@ -50,6 +50,10 @@ struct FeedCard: View {
         case .quote: return 0.90
         case .vertical: return 0.74
         case .ticket: return 1.22
+        case .bubble: return 0.94
+        case .marker: return 1.06
+        case .split: return 0.88
+        case .receipt: return 0.76
         }
     }
 

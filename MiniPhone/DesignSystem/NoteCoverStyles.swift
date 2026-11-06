@@ -316,9 +316,9 @@ extension NoteCover {
         .padding(12)
     }
 
-    /// 海报版式下面那条深色小条：取正文第一句的前半截。
+    /// 海报和荧光笔版式下面那条小字：取正文第一句的前半截。
     var highlight: String? {
-        guard style == .poster else { return nil }
+        guard style == .poster || style == .marker else { return nil }
         let line = CoverText.sentences(coverBody, limit: 1).first?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         guard line.count >= 2 else { return nil }

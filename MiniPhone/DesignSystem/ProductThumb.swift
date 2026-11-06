@@ -9,7 +9,7 @@ struct ProductThumb: View {
     let seed: Int
 
     private var pair: CoverPalette.Pair {
-        CoverPalette.pairs[StableSeed.index(seed, count: CoverPalette.pairs.count)]
+        CoverPalette.pair(for: seed)
     }
 
     private var initial: String {
