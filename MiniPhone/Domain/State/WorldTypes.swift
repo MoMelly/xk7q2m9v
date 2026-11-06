@@ -265,6 +265,45 @@ struct FeedNote: Codable, Identifiable, Hashable {
     var coverSeed: Int
 }
 
+/// 西瓜皮来件的两种类型。私信和转帖在界面上是两条独立通道，
+/// 所以从数据层就分开，不靠「消息里带个帖子 id」混成一种。
+enum FeedInboxKind: String, Codable {
+    case directMessage
+    case postShare
+}
+
+/// 角色主动发来的一条：一段私信，或者转一篇帖子加一句附言。
+///
+/// `threadID` 指向这段对话在 `StoredMessage` 里的那一段；内容本身不另存一份，
+/// 否则同一个动作会在聊天记录和记忆里出现两次。
+struct FeedInboxItem: Codable, Identifiable, Hashable {
+    var id: UUID
+    var kind: FeedInboxKind
+    /// 和 `FeedNote.authorUID` 一样用字符串，路人作者也能对上。
+    var companionUID: String
+    var companionName: String
+    var noteID: UUID?
+    var noteTitle: String
+    var noteBody: String
+    var noteTag: String
+    var coverSeed: Int
+    /// 私信正文，或转帖时附的那句话。
+    var message: String
+    var createdAt: Date
+    var isRead: Bool
+    var threadID: UUID
+}
+
+/// 角色在西瓜皮做过的事。这是唯一进记忆层的记录：
+/// inbox 本身不进 systemPrompt，避免角色下次把同一件事说两遍。
+struct FeedActivity: Codable, Identifiable, Hashable {
+    var id: UUID
+    var kind: FeedInboxKind
+    var companionName: String
+    var summary: String
+    var createdAt: Date
+}
+
 /// 兼容用的旧结构，只为了让老存档还能解开。新代码不再往里写。
 struct ForumPost: Codable, Identifiable {
     var id: UUID
@@ -296,6 +335,10 @@ struct WorldState: Codable {
     var feed: [FeedNote] = []
     /// 收到的信。新的在前。
     var letters: [Letter] = []
+    /// 西瓜皮收到的私信与转帖。新的在前。
+    var feedInbox: [FeedInboxItem] = []
+    /// 角色在西瓜皮做过什么，进提示词让记忆层知道。只留最近这些条。
+    var feedActivity: [FeedActivity] = []
     /// 上一轮刷新增量的时间。
     var lastRefreshAt: Date?
     /// 每个页面各自「距上次刷新过了几轮」。key 是 `RefreshPage.rawValue`。
@@ -310,6 +353,7 @@ struct WorldState: Codable {
         case version, people, schedule, mood, currentTrack, location, usage
         case shopping, forum, shop, feed, lastRefreshAt, refreshTurns
         case characterDays, letters, updatedAt
+        case feedInbox, feedActivity
     }
 
     init(from decoder: Decoder) throws {
@@ -329,6 +373,8 @@ struct WorldState: Codable {
         refreshTurns = try container.decodeIfPresent([String: Int].self, forKey: .refreshTurns) ?? [:]
         characterDays = try container.decodeIfPresent([CharacterDay].self, forKey: .characterDays) ?? []
         letters = try container.decodeIfPresent([Letter].self, forKey: .letters) ?? []
+        feedInbox = try container.decodeIfPresent([FeedInboxItem].self, forKey: .feedInbox) ?? []
+        feedActivity = try container.decodeIfPresent([FeedActivity].self, forKey: .feedActivity) ?? []
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
     }
 
@@ -350,6 +396,8 @@ struct WorldState: Codable {
         try container.encode(refreshTurns, forKey: .refreshTurns)
         try container.encode(characterDays, forKey: .characterDays)
         try container.encode(letters, forKey: .letters)
+        try container.encode(feedInbox, forKey: .feedInbox)
+        try container.encode(feedActivity, forKey: .feedActivity)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
 

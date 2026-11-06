@@ -7,6 +7,7 @@ import SwiftUI
 struct FeedDetailPage: View {
     let note: FeedNote
     let world: WorldStore
+    let settings: SettingsStore
 
     @State private var draft = ""
     @FocusState private var isFocused: Bool
@@ -59,6 +60,20 @@ struct FeedDetailPage: View {
                 .foregroundStyle(AppSurface.light.label)
 
             Spacer(minLength: 0)
+
+            NavigationLink {
+                FeedAuthorPage(
+                    authorName: current.authorName,
+                    authorUID: current.authorUID,
+                    world: world,
+                    settings: settings
+                )
+            } label: {
+                Text("主页")
+                    .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
+                    .foregroundStyle(Theme.brand)
+            }
+            .buttonStyle(.plain)
 
             Image(systemName: "heart")
                 .font(.system(size: 13))

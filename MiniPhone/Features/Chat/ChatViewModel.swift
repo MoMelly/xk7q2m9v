@@ -77,7 +77,9 @@ final class ChatViewModel {
         settings: SettingsStore
     ) async {
         guard !isStreaming else { return }
-        let sorted = character.messages.sorted { $0.createdAt < $1.createdAt }
+        let sorted = character.messages
+            .filter { $0.channel == .chat }
+            .sorted { $0.createdAt < $1.createdAt }
         guard let last = sorted.last, last.role == .assistant else { return }
 
         context.delete(last)
@@ -165,7 +167,11 @@ final class ChatViewModel {
             metaBlockRequired: plan.mergesSideEffects,
             refresh: refresh,
             callMode: callMode,
-            userIdentity: identity
+            userIdentity: identity,
+            feedActivityLines: PromptBuilder.feedActivityLines(
+                state: world.state,
+                characterName: character.name
+            )
         )
 
         var request: [ChatMessage] = [ChatMessage(role: .system, text: system)]

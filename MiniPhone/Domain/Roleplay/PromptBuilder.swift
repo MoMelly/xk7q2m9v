@@ -16,7 +16,8 @@ enum PromptBuilder {
         metaBlockRequired: Bool = false,
         refresh: RefreshRequest? = nil,
         callMode: Bool = false,
-        userIdentity: UserIdentity? = nil
+        userIdentity: UserIdentity? = nil,
+        feedActivityLines: [String] = []
     ) -> String {
         var blocks: [String] = []
 
@@ -51,6 +52,18 @@ enum PromptBuilder {
             }
             lines.append("按这个身份跟他说话：称呼、语气、分寸都按你和他现在的关系来。")
             blocks.append("【对方是谁】\n" + lines.joined(separator: "\n"))
+        }
+
+        // 这两条通道不在这个界面里，但角色得知道自己随时可以用。
+        // 不写「要经过对方同意」：主动触达由角色自己决定，界面上没有待确认状态。
+        blocks.append("""
+        【除了这里，你还能在西瓜皮上做的事】
+        你可以自己给我发一条私信，也可以转一篇帖子给我，然后围着那篇帖子跟我聊。
+        想发就发，不用先问我，也不用等我说可以。发过什么、聊过什么，你自己记得。
+        """)
+
+        if !feedActivityLines.isEmpty {
+            blocks.append("【你最近在西瓜皮做过的事】\n" + feedActivityLines.joined(separator: "\n"))
         }
 
         // 玩法
@@ -133,6 +146,22 @@ enum PromptBuilder {
         }
 
         return blocks.joined(separator: "\n\n")
+    }
+
+    /// 把「这个角色在西瓜皮做过什么」压成几行，聊天和私信共用。
+    ///
+    /// 只取本人、只取最近五条：inbox 全量塞进提示词会把当前对话挤掉，
+    /// 别人的活动也不该由他来记得。
+    static func feedActivityLines(state: WorldState, characterName: String) -> [String] {
+        let recent = state.feedActivity
+            .filter { $0.companionName == characterName }
+            .sorted { $0.createdAt > $1.createdAt }
+            .prefix(5)
+            .reversed()
+        return recent.map { item in
+            let label = item.kind == .postShare ? "转了一篇帖子" : "发了一条私信"
+            return "\(label)：\(item.summary)"
+        }
     }
 
     /// 刷新的指令。

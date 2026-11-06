@@ -61,7 +61,7 @@ struct CallOverlay: View {
 
         let uid = character.uid
         _messages = Query(
-            filter: #Predicate<StoredMessage> { $0.characterUID == uid },
+            filter: #Predicate<StoredMessage> { $0.characterUID == uid && $0.channelRaw == "chat" },
             sort: [SortDescriptor(\StoredMessage.createdAt, order: .forward)]
         )
     }

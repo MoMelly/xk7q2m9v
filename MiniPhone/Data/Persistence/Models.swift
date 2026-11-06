@@ -1,6 +1,13 @@
 import Foundation
 import SwiftData
 
+/// 一条消息属于哪个界面。记忆是同一份，显示各自过滤。
+enum MessageChannel: String, Codable {
+    case chat
+    case feedDM
+    case feedShare
+}
+
 /// 一个可对话的角色。
 ///
 /// 主键刻意叫 `uid` 而不是 `id`：`PersistentModel` 已经提供了 `id`
@@ -40,6 +47,9 @@ final class Companion {
     ///
     /// 换身份不换记忆：角色记得的事挂在会话上，人设只决定他以为在跟谁说话。
     var personaUID: String = ""
+
+    /// 西瓜皮里的路人作者：同样共用这套记忆，但不出现在「信息」会话列表。
+    var isFeedOnly: Bool = false
 
     var wakeHour: Int = 7
     var sleepHour: Int = 23
@@ -109,7 +119,9 @@ final class Companion {
 
     /// 会话列表里的最后一句预览。
     var lastPreviewText: String {
-        guard let last = messages.max(by: { $0.createdAt < $1.createdAt }) else { return "还没有对话" }
+        // 列表是「信息」的，预览只看 chat；私信和转帖归西瓜皮那边显示。
+        let mine = messages.filter { $0.channel == .chat }
+        guard let last = mine.max(by: { $0.createdAt < $1.createdAt }) else { return "还没有对话" }
         let speaker = last.speaker.map { "\($0)：" } ?? ""
         return speaker + last.text.replacingOccurrences(of: "\n", with: " ")
     }
@@ -129,6 +141,10 @@ final class StoredMessage {
     var speaker: String?
     /// 旁白（括号里的动作、场景），渲染成斜体灰字而不是气泡。
     var isNarration: Bool = false
+    /// 界面归属。老消息默认是 chat，加这个字段不需要迁移。
+    var channelRaw: String = "chat"
+    /// 同一角色可以有多段私信 / 多个转帖，用 threadID 把对话分开。
+    var threadRaw: String = ""
     var createdAt: Date = Date()
 
     var character: Companion?
@@ -139,6 +155,8 @@ final class StoredMessage {
         text: String,
         speaker: String? = nil,
         isNarration: Bool = false,
+        channel: MessageChannel = .chat,
+        threadID: UUID? = nil,
         createdAt: Date = Date()
     ) {
         self.uid = UUID()
@@ -147,11 +165,18 @@ final class StoredMessage {
         self.text = text
         self.speaker = speaker
         self.isNarration = isNarration
+        self.channelRaw = channel.rawValue
+        self.threadRaw = threadID?.uuidString ?? ""
         self.createdAt = createdAt
     }
 
     var role: ChatMessage.Role {
         ChatMessage.Role(rawValue: roleRaw) ?? .assistant
+    }
+
+    var channel: MessageChannel {
+        get { MessageChannel(rawValue: channelRaw) ?? .chat }
+        set { channelRaw = newValue.rawValue }
     }
 
     var asChatMessage: ChatMessage {

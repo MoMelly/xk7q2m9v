@@ -1,37 +1,23 @@
 import SwiftUI
 
-/// 购物。
+/// 西瓜皮里的「市集」。
 ///
-/// 结构照淘宝：搜索条、金刚区、双列商品流，底部四个 tab。
-/// 商品不是内置模板，是刷新引擎按你最近聊到的东西推出来的——
-/// 所以这一页会随着聊天内容变，`reason` 就写着它是从哪句话来的。
-struct ShoppingScene: View {
+/// 原来是一个独立 App，合并后这一层不套 AppScreen、也不放第二套底栏：
+/// 外层 FeedScene 已经有五格导航，再叠一层会把内容区挤没。
+/// 购物车、订单、我的收成顶部一排小分段，刷新统一走右上角那个箭头。
+struct MarketView: View {
     let world: WorldStore
-    let settings: SettingsStore
-    var onClose: () -> Void
 
-    @State private var tab: Tab = .home
+    @State private var section: Section = .browse
     @State private var category: String?
-    private var refresher: RefreshService { .shared }
-    @State private var statusText: String?
-    @State private var statusTask: Task<Void, Never>?
 
-    enum Tab: String, CaseIterable, Identifiable {
-        case home = "首页"
+    enum Section: String, CaseIterable, Identifiable {
+        case browse = "逛逛"
         case cart = "购物车"
         case orders = "订单"
         case mine = "我的"
 
         var id: String { rawValue }
-
-        var symbol: String {
-            switch self {
-            case .home: return "house"
-            case .cart: return "cart"
-            case .orders: return "shippingbox"
-            case .mine: return "person"
-            }
-        }
     }
 
     private var items: [ShopItem] {
@@ -47,38 +33,59 @@ struct ShoppingScene: View {
         return Array(seen.prefix(5))
     }
 
-    var body: some View {
-        AppScreen(
-            title: "购物",
-            surface: .light,
-            onClose: onClose,
-            trailingSymbol: "arrow.clockwise",
-            trailingAction: refreshShop
-        ) {
-            VStack(spacing: 0) {
-                switch tab {
-                case .home: home
-                case .cart: cartPage
-                case .orders: ordersPage
-                case .mine: minePage
-                }
+    private var cartItems: [ShopItem] {
+        world.state.shop.filter(\.inCart)
+    }
 
-                tabBar
+    var body: some View {
+        VStack(spacing: 0) {
+            sectionRow
+
+            switch section {
+            case .browse: browse
+            case .cart: cartPage
+            case .orders: ordersPage
+            case .mine: minePage
             }
         }
     }
 
-    // MARK: - 首页
+    private var sectionRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: PhoneMetrics.Space.xs) {
+                ForEach(Section.allCases) { item in
+                    Button {
+                        section = item
+                    } label: {
+                        Text(item.rawValue)
+                            .font(.system(
+                                size: PhoneMetrics.FontSize.footnote,
+                                weight: section == item ? .semibold : .regular
+                            ))
+                            .foregroundStyle(section == item ? .white : AppSurface.light.label)
+                            .padding(.horizontal, PhoneMetrics.Space.s)
+                            .frame(height: 26)
+                            .background(
+                                Capsule().fill(
+                                    section == item ? Theme.brand : AppSurface.light.rowSurface
+                                )
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, PhoneMetrics.Space.m)
+        }
+        .padding(.vertical, PhoneMetrics.Space.xs)
+    }
 
-    private var home: some View {
+    // MARK: - 逛逛
+
+    private var browse: some View {
         VStack(spacing: 0) {
             searchBar
             if !categories.isEmpty {
                 categoryRow
-            }
-
-            if let statusText {
-                RefreshStatusStrip(text: statusText, isLoading: refresher.isRefreshing(.shop))
             }
 
             if items.isEmpty {
@@ -118,7 +125,7 @@ struct ShoppingScene: View {
         .background(Capsule().fill(AppSurface.light.rowSurface))
         .overlay(Capsule().strokeBorder(AppSurface.light.separator, lineWidth: 0.5))
         .padding(.horizontal, PhoneMetrics.Space.m)
-        .padding(.top, PhoneMetrics.Space.xs)
+        .padding(.top, PhoneMetrics.Space.xxs)
     }
 
     private var categoryRow: some View {
@@ -164,9 +171,7 @@ struct ShoppingScene: View {
                         .frame(width: 26, height: 26)
                         .background(
                             Circle().fill(
-                                item.inCart
-                                ? Theme.IconTint.green
-                                : Theme.brand
+                                item.inCart ? Theme.IconTint.green : Theme.brand
                             )
                         )
                 }
@@ -224,10 +229,6 @@ struct ShoppingScene: View {
     }
 
     // MARK: - 购物车
-
-    private var cartItems: [ShopItem] {
-        world.state.shop.filter(\.inCart)
-    }
 
     private var cartPage: some View {
         Group {
@@ -345,63 +346,5 @@ struct ShoppingScene: View {
         .foregroundStyle(AppSurface.light.secondaryLabel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, PhoneMetrics.Space.l)
-    }
-
-    // MARK: - 刷新
-
-    /// 和西瓜皮同一套：点一下，一次请求刷八件。
-    ///
-    /// 自动那条路是从聊天里顺出来的，内容更贴着刚才说的话；手动这条是
-    /// 「我想看看现在有什么」，所以提示词允许它按季节和时段自己发挥。
-    private func refreshShop() {
-        guard !refresher.isRefreshing(.shop) else { return }
-        Task {
-            let outcome = await refresher.refresh(.shop, settings: settings)
-            statusTask?.cancel()
-            withAnimation(.easeOut(duration: 0.2)) {
-                statusText = outcome.text
-            }
-            statusTask = Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                guard !Task.isCancelled else { return }
-                withAnimation(.easeOut(duration: 0.25)) {
-                    statusText = nil
-                }
-            }
-        }
-    }
-
-    // MARK: - 底栏
-
-    private var tabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(Tab.allCases) { item in
-                Button {
-                    tab = item
-                } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: tab == item ? item.symbol + ".fill" : item.symbol)
-                            .font(.system(size: 17, weight: .regular))
-                        Text(item.rawValue)
-                            .font(.system(size: 10))
-                    }
-                    .foregroundStyle(
-                        tab == item
-                        ? Theme.brand
-                        : AppSurface.light.secondaryLabel
-                    )
-                    .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.top, PhoneMetrics.Space.xs)
-        .padding(.bottom, PhoneMetrics.Space.xxs)
-        .background(AppSurface.light.background)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(AppSurface.light.separator)
-                .frame(height: 0.5)
-        }
     }
 }

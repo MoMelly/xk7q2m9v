@@ -85,8 +85,8 @@ struct ProfileBackdrop: View {
                 // 让头像压沿的位置不会突然断成一条硬线。
                 LinearGradient(
                     stops: [
-                        .init(color: .white.opacity(0.42), location: 0),
-                        .init(color: .clear, location: 0.32),
+                        .init(color: .white.opacity(0.20), location: 0),
+                        .init(color: .clear, location: 0.22),
                         .init(color: .clear, location: 0.76),
                         .init(color: scheme.bottom.opacity(0.55), location: 1)
                     ],

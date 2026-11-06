@@ -43,7 +43,7 @@ struct PhoneShellView: View {
         case "notes": destination = .scene(.notes)
         case "music": destination = .scene(.music)
         case "health": destination = .scene(.health)
-        case "shopping": destination = .scene(.shopping)
+        case "market", "feedInbox", "feedChat", "feedShare": destination = .scene(.feed)
         case "feed": destination = .scene(.feed)
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
@@ -122,7 +122,8 @@ struct PhoneShellView: View {
         world.pendingNotices.compactMap { page -> NotificationStack.Notice? in
             let destination: PhoneApp.Destination
             switch page {
-            case .shop: destination = .scene(.shopping)
+            // 市集已经并入西瓜皮，横幅用西瓜皮的图标。
+            case .shop: destination = .scene(.feed)
             case .feed: destination = .scene(.feed)
             }
             guard let app = AppCatalog.home.first(where: { $0.destination == destination }) else {
@@ -229,9 +230,83 @@ struct PhoneShellView: View {
                 tag: "记录"
             )
 
+        case "market":
+            world.seedPreviewShop()
+
+        case "feedInbox", "feedChat", "feedShare":
+            seedPreviewInbox()
+
         default:
             break
         }
+    }
+
+    /// 私信/转帖的演示数据：角色、两类来件、活动索引、开场白消息一次配齐。
+    /// 只在带 -previewState 时写，正常启动一行都不碰。
+    @MainActor
+    private func seedPreviewInbox() {
+        guard world.state.feedInbox.isEmpty else { return }
+
+        let character: Companion
+        if let existing = companions.first {
+            character = existing
+        } else {
+            let fresh = Companion(
+                name: "小满",
+                persona: "住在隔壁、话不多但记性很好的女生，说话短，不爱用感叹号。",
+                greeting: ""
+            )
+            fresh.signature = "慢一点也没关系"
+            context.insert(fresh)
+            character = fresh
+        }
+
+        let share = FeedInboxItem(
+            id: UUID(),
+            kind: .postShare,
+            companionUID: character.uid.uuidString,
+            companionName: character.name,
+            noteID: nil,
+            noteTitle: "晚自习后的操场",
+            noteBody: "灯只亮了一半，风比白天凉很多。你上次说想再去走走。",
+            noteTag: "傍晚",
+            coverSeed: 264,
+            message: "看到这篇就想起你，周末要不要一起去？",
+            createdAt: Date().addingTimeInterval(-3_600),
+            isRead: true,
+            threadID: UUID()
+        )
+        let direct = FeedInboxItem(
+            id: UUID(),
+            kind: .directMessage,
+            companionUID: character.uid.uuidString,
+            companionName: character.name,
+            noteID: nil,
+            noteTitle: "",
+            noteBody: "",
+            noteTag: "",
+            coverSeed: 0,
+            message: "刚路过楼下那家，给你带了杯热的。",
+            createdAt: Date().addingTimeInterval(-600),
+            isRead: false,
+            threadID: UUID()
+        )
+        world.deliverFeedInbox(share)
+        world.deliverFeedInbox(direct)
+
+        for item in [share, direct] {
+            let message = StoredMessage(
+                characterUID: character.uid,
+                role: .assistant,
+                text: item.message,
+                channel: item.kind == .postShare ? .feedShare : .feedDM,
+                threadID: item.threadID,
+                createdAt: item.createdAt
+            )
+            message.character = character
+            context.insert(message)
+        }
+        try? context.save()
     }
 
     // MARK: - Toast

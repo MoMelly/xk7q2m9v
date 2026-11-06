@@ -6,6 +6,7 @@ import SwiftUI
 /// 这一页只放我发的东西——角色发的不在这里，那是他们的主页。
 struct FeedProfilePage: View {
     let world: WorldStore
+    let settings: SettingsStore
     var onCompose: () -> Void
 
     @State private var backdropVariant = 0
@@ -24,7 +25,7 @@ struct FeedProfilePage: View {
         GeometryReader { proxy in
             // 背景图占内容区上半；ScrollView 顶到安全区外，
             // 配合 AppScreen 的透明导航栏，整块屏幕上半都是这张图。
-            let bannerHeight = max(260, proxy.size.height * 0.46)
+            let bannerHeight = max(320, proxy.size.height * 0.54)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     banner(height: bannerHeight)
@@ -171,7 +172,7 @@ struct FeedProfilePage: View {
             ) {
                 ForEach(myNotes) { note in
                     NavigationLink {
-                        FeedDetailPage(note: note, world: world)
+                        FeedDetailPage(note: note, world: world, settings: settings)
                     } label: {
                         // Color.clear 撑出一个 4:5 的格子，封面填进去。
                         // 直接给 NoteCover 加 aspectRatio，它自己也是可伸缩视图，量不出高度。

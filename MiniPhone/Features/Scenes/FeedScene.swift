@@ -1,29 +1,45 @@
 import SwiftUI
+import SwiftData
 
 /// 西瓜皮。
 ///
-/// 结构照抄真机：顶部搜索条 + 关注/发现两个页签，中间双列瀑布流，
-/// 底部只有三格——首页、发布、我的。发布只走中间那个红色按钮，
-/// 右上角留给刷新：点一下，模型出一整轮的帖子。
+/// 底部五格对称：首页 / 市集 / 发布 / 消息 / 我的，发布固定在正中间。
+/// 购物不再单独占一个桌面图标，商品流整块搬进「市集」。
+/// 右上角刷新按当前 tab 走 .feed 或 .shop，两个页面共用一条反馈条。
 struct FeedScene: View {
     let world: WorldStore
     let settings: SettingsStore
     var onClose: () -> Void
 
-    /// 截图状态 `feedProfile` 直接落到「我的」，省掉一层点击；正常启动都是首页。
-    @State private var phoneTab: PhoneTab = UserDefaults.standard.string(forKey: "previewState") == "feedProfile"
-        ? .mine
-        : .home
+    @Environment(\.modelContext) private var context
+    @Query private var companions: [Companion]
+
+    /// 截图状态直接落到对应 tab，省掉多层点击；正常启动都是首页。
+    @State private var phoneTab: PhoneTab = {
+        switch UserDefaults.standard.string(forKey: "previewState") {
+        case "feedProfile": return .mine
+        case "market": return .market
+        case "feedInbox", "feedChat", "feedShare": return .messages
+        default: return .home
+        }
+    }()
     @State private var feedTab: FeedTab = .discover
     @State private var isComposing = false
     /// 直接取单例而不是存进 @State：@State 的初始化不在 body 里，
     /// 拿 @MainActor 的 shared 会踩隔离检查。在 body 里读一次，观察照样成立。
     private var refresher: RefreshService { .shared }
+    private var proactive: ProactiveFeedService { .shared }
     @State private var statusText: String?
     @State private var statusTask: Task<Void, Never>?
 
+    private var currentPage: RefreshPage {
+        phoneTab == .market ? .shop : .feed
+    }
+
     enum PhoneTab: String, CaseIterable, Identifiable {
         case home = "首页"
+        case market = "市集"
+        case messages = "消息"
         case mine = "我的"
 
         var id: String { rawValue }
@@ -31,6 +47,8 @@ struct FeedScene: View {
         var symbol: String {
             switch self {
             case .home: return "house"
+            case .market: return "bag"
+            case .messages: return "bubble.left.and.bubble.right"
             case .mine: return "person"
             }
         }
@@ -57,26 +75,32 @@ struct FeedScene: View {
             surface: .light,
             onClose: onClose,
             trailingSymbol: "arrow.clockwise",
-            trailingAction: refreshFeed,
+            trailingAction: refreshCurrent,
             transparentBar: phoneTab == .mine
         ) {
             VStack(spacing: 0) {
                 if phoneTab == .home {
                     searchBar
-                }
-
-                if phoneTab == .home {
                     feedTabs
                 }
 
                 if let statusText {
-                    RefreshStatusStrip(text: statusText, isLoading: refresher.isRefreshing(.feed))
+                    RefreshStatusStrip(text: statusText, isLoading: refresher.isRefreshing(currentPage))
                 }
 
-                if phoneTab == .home {
+                switch phoneTab {
+                case .home:
                     content
-                } else {
-                    FeedProfilePage(world: world, onCompose: { isComposing = true })
+                case .market:
+                    MarketView(world: world)
+                case .messages:
+                    FeedInboxPage(world: world, settings: settings)
+                case .mine:
+                    FeedProfilePage(
+                        world: world,
+                        settings: settings,
+                        onCompose: { isComposing = true }
+                    )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
 
@@ -88,6 +112,27 @@ struct FeedScene: View {
                 isComposing = false
                 phoneTab = .mine
             })
+        }
+        .task { @MainActor in
+            // 角色自己决定要不要在西瓜皮上找你说句话，不需要你点任何按钮。
+            // 服务内部按六小时限流，没填 Key 会直接返回。
+            guard let character = companions.first(where: { !$0.isFeedOnly }) else { return }
+            guard let item = await proactive.deliverIfDue(
+                character: character,
+                settings: settings
+            ) else { return }
+
+            // 开场白补进同一份角色记忆，界面按 channel 过滤。
+            let opening = StoredMessage(
+                characterUID: character.uid,
+                role: .assistant,
+                text: item.message,
+                channel: item.kind == .postShare ? .feedShare : .feedDM,
+                threadID: item.threadID
+            )
+            opening.character = character
+            context.insert(opening)
+            try? context.save()
         }
     }
 
@@ -165,7 +210,7 @@ struct FeedScene: View {
                             LazyVStack(spacing: PhoneMetrics.Space.xs) {
                                 ForEach(column) { note in
                                     NavigationLink {
-                                        FeedDetailPage(note: note, world: world)
+                                        FeedDetailPage(note: note, world: world, settings: settings)
                                     } label: {
                                         FeedCard(note: note, width: width)
                                     }
@@ -200,7 +245,8 @@ struct FeedScene: View {
     private var bottomBar: some View {
         HStack(spacing: 0) {
             ForEach(PhoneTab.allCases) { item in
-                if item == .mine {
+                // 加号插在第三格，两边各两格才对称。
+                if item == .messages {
                     composeButton
                 }
 
@@ -249,10 +295,11 @@ struct FeedScene: View {
 
     // MARK: - 刷新
 
-    private func refreshFeed() {
-        guard !refresher.isRefreshing(.feed) else { return }
+    private func refreshCurrent() {
+        let page = currentPage
+        guard !refresher.isRefreshing(page) else { return }
         Task {
-            let outcome = await refresher.refresh(.feed, settings: settings)
+            let outcome = await refresher.refresh(page, settings: settings)
             statusTask?.cancel()
             withAnimation(.easeOut(duration: 0.2)) {
                 statusText = outcome.text
