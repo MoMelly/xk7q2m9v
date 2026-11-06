@@ -31,6 +31,28 @@ struct FeedAvatar: View {
     }
 }
 
+/// 私信列表和转帖页里的小封面。
+///
+/// 尺寸只有几十 pt，塞一整张文字封面会把标题切掉一半；
+/// 用首字色块反而更接近真图缩略后的样子。
+struct FeedNoteThumb: View {
+    let title: String
+    var width: CGFloat = 54
+    var height: CGFloat = 68
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: PhoneMetrics.Radius.block, style: .continuous)
+                .fill(Theme.brand.opacity(0.10))
+            Text(String(title.prefix(1)))
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Theme.brand)
+        }
+        .frame(width: width, height: height)
+        .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.block, style: .continuous))
+    }
+}
+
 /// 一张笔记卡。
 ///
 /// 封面就是那张文字图，标题只出现在封面上，下面这行只留作者和赞，

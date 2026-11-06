@@ -50,6 +50,8 @@ struct FeedThreadView: View {
 
             inputBar
         }
+        // push 进来的页面默认是纯白，白气泡会隐形；显式铺回浅灰页底。
+        .background(AppSurface.light.background)
     }
 
     private func bubble(_ message: StoredMessage) -> some View {
@@ -64,6 +66,13 @@ struct FeedThreadView: View {
                 .background(
                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
                         .fill(message.role == .user ? Theme.brand : AppSurface.light.rowSurface)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                        .strokeBorder(
+                            message.role == .user ? .clear : AppSurface.light.separator.opacity(0.7),
+                            lineWidth: 0.6
+                        )
                 )
 
             if message.role != .user { Spacer(minLength: 48) }

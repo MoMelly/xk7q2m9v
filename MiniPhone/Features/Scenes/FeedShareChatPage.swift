@@ -14,20 +14,14 @@ struct FeedShareChatPage: View {
             postCard
             FeedThreadView(item: item, character: character, settings: settings)
         }
+        .background(AppSurface.light.background)
         .navigationTitle("转给我的帖子")
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private var postCard: some View {
         HStack(spacing: PhoneMetrics.Space.s) {
-            NoteCover(
-                title: item.noteTitle,
-                body: item.noteBody,
-                tag: item.noteTag,
-                seed: item.coverSeed
-            )
-            .frame(width: 54, height: 68)
-            .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.block, style: .continuous))
+            FeedNoteThumb(title: item.noteTitle)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.noteTitle)

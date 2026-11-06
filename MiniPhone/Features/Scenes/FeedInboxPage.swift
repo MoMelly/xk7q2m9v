@@ -153,14 +153,7 @@ struct FeedInboxPage: View {
                 }
 
                 if item.kind == .postShare {
-                    NoteCover(
-                        title: item.noteTitle,
-                        body: item.noteBody,
-                        tag: item.noteTag,
-                        seed: item.coverSeed
-                    )
-                    .frame(width: 44, height: 52)
-                    .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.cover, style: .continuous))
+                    FeedNoteThumb(title: item.noteTitle, width: 44, height: 52)
                 }
             }
             .padding(.horizontal, PhoneMetrics.Space.m)
