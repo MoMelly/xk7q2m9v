@@ -13,7 +13,7 @@ enum ProductGlyph {
         (["便签", "笔记", "本子", "纸"], "book.closed.fill"),
         (["铅笔", "钢笔", "笔"], "pencil"),
         (["薄荷", "绿植", "植物", "叶"], "leaf.fill"),
-        (["花", "干花"], "flower"),
+        (["花", "干花"], "camera.macro"),
         (["云", "天空"], "cloud.fill"),
         (["香薰", "蜡烛"], "flame.fill"),
         (["杯垫", "托盘", "盘"], "circle.grid.2x2.fill"),
@@ -43,7 +43,7 @@ enum ProductGlyph {
         "flame.fill",
         "bolt.fill",
         "snowflake",
-        "flower",
+        "camera.macro",
         "pawprint.fill",
         "face.smiling.fill",
         "square.fill"

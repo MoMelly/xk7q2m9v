@@ -18,7 +18,7 @@ enum FeedDefaultAvatar {
         "drop.fill",
         "flame.fill",
         "snowflake",
-        "flower",
+        "camera.macro",
         "pawprint.fill",
         "bolt.fill",
         "circle.grid.2x2.fill",

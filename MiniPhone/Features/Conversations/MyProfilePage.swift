@@ -118,10 +118,14 @@ struct MyProfilePage: View {
                     .font(.system(size: PhoneMetrics.FontSize.sub))
                     .foregroundStyle(AppSurface.light.label)
                     .frame(width: 48, alignment: .leading)
-                TextField("一句话", text: $profile.signature)
-                    .font(.system(size: PhoneMetrics.FontSize.sub))
-                    .foregroundStyle(AppSurface.light.label)
-                    .tint(Theme.retroGreen)
+                TextField(
+                    "一句话",
+                    text: $profile.signature,
+                    prompt: Text("一句话").foregroundStyle(AppSurface.light.secondaryLabel)
+                )
+                .font(.system(size: PhoneMetrics.FontSize.sub))
+                .foregroundStyle(AppSurface.light.label)
+                .tint(Theme.retroGreen)
             }
             .onChange(of: profile.signature) { _, _ in save() }
 
