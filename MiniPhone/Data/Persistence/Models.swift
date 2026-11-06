@@ -51,6 +51,15 @@ final class Companion {
     /// 西瓜皮里的路人作者：同样共用这套记忆，但不出现在「信息」会话列表。
     var isFeedOnly: Bool = false
 
+    /// 这个角色不能用的表情分组，逗号分隔。空表示所有分组都能用。
+    ///
+    /// 只在提示词里排除，不删他的历史——表情是「他能不能发」，
+    /// 不是「他发过的东西作废」，后者会让旧消息里的图突然变成占位。
+    var blockedStickerGroupsRaw: String = ""
+
+    /// 被单独关掉的某个表情的备注名，逗号分隔。
+    var blockedStickerNamesRaw: String = ""
+
     var wakeHour: Int = 7
     var sleepHour: Int = 23
 

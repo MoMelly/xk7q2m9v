@@ -171,7 +171,8 @@ final class ChatViewModel {
             feedActivityLines: PromptBuilder.feedActivityLines(
                 state: world.state,
                 characterName: character.name
-            )
+            ),
+            stickerNames: StickerLibrary.shared.names(for: character)
         )
 
         var request: [ChatMessage] = [ChatMessage(role: .system, text: system)]

@@ -17,7 +17,8 @@ enum PromptBuilder {
         refresh: RefreshRequest? = nil,
         callMode: Bool = false,
         userIdentity: UserIdentity? = nil,
-        feedActivityLines: [String] = []
+        feedActivityLines: [String] = [],
+        stickerNames: [String] = []
     ) -> String {
         var blocks: [String] = []
 
@@ -68,6 +69,17 @@ enum PromptBuilder {
 
         // 玩法
         blocks.append("【对话形式】\n" + character.preset.promptRules)
+
+        // 表情。只给名字不给图：模型没长眼睛，说「一张猫在翻白眼」比给张图有用。
+        if !stickerNames.isEmpty {
+            blocks.append("""
+            【表情】
+            你可以发这些表情：\(stickerNames.joined(separator: "、"))。
+            想发就单独占一行写 [表情:名字]，比如 [表情:嫌弃]。
+            名字必须从上面这串里挑，不要自己编，也不要把名字写进句子里。
+            别每句都发，一次只发一个，情绪到了才用。
+            """)
+        }
 
         // 群聊
         if character.isGroup {

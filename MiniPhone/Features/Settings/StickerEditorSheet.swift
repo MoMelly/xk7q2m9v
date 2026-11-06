@@ -39,6 +39,10 @@ struct StickerEditorSheet: View {
         }
         .environment(\.colorScheme, ThemeStore.shared.isNight ? .dark : .light)
         .presentationDetents([.medium, .large])
+        .onDisappear {
+            // 改完名字要立刻能进提示词，不然得等下次冷启动。
+            StickerLibrary.shared.reload(context: context)
+        }
     }
 
     private var preview: some View {

@@ -47,6 +47,9 @@ struct StickerPage: View {
                 .padding(.bottom, PhoneMetrics.Space.xl)
             }
         }
+        .onAppear {
+            StickerLibrary.shared.reload(context: context)
+        }
         .onChange(of: pickerItems) { _, items in
             guard !items.isEmpty else { return }
             Task { await importStickers(items) }
@@ -196,6 +199,7 @@ struct StickerPage: View {
         }
 
         try? context.save()
+        StickerLibrary.shared.reload(context: context)
         pickerItems = []
         isImporting = false
 
@@ -209,5 +213,6 @@ struct StickerPage: View {
         StickerStorage.delete(fileName: sticker.fileName)
         context.delete(sticker)
         try? context.save()
+        StickerLibrary.shared.reload(context: context)
     }
 }

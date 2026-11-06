@@ -18,6 +18,8 @@ struct ChatView: View {
     @State private var showDetail = false
     @State private var showCalls = false
     @State private var callKind: CallKind?
+    /// 表情面板展开状态。输入栏那颗按钮切换它，不抢键盘。
+    @State private var showStickers = false
     @FocusState private var isInputFocused: Bool
 
     init(character: Companion, settings: SettingsStore, onExit: @escaping () -> Void) {
@@ -46,10 +48,19 @@ struct ChatView: View {
             VStack(spacing: 0) {
                 header
                 transcript
+                if showStickers {
+                    stickerPanel
+                }
                 composer
             }
         }
-        .onAppear { seedGreetingIfNeeded() }
+        .onAppear {
+            seedGreetingIfNeeded()
+            // 截图流水线要拍表情面板，冷启动点不到那颗按钮，这里直接展开。
+            if UserDefaults.standard.string(forKey: "previewState") == "chatStickers" {
+                showStickers = true
+            }
+        }
         .sheet(isPresented: $showDetail) {
             CharacterDetailPage(
                 character: character,
@@ -302,6 +313,22 @@ struct ChatView: View {
                 callMenuItems
             }
 
+            // 表情固定在输入栏里，不藏进菜单：发表情是高频动作，
+            // 藏一层就没人用了。展开时收键盘，不然面板会被键盘顶到看不见。
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    showStickers.toggle()
+                }
+                isInputFocused = false
+            } label: {
+                Image(systemName: showStickers ? "keyboard" : "face.smiling")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(showStickers ? Theme.mint : Theme.cream.opacity(0.72))
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
             TextField("说点什么", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: 15))
@@ -338,6 +365,55 @@ struct ChatView: View {
         .glassSurface(cornerRadius: 26)
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
+    }
+
+    // MARK: - 表情面板
+
+    private var stickerPanel: some View {
+        let items = StickerLibrary.shared.available(for: character)
+
+        return Group {
+            if items.isEmpty {
+                Text("还没有表情。去设置 → 表情里加一些。")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.cream.opacity(0.5))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(items) { item in
+                            Button {
+                                sendSticker(item)
+                            } label: {
+                                StickerView(item: item, size: 54)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                }
+            }
+        }
+        .frame(height: 78)
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
+    }
+
+    /// 表情也是消息：落成一条 `[表情:名字]`，跟打字发出去走同一条链路，
+    /// 这样记忆、重试、导出都不用为它单独开一条路。
+    private func sendSticker(_ item: StickerItem) {
+        guard !viewModel.isStreaming else { return }
+        showStickers = false
+        Task {
+            await viewModel.send(
+                "[表情:\(item.name)]",
+                character: character,
+                context: context,
+                settings: settings
+            )
+        }
     }
 
     private func submit() {

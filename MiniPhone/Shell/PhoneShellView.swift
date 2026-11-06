@@ -47,7 +47,7 @@ struct PhoneShellView: View {
         case "feed": destination = .scene(.feed)
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
-        case "chatDetail", "chatMine", "chatEditor": destination = .chat
+        case "chatDetail", "chatMine", "chatEditor", "chatStickers": destination = .chat
         case "chatNight": destination = .chat
         default: destination = nil
         }
@@ -142,6 +142,7 @@ struct PhoneShellView: View {
             UserProfileBook.ensureDefault(in: context)
             DefaultAssistant.ensure(in: context)
             BuiltInStickers.ensure(in: context)
+            StickerLibrary.shared.reload(context: context)
             seedPreviewContentIfNeeded()
         }
         .onChange(of: world.pendingNotices) { _, pages in

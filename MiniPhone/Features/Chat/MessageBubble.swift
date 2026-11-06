@@ -19,7 +19,7 @@ struct MessageBubble: View {
         HStack(alignment: .bottom, spacing: 8) {
             if isUser { Spacer(minLength: 40) }
 
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 3) {
+            VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
                 if let speaker, !speaker.isEmpty, !isUser {
                     Text(speaker)
                         .font(.system(size: 10, weight: .medium))
@@ -28,17 +28,49 @@ struct MessageBubble: View {
                         .padding(.leading, 4)
                 }
 
-                content
+                stickerStack
             }
 
             if !isUser { Spacer(minLength: 40) }
         }
     }
 
+    // MARK: - 表情
+
+    /// 流式时不解析：半个 `[表情:` 会闪一下再消失，看着像乱码。
+    private var parsed: (body: String, names: [String]) {
+        isStreaming ? (text, []) : StickerTextParser.parse(text)
+    }
+
+    private var stickerStack: some View {
+        VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
+            if !parsed.body.isEmpty {
+                textBubble
+            }
+
+            ForEach(Array(parsed.names.enumerated()), id: \.offset) { _, name in
+                Group {
+                    if let item = StickerLibrary.shared.item(named: name) {
+                        StickerView(item: item, size: 112)
+                    } else {
+                        Text("[\(name)]")
+                            .font(.system(size: 13))
+                            .foregroundStyle(Theme.cream.opacity(0.5))
+                    }
+                }
+            }
+        }
+    }
+
+    /// 解析后的正文。没表情时 `parsed.body` 就是原文。
+    private var textBubble: some View {
+        bubble(parsed.body)
+    }
+
     @ViewBuilder
-    private var content: some View {
+    private func bubble(_ body: String) -> some View {
         if isNarration {
-            Text(text)
+            Text(body)
                 .font(.system(size: 13))
                 .italic()
                 .foregroundStyle(Theme.cream.opacity(0.52))
@@ -47,7 +79,7 @@ struct MessageBubble: View {
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
         } else if isUser {
-            label
+            label(body)
                 .foregroundStyle(Theme.deepGreen)
                 .lineSpacing(4)
                 .padding(.horizontal, 14)
@@ -57,7 +89,7 @@ struct MessageBubble: View {
                         .fill(Theme.mint)
                 )
         } else {
-            label
+            label(body)
                 .foregroundStyle(Theme.cream)
                 .lineSpacing(4)
                 .padding(.horizontal, 14)
@@ -70,8 +102,8 @@ struct MessageBubble: View {
     /// 而 `+` 只存在于 `Text` 之间。所以行距不能写在这里——`lineSpacing`
     /// 是 `View` 的修饰符，一加就把类型变成 `some View`，`+` 立刻失效。
     /// 行距放在两个调用点上。
-    private var label: Text {
-        let base = Text(text.isEmpty ? "…" : text)
+    private func label(_ body: String) -> Text {
+        let base = Text(body.isEmpty ? "…" : body)
             .font(.system(size: 15))
 
         guard isStreaming else { return base }
