@@ -106,6 +106,8 @@ struct MyProfilePage: View {
                     .frame(width: 48, alignment: .leading)
                 TextField("我", text: $profile.name)
                     .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                    .tint(Theme.retroGreen)
             }
             .onChange(of: profile.name) { _, _ in save() }
 
@@ -118,6 +120,8 @@ struct MyProfilePage: View {
                     .frame(width: 48, alignment: .leading)
                 TextField("一句话", text: $profile.signature)
                     .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                    .tint(Theme.retroGreen)
             }
             .onChange(of: profile.signature) { _, _ in save() }
 
