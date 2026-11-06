@@ -1,6 +1,35 @@
 import Foundation
 import UIKit
 
+/// 内置头像的三组。
+///
+/// 不是所有人都想让角色长一张真人脸：二次元、纯风景都常见，
+/// 分组是为了让人一眼扫到自己要的那类，而不是在一堆图里翻。
+enum AvatarGroup: String, CaseIterable, Identifiable {
+    case photo
+    case anime
+    case scenery
+
+    var id: String { rawValue }
+
+    /// 文件名里的组标记：`avatar_p01` 里的 `p`。
+    var filePrefix: String {
+        switch self {
+        case .photo: return "avatar_p"
+        case .anime: return "avatar_a"
+        case .scenery: return "avatar_s"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .photo: return "真人"
+        case .anime: return "二次元"
+        case .scenery: return "风景"
+        }
+    }
+}
+
 /// 头像照片的读取与落盘。
 ///
 /// 两个来源：随包的内置照片（`Assets/Avatars`）和用户从相册传的
@@ -22,20 +51,30 @@ enum AvatarPhoto {
         return url
     }
 
-    /// 随包的头像清单。
+    /// 随包的头像清单，按组分开。
     ///
     /// 扫目录而不是写死数组：以后往里加几张照片不用回来改代码，
     /// 也不会出现「加了文件但界面里没有」这种对不上的情况。
-    static let builtInKeys: [String] = {
+    /// 分组靠文件名前缀（`avatar_p01` / `avatar_a01` / `avatar_s01`），
+    /// 加图时把文件按前缀放进来就会自动归位。
+    static let gallery: [AvatarGroup: [String]] = {
         guard let folder = Bundle.main.url(forResource: "Avatars", withExtension: nil),
               let names = try? FileManager.default.contentsOfDirectory(atPath: folder.path) else {
-            return []
+            return [:]
         }
-        return names
-            .filter { $0.hasPrefix("avatar_") }
-            .sorted()
-            .map { ($0 as NSString).deletingPathExtension }
+        var result: [AvatarGroup: [String]] = [:]
+        for group in AvatarGroup.allCases {
+            result[group] = names
+                .filter { $0.hasPrefix(group.filePrefix) && $0.hasPrefix("avatar_") }
+                .sorted()
+                .map { ($0 as NSString).deletingPathExtension }
+        }
+        return result
     }()
+
+    static func keys(in group: AvatarGroup) -> [String] {
+        gallery[group] ?? []
+    }
 
     static func builtIn(key: String) -> UIImage? {
         guard !key.isEmpty else { return nil }

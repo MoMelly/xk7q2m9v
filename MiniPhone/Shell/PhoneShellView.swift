@@ -33,6 +33,17 @@ struct PhoneShellView: View {
         previewState == "lock"
     }
 
+    /// 这些状态要直接进某个角色的聊天页，跳过会话列表。
+    /// 单列一份是因为后面还有弹层要判断同一组名字，散在多处容易漏。
+    private static var opensChatDirectly: Bool {
+        switch previewState {
+        case "chatDetail", "chatStickers", "charDetail", "call":
+            return true
+        default:
+            return false
+        }
+    }
+
     private static var previewApp: PhoneApp? {
         let destination: PhoneApp.Destination?
         switch previewState {
@@ -47,7 +58,8 @@ struct PhoneShellView: View {
         case "feed": destination = .scene(.feed)
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
-        case "chatDetail", "chatMine", "chatEditor", "chatStickers": destination = .chat
+        case "chatDetail", "chatMine", "chatEditor", "chatStickers",
+             "charDetail", "call": destination = .chat
         case "chatNight": destination = .chat
         default: destination = nil
         }
@@ -197,7 +209,7 @@ struct PhoneShellView: View {
     private func appLayer(_ app: PhoneApp) -> some View {
         switch app.destination {
         case .chat:
-            if Self.previewState == "chatDetail", let character = companions.first {
+            if Self.opensChatDirectly, let character = companions.first {
                 ChatView(character: character, settings: settings, onExit: closeApp)
             } else {
                 ConversationListView(settings: settings, onExit: closeApp)
@@ -221,7 +233,7 @@ struct PhoneShellView: View {
     @MainActor
     private func seedPreviewContentIfNeeded() {
         switch Self.previewState {
-        case "chatDetail":
+        case "chatDetail", "chatStickers", "charDetail", "call":
             guard companions.isEmpty else { return }
             let character = Companion(
                 name: "小满",
@@ -230,7 +242,7 @@ struct PhoneShellView: View {
             )
             character.signature = "慢一点也没关系"
             // 截图要能看出照片头像的实际效果，不然拍出来还是渐变圆。
-            character.avatarImageKey = "avatar_09"
+            character.avatarImageKey = "avatar_a03"
             context.insert(character)
 
             let lines: [(ChatMessage.Role, String)] = [
@@ -295,7 +307,7 @@ struct PhoneShellView: View {
                 greeting: ""
             )
             fresh.signature = "慢一点也没关系"
-            fresh.avatarImageKey = "avatar_09"
+            fresh.avatarImageKey = "avatar_a03"
             context.insert(fresh)
             character = fresh
         }

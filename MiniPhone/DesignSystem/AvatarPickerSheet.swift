@@ -33,7 +33,9 @@ struct AvatarPickerSheet: View {
             ScrollView {
                 VStack(spacing: PhoneMetrics.Space.l) {
                     preview
-                    builtInSection
+                    ForEach(AvatarGroup.allCases) { group in
+                        builtInSection(group)
+                    }
                     uploadSection
                     if !errorText.isEmpty {
                         Text(errorText)
@@ -110,21 +112,27 @@ struct AvatarPickerSheet: View {
 
     // MARK: - 内置
 
-    private var builtInSection: some View {
-        GroupedSection("内置照片") {
-            LazyVGrid(columns: columns, spacing: PhoneMetrics.Space.xs) {
-                ForEach(AvatarPhoto.builtInKeys, id: \.self) { key in
-                    Button {
-                        imageKey = key
-                        fileName = ""
-                        errorText = ""
-                    } label: {
-                        builtInCell(key)
+    private func builtInSection(_ group: AvatarGroup) -> some View {
+        let keys = AvatarPhoto.keys(in: group)
+
+        return Group {
+            if !keys.isEmpty {
+                GroupedSection(group.title) {
+                    LazyVGrid(columns: columns, spacing: PhoneMetrics.Space.xs) {
+                        ForEach(keys, id: \.self) { key in
+                            Button {
+                                imageKey = key
+                                fileName = ""
+                                errorText = ""
+                            } label: {
+                                builtInCell(key)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .padding(PhoneMetrics.Space.s)
                 }
             }
-            .padding(PhoneMetrics.Space.s)
         }
     }
 

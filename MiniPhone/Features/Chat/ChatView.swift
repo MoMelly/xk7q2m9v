@@ -56,9 +56,17 @@ struct ChatView: View {
         }
         .onAppear {
             seedGreetingIfNeeded()
-            // 截图流水线要拍表情面板，冷启动点不到那颗按钮，这里直接展开。
-            if UserDefaults.standard.string(forKey: "previewState") == "chatStickers" {
+            // 截图流水线要拍表情面板 / 角色详情 / 通话这些层，冷启动点不到按钮，
+            // 这里按状态名直接打开。正常启动读不到这个键，一件都不会触发。
+            switch UserDefaults.standard.string(forKey: "previewState") {
+            case "chatStickers":
                 showStickers = true
+            case "charDetail":
+                showDetail = true
+            case "call":
+                callKind = .voice
+            default:
+                break
             }
         }
         .sheet(isPresented: $showDetail) {
