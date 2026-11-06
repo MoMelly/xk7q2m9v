@@ -13,6 +13,10 @@ final class SettingsStore {
         static let baseURL = "llm.baseURL"
         static let model = "llm.model"
         static let wallpaper = "shell.wallpaper"
+        static let homeWallpaperPhoto = "shell.homeWallpaperPhoto"
+        static let lockSeparate = "shell.lockSeparate"
+        static let lockWallpaper = "shell.lockWallpaper"
+        static let lockWallpaperPhoto = "shell.lockWallpaperPhoto"
         static let temperature = "llm.temperature"
         static let maxTokens = "llm.maxTokens"
         static let notifyReplies = "notify.replies"
@@ -30,6 +34,13 @@ final class SettingsStore {
     var model: String = LLMConfig.defaultModel
     var apiKey: String = ""
     var wallpaperRaw: String = WallpaperTheme.midnight.rawValue
+    /// 桌面那张自选照片的文件名。空表示用内置主题。
+    var homeWallpaperPhoto: String = ""
+    /// 锁屏是不是自己单独设。关着就整套跟桌面走，
+    /// 这样只改桌面的人不用维护两份设置。
+    var lockSeparate: Bool = false
+    var lockWallpaperRaw: String = WallpaperTheme.midnight.rawValue
+    var lockWallpaperPhoto: String = ""
     var temperature: Double = 0.9
     var maxTokens: Int = 900
     /// 回复到了但 App 不在前台时，发一条本地通知（不需要推送证书）。
@@ -59,6 +70,12 @@ final class SettingsStore {
         if let storedWallpaper = defaults.string(forKey: DefaultsKey.wallpaper) {
             wallpaperRaw = storedWallpaper
         }
+        homeWallpaperPhoto = defaults.string(forKey: DefaultsKey.homeWallpaperPhoto) ?? ""
+        lockSeparate = defaults.bool(forKey: DefaultsKey.lockSeparate)
+        if let storedLock = defaults.string(forKey: DefaultsKey.lockWallpaper) {
+            lockWallpaperRaw = storedLock
+        }
+        lockWallpaperPhoto = defaults.string(forKey: DefaultsKey.lockWallpaperPhoto) ?? ""
         if defaults.object(forKey: DefaultsKey.temperature) != nil {
             temperature = defaults.double(forKey: DefaultsKey.temperature)
         }
@@ -104,6 +121,21 @@ final class SettingsStore {
         WallpaperTheme(rawValue: wallpaperRaw) ?? .midnight
     }
 
+    /// 桌面壁纸。
+    var homeSelection: WallpaperSelection {
+        WallpaperSelection(theme: wallpaperTheme, photoFileName: homeWallpaperPhoto)
+    }
+
+    /// 锁屏壁纸。没单独设就复用桌面那份——不是复制一份值，
+    /// 而是每次现取，这样桌面换了锁屏跟着换。
+    var lockSelection: WallpaperSelection {
+        guard lockSeparate else { return homeSelection }
+        return WallpaperSelection(
+            theme: WallpaperTheme(rawValue: lockWallpaperRaw) ?? .midnight,
+            photoFileName: lockWallpaperPhoto
+        )
+    }
+
     var billingMode: BillingMode {
         BillingMode(rawValue: billingModeRaw) ?? .perToken
     }
@@ -129,6 +161,30 @@ final class SettingsStore {
     func setWallpaper(_ theme: WallpaperTheme) {
         guard wallpaperRaw != theme.rawValue else { return }
         wallpaperRaw = theme.rawValue
+        // 换内置主题就把照片清掉：留着的话界面显示选中的是主题、
+        // 实际铺的还是那张照片，谁也说不清到底哪个在生效。
+        homeWallpaperPhoto = ""
+        persist()
+    }
+
+    /// `lock == true` 时写锁屏那一套，否则写桌面那一套。
+    func setWallpaper(_ theme: WallpaperTheme, lock: Bool) {
+        if lock {
+            lockWallpaperRaw = theme.rawValue
+            lockWallpaperPhoto = ""
+        } else {
+            wallpaperRaw = theme.rawValue
+            homeWallpaperPhoto = ""
+        }
+        persist()
+    }
+
+    func setWallpaperPhoto(_ fileName: String, lock: Bool) {
+        if lock {
+            lockWallpaperPhoto = fileName
+        } else {
+            homeWallpaperPhoto = fileName
+        }
         persist()
     }
 
@@ -162,6 +218,10 @@ final class SettingsStore {
         defaults.set(baseURL, forKey: DefaultsKey.baseURL)
         defaults.set(model, forKey: DefaultsKey.model)
         defaults.set(wallpaperRaw, forKey: DefaultsKey.wallpaper)
+        defaults.set(homeWallpaperPhoto, forKey: DefaultsKey.homeWallpaperPhoto)
+        defaults.set(lockSeparate, forKey: DefaultsKey.lockSeparate)
+        defaults.set(lockWallpaperRaw, forKey: DefaultsKey.lockWallpaper)
+        defaults.set(lockWallpaperPhoto, forKey: DefaultsKey.lockWallpaperPhoto)
         defaults.set(temperature, forKey: DefaultsKey.temperature)
         defaults.set(maxTokens, forKey: DefaultsKey.maxTokens)
         defaults.set(notifyReplies, forKey: DefaultsKey.notifyReplies)

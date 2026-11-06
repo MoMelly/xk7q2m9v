@@ -78,14 +78,14 @@ struct PhoneShellView: View {
         ZStack {
             if isLocked {
                 LockScreenView(
-                    wallpaper: settings.wallpaperTheme,
+                    selection: settings.lockSelection,
                     onUnlock: unlock,
                     videoWallpaperEnabled: settings.videoWallpaperEnabled
                 )
                 .transition(.opacity)
             } else {
                 HomeScreenView(
-                    wallpaper: settings.wallpaperTheme,
+                    selection: settings.homeSelection,
                     onOpen: open,
                     videoWallpaperEnabled: settings.videoWallpaperEnabled
                 )

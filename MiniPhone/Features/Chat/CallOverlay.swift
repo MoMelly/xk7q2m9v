@@ -44,6 +44,8 @@ struct CallOverlay: View {
     @State private var draft = ""
     @State private var didStart = false
     @State private var pulse = false
+    /// 通话里也能发表情。跟聊天页同一个入口位置，学一次就够。
+    @State private var showStickers = false
     @FocusState private var isTyping: Bool
 
     init(
@@ -216,18 +218,32 @@ struct CallOverlay: View {
     }
 
     private func line(speaker: String, text: String, isUser: Bool) -> some View {
-        HStack(alignment: .top, spacing: 8) {
+        let parsed = StickerTextParser.parse(text)
+
+        return HStack(alignment: .top, spacing: 8) {
             Text(speaker)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(isUser ? Theme.mint.opacity(0.85) : Theme.cream.opacity(0.5))
                 .frame(width: 40, alignment: .trailing)
                 .padding(.top, 2)
 
-            Text(text)
-                .font(.system(size: 14))
-                .foregroundStyle(isUser ? Theme.cream.opacity(0.95) : Theme.cream)
-                .lineSpacing(4)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 6) {
+                if !parsed.body.isEmpty {
+                    Text(parsed.body)
+                        .font(.system(size: 14))
+                        .foregroundStyle(isUser ? Theme.cream.opacity(0.95) : Theme.cream)
+                        .lineSpacing(4)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                ForEach(Array(parsed.names.enumerated()), id: \.offset) { _, name in
+                    if let item = StickerLibrary.shared.item(named: name) {
+                        // 通话里的表情比聊天页小一号：整屏是暗的，
+                        // 一张 112 的图会把正在说的话挤出去。
+                        StickerView(item: item, size: 76)
+                    }
+                }
+            }
 
             Spacer(minLength: 0)
         }
@@ -237,7 +253,27 @@ struct CallOverlay: View {
 
     private var controls: some View {
         VStack(spacing: 16) {
+            if showStickers {
+                callStickerPanel
+            }
+
             HStack(spacing: 10) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        showStickers.toggle()
+                    }
+                    isTyping = false
+                } label: {
+                    Image(systemName: showStickers ? "keyboard" : "face.smiling")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(showStickers ? Theme.deepGreen : Theme.cream.opacity(0.75))
+                        .frame(width: 38, height: 38)
+                        .background(
+                            Circle().fill(showStickers ? Theme.mint : .white.opacity(0.10))
+                        )
+                }
+                .buttonStyle(.plain)
+
                 TextField("打字模拟说话", text: $draft)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
@@ -284,6 +320,39 @@ struct CallOverlay: View {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !model.isStreaming
     }
 
+    // MARK: - 表情面板
+
+    private var callStickerPanel: some View {
+        let items = StickerLibrary.shared.available(for: character)
+
+        return Group {
+            if items.isEmpty {
+                Text("还没有表情。去设置 → 表情里加一些。")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Theme.cream.opacity(0.5))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(items) { item in
+                            Button {
+                                sendSticker(item)
+                            } label: {
+                                StickerView(item: item, size: 46)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                }
+            }
+        }
+        .frame(height: 62)
+        .transition(.opacity)
+    }
+
     // MARK: - 行为
 
     private func start() {
@@ -307,6 +376,21 @@ struct CallOverlay: View {
         Task {
             await model.send(
                 text,
+                character: character,
+                context: context,
+                settings: settings,
+                callMode: true
+            )
+        }
+    }
+
+    /// 表情跟打字走同一条链路，通话里发的也能在聊天记录里翻到。
+    private func sendSticker(_ item: StickerItem) {
+        guard !model.isStreaming else { return }
+        showStickers = false
+        Task {
+            await model.send(
+                "[表情:\(item.name)]",
                 character: character,
                 context: context,
                 settings: settings,

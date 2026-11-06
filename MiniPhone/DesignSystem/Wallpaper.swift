@@ -102,6 +102,8 @@ struct WallpaperBlob {
 /// 壁纸渲染层。
 struct WallpaperView: View {
     let theme: WallpaperTheme
+    /// 自选照片。有就整张铺上去，没有才画主题。
+    var photo: UIImage? = nil
 
     var body: some View {
         GeometryReader { proxy in
@@ -110,7 +112,13 @@ struct WallpaperView: View {
             let unit = max(width, height)
 
             ZStack {
-                if let image = theme.image {
+                if let photo {
+                    Image(uiImage: photo)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: width, height: height)
+                        .clipped()
+                } else if let image = theme.image {
                     image
                         .resizable()
                         .scaledToFill()
@@ -160,12 +168,12 @@ struct WallpaperView: View {
 /// 代码壁纸始终打底：视频没导入、解码失败或正在后台时不会露出黑屏。
 /// 视频层只负责循环播放，暂停逻辑在 VideoWallpaperView 里按 scenePhase 处理。
 struct WallpaperBackdrop: View {
-    let theme: WallpaperTheme
+    let selection: WallpaperSelection
     var videoEnabled: Bool = false
 
     var body: some View {
         ZStack {
-            WallpaperView(theme: theme)
+            WallpaperView(theme: selection.theme, photo: selection.photo)
 
             if videoEnabled, VideoWallpaperStore.exists {
                 VideoWallpaperView(url: VideoWallpaperStore.fileURL)

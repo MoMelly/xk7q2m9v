@@ -5,7 +5,7 @@ import SwiftUI
 /// 三个细节决定像不像：字本身是玻璃的大号时钟、底部两颗圆形玻璃按钮、
 /// 上滑时整屏跟着手指走并逐渐淡出。
 struct LockScreenView: View {
-    let wallpaper: WallpaperTheme
+    let selection: WallpaperSelection
     let onUnlock: () -> Void
     var videoWallpaperEnabled: Bool = false
 
@@ -14,7 +14,7 @@ struct LockScreenView: View {
 
     var body: some View {
         ZStack {
-            WallpaperBackdrop(theme: wallpaper, videoEnabled: videoWallpaperEnabled)
+            WallpaperBackdrop(selection: selection, videoEnabled: videoWallpaperEnabled)
 
             VStack(spacing: 0) {
                 StatusBarView()

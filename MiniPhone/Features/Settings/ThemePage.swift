@@ -243,7 +243,7 @@ struct ThemePage: View {
     // MARK: - 壁纸入口
 
     private var wallpaperLink: some View {
-        GroupedSection("壁纸", footer: "内置四套，也可以导入自己的视频当壁纸。") {
+        GroupedSection("壁纸", footer: "内置四套，也可以用相册里的照片，桌面和锁屏可以分开设。") {
             NavigationLink {
                 AppearancePage(settings: settings)
             } label: {

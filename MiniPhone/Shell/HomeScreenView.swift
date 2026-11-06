@@ -5,13 +5,13 @@ import SwiftUI
 /// 24 个图标刚好一页，跟真机 4×6 的排布一致，所以这一版不做左右翻页——
 /// 伪造一个空白的第二页反而更假。等 P4 加了角色动态、图标超过一页再补。
 struct HomeScreenView: View {
-    let wallpaper: WallpaperTheme
+    let selection: WallpaperSelection
     let onOpen: (PhoneApp) -> Void
     var videoWallpaperEnabled: Bool = false
 
     var body: some View {
         ZStack {
-            WallpaperBackdrop(theme: wallpaper, videoEnabled: videoWallpaperEnabled)
+            WallpaperBackdrop(selection: selection, videoEnabled: videoWallpaperEnabled)
                 .blur(radius: 0.8)
                 // 压暗只在夜间做。日间是浅色壁纸，再蒙一层黑会整块发灰，
                 // 图标下面是深色名字，底又灰，看着就脏。
