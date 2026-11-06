@@ -112,6 +112,12 @@ struct CharacterEditorView: View {
                     fileName: $avatarFile
                 )
             }
+            .onAppear {
+                // 截图流水线要点开换头像面板才看得到三组头像，冷启动点不了。
+                if UserDefaults.standard.string(forKey: "previewState") == "avatarPicker" {
+                    showAvatarPicker = true
+                }
+            }
         }
     }
 
@@ -505,6 +511,11 @@ struct CharacterEditorView: View {
         target.avatarTintRaw = tintRaw
         target.avatarImageKey = avatarKey
         target.avatarFileName = avatarFile
+        // 新建时没挑头像就随手给一张。只在新建这一次给：
+        // 编辑页里用户主动选了「不用照片」，再塞一张回去就成了撤销不了的操作。
+        if isNew, avatarKey.isEmpty, avatarFile.isEmpty {
+            target.avatarImageKey = AvatarPhoto.randomKey()
+        }
         target.replyLength = replyLength
         target.isGroup = isGroup
         target.membersNote = membersNote

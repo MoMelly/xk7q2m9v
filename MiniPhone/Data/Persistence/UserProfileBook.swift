@@ -32,6 +32,8 @@ enum UserProfileBook {
         }
 
         let profile = UserProfile(name: "我", isDefault: true)
+        // 第一次打开就随手给一张，别让所有默认身份都是同一个字母圈。
+        profile.avatarImageKey = AvatarPhoto.randomKey()
         context.insert(profile)
         try? context.save()
         return profile

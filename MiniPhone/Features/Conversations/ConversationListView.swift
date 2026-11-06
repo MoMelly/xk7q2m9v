@@ -17,7 +17,8 @@ struct ConversationListView: View {
     @Query private var profiles: [UserProfile]
 
     @State private var opened: Companion?
-    @State private var showCreator = UserDefaults.standard.string(forKey: "previewState") == "chatEditor"
+    @State private var showCreator = ["chatEditor", "avatarPicker"]
+        .contains(UserDefaults.standard.string(forKey: "previewState") ?? "")
     @State private var showCallHistory = false
     @State private var pendingDelete: Companion?
     @State private var tab: Tab = UserDefaults.standard.string(forKey: "previewState") == "chatMine"

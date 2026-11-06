@@ -76,6 +76,15 @@ enum AvatarPhoto {
         gallery[group] ?? []
     }
 
+    /// 随手抽一张，给没挑过头像的人当初始值。
+    ///
+    /// 全空（资源没打进包）时返回空串，上层照旧回落到渐变圆加首字，
+    /// 不会因为抽不到图就变成一块空白。
+    static func randomKey() -> String {
+        let all = AvatarGroup.allCases.flatMap { keys(in: $0) }
+        return all.randomElement() ?? ""
+    }
+
     static func builtIn(key: String) -> UIImage? {
         guard !key.isEmpty else { return nil }
         if let hit = cache.object(forKey: key as NSString) { return hit }
