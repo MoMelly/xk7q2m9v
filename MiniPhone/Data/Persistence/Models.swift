@@ -200,6 +200,8 @@ final class UserProfile {
     var tagsRaw: String = ""
     /// 头像底色，和角色一样存色名而不是 RGB。
     var avatarTintRaw: String = "mint"
+    /// 内置矢量头像的符号名。空串表示显示名字首字。
+    var avatarSymbol: String = ""
     /// 新会话默认用哪个。
     var isDefault: Bool = false
     var createdAt: Date = Date()

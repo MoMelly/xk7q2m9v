@@ -4,7 +4,9 @@ import UniformTypeIdentifiers
 
 /// 角色编辑器。新建和编辑共用一套表单。
 ///
-/// 字段在本地 `@State` 里改，按「保存」才落库——这样取消不会留下半成品角色。
+/// 不用系统 Form：外壳强制深色，Form 的 grouped 单元格会跟着变黑，
+/// 压在深绿渐变上就是一层脏灰框。改成微信那样的白色顶栏 + 白卡分组，
+/// 字段仍先在 @State 里改，按「保存」才落库，取消不会留下半成品。
 struct CharacterEditorView: View {
     var character: Companion?
     var onFinish: () -> Void
@@ -31,6 +33,7 @@ struct CharacterEditorView: View {
     @State private var showWorldEntries = false
 
     private var isNew: Bool { character == nil }
+    private var canSave: Bool { !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
     init(character: Companion?, onFinish: @escaping () -> Void) {
         self.character = character
@@ -52,32 +55,25 @@ struct CharacterEditorView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                basicsSection
-                profileSection
-                presetSection
-                personaSection
-                scheduleSection
-                importSection
-                if !isNew { dangerSection }
-            }
-            .scrollContentBackground(.hidden)
-            .background(Theme.backgroundGradient.ignoresSafeArea())
-            .navigationTitle(isNew ? "新建角色" : "编辑角色")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
-                        onFinish()
-                        dismiss()
+            VStack(spacing: 0) {
+                navBar
+
+                ScrollView {
+                    VStack(spacing: PhoneMetrics.Space.m) {
+                        basicsCard
+                        profileCard
+                        presetCard
+                        personaCard
+                        scheduleCard
+                        importCard
+                        if !isNew { dangerCard }
                     }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存") { save() }
-                        .font(.system(size: 15, weight: .semibold))
-                        .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .padding(PhoneMetrics.Space.m)
+                    .padding(.bottom, PhoneMetrics.Space.xl)
                 }
             }
+            .background(AppSurface.light.background.ignoresSafeArea())
+            .environment(\.colorScheme, .light)
             .fileImporter(
                 isPresented: $showImporter,
                 allowedContentTypes: [.png, .json, .plainText],
@@ -107,24 +103,118 @@ struct CharacterEditorView: View {
         }
     }
 
+    // MARK: - 顶栏与卡片骨架
+
+    /// 微信式：左边取消、中间标题、右边一个实心保存按钮，底下一条细分隔线。
+    private var navBar: some View {
+        ZStack {
+            Text(isNew ? "新建角色" : "编辑角色")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppSurface.light.label)
+
+            HStack {
+                Button("取消") {
+                    onFinish()
+                    dismiss()
+                }
+                .font(.system(size: 15))
+                .foregroundStyle(AppSurface.light.secondaryLabel)
+
+                Spacer(minLength: 0)
+
+                Button(action: save) {
+                    Text("保存")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 15)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule().fill(canSave ? Theme.retroGreen : AppSurface.light.separator)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!canSave)
+            }
+        }
+        .padding(.horizontal, PhoneMetrics.Space.m)
+        .frame(height: 50)
+        .background(AppSurface.light.rowSurface)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(AppSurface.light.separator.opacity(0.7))
+                .frame(height: 0.5)
+        }
+    }
+
+    private func card<Content: View>(
+        _ title: String,
+        footer: String? = nil,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title)
+                .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
+                .foregroundStyle(AppSurface.light.secondaryLabel)
+                .padding(.horizontal, 4)
+
+            VStack(alignment: .leading, spacing: 11) {
+                content()
+            }
+            .padding(PhoneMetrics.Space.s)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(AppSurface.light.rowSurface)
+            .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.grouped, style: .continuous))
+
+            if let footer {
+                Text(footer)
+                    .font(.system(size: PhoneMetrics.FontSize.caption))
+                    .foregroundStyle(AppSurface.light.secondaryLabel)
+                    .padding(.horizontal, 4)
+            }
+        }
+    }
+
+    private func labeled<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(title)
+                .font(.system(size: PhoneMetrics.FontSize.sub))
+                .foregroundStyle(AppSurface.light.label)
+                .frame(width: 58, alignment: .leading)
+            content()
+        }
+    }
+
+    private var divider: some View {
+        Rectangle()
+            .fill(AppSurface.light.separator.opacity(0.6))
+            .frame(height: 0.5)
+    }
+
     // MARK: - 分区
 
-    private var basicsSection: some View {
-        Section {
-            TextField("名字", text: $name)
-
+    private var basicsCard: some View {
+        card("基本") {
+            labeled("名字") {
+                TextField("给这个角色起个名字", text: $name)
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+            }
+            divider
             HStack(spacing: 8) {
+                Text("头像")
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                    .frame(width: 58, alignment: .leading)
                 ForEach(AvatarTint.allCases) { tint in
                     Button {
                         tintRaw = tint.rawValue
                     } label: {
                         Circle()
                             .fill(tint.gradient)
-                            .frame(width: 28, height: 28)
+                            .frame(width: 26, height: 26)
                             .overlay {
                                 Circle()
                                     .strokeBorder(
-                                        tintRaw == tint.rawValue ? Theme.cream : .clear,
+                                        tintRaw == tint.rawValue ? Theme.retroGreen : .clear,
                                         lineWidth: 2
                                     )
                             }
@@ -133,55 +223,51 @@ struct CharacterEditorView: View {
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.vertical, 2)
-
-            Picker("回复长度", selection: $replyLength) {
-                ForEach(ReplyLength.allCases) { length in
-                    Text(length.displayName).tag(length)
+            divider
+            HStack(spacing: 10) {
+                Text("长度")
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                    .frame(width: 58, alignment: .leading)
+                Picker("", selection: $replyLength) {
+                    ForEach(ReplyLength.allCases) { length in
+                        Text(length.displayName).tag(length)
+                    }
                 }
+                .pickerStyle(.segmented)
             }
-            .pickerStyle(.segmented)
-
+            divider
             Toggle("群聊", isOn: $isGroup)
-
+                .font(.system(size: PhoneMetrics.FontSize.sub))
             if isGroup {
-                TextField("成员（逗号分隔，例如：阿岚，柏川，小满）", text: $membersNote, axis: .vertical)
-                    .lineLimit(1...3)
+                TextField("成员，逗号分隔", text: $membersNote)
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
             }
-        } header: {
-            Text("基本")
-        } footer: {
-            Text(isGroup
-                 ? "群聊时模型会以「名字：台词」的形式分行输出，界面会自动拆成多个气泡。"
-                 : "回复长度只是提示词里的约束，不会硬截断句子。")
         }
     }
 
-    private var profileSection: some View {
-        Section {
-            TextField("签名（主页上那一行，30 字内）", text: $signature, axis: .vertical)
-                .lineLimit(1...2)
-
-            TextField("标签（逗号分隔，例如：夜猫子，毒舌，会做饭）", text: $tagsText)
-        } header: {
-            Text("主页")
-        } footer: {
-            Text("签名和标签只出现在角色主页上，也会进提示词，让它说话时别太偏离自己贴的标签。")
+    private var profileCard: some View {
+        card("主页") {
+            labeled("签名") {
+                TextField("主页上那一行", text: $signature)
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+            }
+            divider
+            labeled("标签") {
+                TextField("逗号分隔", text: $tagsText)
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+            }
         }
     }
 
-    private var presetSection: some View {
-        Section {
-            Picker("对话形式", selection: $preset) {
+    private var presetCard: some View {
+        card("玩法", footer: preset.blurb) {
+            Picker("", selection: $preset) {
                 ForEach(RoleplayPreset.allCases) { item in
                     Text(item.displayName).tag(item)
                 }
             }
             .pickerStyle(.segmented)
-
-            Text(preset.blurb)
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
 
             if isNew {
                 Button("用「\(preset.displayName)」模板填一下") {
@@ -189,79 +275,99 @@ struct CharacterEditorView: View {
                     persona = preset.samplePersona
                     greeting = preset.sampleGreeting
                 }
-                .font(.system(size: 13))
+                .font(.system(size: PhoneMetrics.FontSize.sub))
+                .foregroundStyle(Theme.tint)
             }
-        } header: {
-            Text("玩法")
         }
     }
 
-    private var personaSection: some View {
-        Section {
+    private var personaCard: some View {
+        card("人设", footer: "直接写「你叫……」。这段会原样进系统提示词。") {
             TextEditor(text: $persona)
-                .frame(minHeight: 150)
-                .font(.system(size: 14))
-
-            TextField("开场白（第一次打开对话时它说的第一句）", text: $greeting, axis: .vertical)
-                .lineLimit(2...4)
-        } header: {
-            Text("人设")
-        } footer: {
-            Text("直接写「你叫……」。这段会原样进系统提示词，写得越具体，它越不像在敷衍。")
+                .frame(minHeight: 140)
+                .font(.system(size: PhoneMetrics.FontSize.sub))
+                .foregroundStyle(AppSurface.light.label)
+            divider
+            labeled("开场白") {
+                TextField("第一次打开对话时它说的第一句", text: $greeting, axis: .vertical)
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .lineLimit(2...4)
+            }
         }
     }
 
-    private var scheduleSection: some View {
-        Section {
-            Picker("睡觉", selection: $sleepHour) {
-                ForEach(0..<24, id: \.self) { hour in
-                    Text(String(format: "%02d:00", hour)).tag(hour)
+    private var scheduleCard: some View {
+        card("作息与设定") {
+            HStack {
+                Text("睡觉")
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                Spacer(minLength: 0)
+                Picker("", selection: $sleepHour) {
+                    ForEach(0..<24, id: \.self) { hour in
+                        Text(String(format: "%02d:00", hour)).tag(hour)
+                    }
                 }
+                .labelsHidden()
             }
-            Picker("起床", selection: $wakeHour) {
-                ForEach(0..<24, id: \.self) { hour in
-                    Text(String(format: "%02d:00", hour)).tag(hour)
+            divider
+            HStack {
+                Text("起床")
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                Spacer(minLength: 0)
+                Picker("", selection: $wakeHour) {
+                    ForEach(0..<24, id: \.self) { hour in
+                        Text(String(format: "%02d:00", hour)).tag(hour)
+                    }
                 }
+                .labelsHidden()
             }
-
             if !isNew {
+                divider
                 Button {
                     showWorldEntries = true
                 } label: {
                     HStack {
                         Text("设定集")
-                        Spacer()
-                        Text("关键词触发的背景设定")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: PhoneMetrics.FontSize.sub))
+                            .foregroundStyle(AppSurface.light.label)
+                        Spacer(minLength: 0)
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 12))
-                            .foregroundStyle(.secondary)
+                            .font(.system(size: 11))
+                            .foregroundStyle(AppSurface.light.secondaryLabel)
                     }
                 }
+                .buttonStyle(.plain)
             }
-        } header: {
-            Text("作息与设定")
-        } footer: {
-            Text("睡着的时段里回话会带困意、句子变短。设定集里的条目只有提到关键词时才会进提示词。")
         }
     }
 
-    private var importSection: some View {
-        Section {
-            Button("从酒馆角色卡导入（PNG / JSON）") {
+    private var importCard: some View {
+        card("导入", footer: "导入会覆盖当前的人设和开场白；名字为空时也会一起填上。") {
+            Button {
                 showImporter = true
+            } label: {
+                HStack {
+                    Image(systemName: "square.and.arrow.down")
+                        .font(.system(size: 14))
+                    Text("从酒馆角色卡导入（PNG / JSON）")
+                        .font(.system(size: PhoneMetrics.FontSize.sub))
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(Theme.tint)
             }
-        } footer: {
-            Text("导入会覆盖当前的人设和开场白；名字为空时也会一起填上。")
+            .buttonStyle(.plain)
         }
     }
 
-    private var dangerSection: some View {
-        Section {
-            Button("删除这个角色", role: .destructive) {
+    private var dangerCard: some View {
+        card("危险操作") {
+            Button("删除这个角色") {
                 showDeleteConfirm = true
             }
+            .font(.system(size: PhoneMetrics.FontSize.sub))
+            .foregroundStyle(Theme.price)
         }
     }
 

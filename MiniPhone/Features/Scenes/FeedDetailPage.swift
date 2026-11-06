@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// 笔记详情。
 ///
@@ -11,6 +12,10 @@ struct FeedDetailPage: View {
 
     @State private var draft = ""
     @FocusState private var isFocused: Bool
+    @Environment(\.modelContext) private var context
+    @State private var showSharePicker = false
+    /// 分享完把 thread 交回外层，外层负责切到消息 tab 并打开对话。
+    var onShared: ((UUID) -> Void)? = nil
 
     private var current: FeedNote {
         // 评论可能在这一页打开之后被刷新补进来，所以每次从库里取最新的。
@@ -37,12 +42,18 @@ struct FeedDetailPage: View {
 
                         authorRow
                         bodyText
+                        shareButton
                         commentSection
                     }
                     .padding(.bottom, PhoneMetrics.Space.xl)
                 }
 
                 composer
+            }
+        }
+        .sheet(isPresented: $showSharePicker) {
+            FeedSharePicker { character in
+                shareNote(to: character)
             }
         }
     }
@@ -144,6 +155,60 @@ struct FeedDetailPage: View {
                 .padding(.vertical, PhoneMetrics.Space.xs)
             }
         }
+    }
+
+    private var shareButton: some View {
+        Button {
+            showSharePicker = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                Text("分享到私聊")
+                    .font(.system(size: PhoneMetrics.FontSize.sub, weight: .medium))
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10))
+            }
+            .foregroundStyle(Theme.brand)
+            .padding(PhoneMetrics.Space.s)
+            .background(
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .fill(Theme.brand.opacity(0.08))
+            )
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, PhoneMetrics.Space.m)
+        .padding(.bottom, PhoneMetrics.Space.s)
+    }
+
+    /// 卡片只写进那条私信的消息流，不新开转帖通道、也不写角色活动索引。
+    private func shareNote(to companion: Companion) {
+        let item = world.openFeedThread(
+            companionUID: companion.uid.uuidString,
+            companionName: companion.name
+        )
+        let payload = FeedPostCardPayload(
+            noteID: current.id.uuidString,
+            title: current.title,
+            body: current.body,
+            tag: current.tag,
+            coverSeed: current.coverSeed
+        )
+        let message = StoredMessage(
+            characterUID: companion.uid,
+            role: .user,
+            text: payload.encoded(),
+            channel: .feedDM,
+            threadID: item.threadID
+        )
+        message.character = companion
+        context.insert(message)
+        world.updateFeedThreadPreview(
+            threadID: item.threadID,
+            message: "分享了一篇帖子：《\(current.title)》"
+        )
+        onShared?(item.threadID)
     }
 
     private var composer: some View {

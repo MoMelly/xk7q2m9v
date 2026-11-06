@@ -3,8 +3,7 @@ import SwiftUI
 /// 西瓜皮里的头像。
 ///
 /// 有 `authorUID` 的是角色，红底首字；没有的是路人和匿名评论，
-/// 用默认的那块西瓜——这是这个 App 唯一允许出现的默认头像。
-/// 外面留一圈浅色底，切片才不会像直接贴在列表上。
+/// 从内置的矢量头像组里按名字稳定哈希挑一张，避免整列都是同一张脸。
 struct FeedAvatar: View {
     var name: String
     var isCharacter: Bool
@@ -21,12 +20,7 @@ struct FeedAvatar: View {
                         .foregroundStyle(.white)
                 }
         } else {
-            ZStack {
-                Circle()
-                    .fill(Theme.Watermelon.pith)
-                WatermelonMark(size: size * 0.80)
-            }
-            .frame(width: size, height: size)
+            FeedDefaultAvatarView(name: name, size: size)
         }
     }
 }

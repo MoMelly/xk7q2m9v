@@ -2,8 +2,8 @@ import SwiftUI
 
 /// 商品缩略图。
 ///
-/// 同理：不接生图接口，用标题首字 + 渐变底拼一块。形状是方的，
-/// 放在双列卡里刚好；首字比一张模糊的示意图更能让人认出是什么。
+/// 不用标题首字当占位：矢量图标从 `ProductGlyph` 取，命中商品名就画对应物件，
+/// 没命中按 seed 随机。图标按容器尺寸缩放，商品大卡和购物车 56pt 小图都能用。
 struct ProductThumb: View {
     let title: String
     let seed: Int
@@ -12,35 +12,38 @@ struct ProductThumb: View {
         CoverPalette.pair(for: seed)
     }
 
-    private var initial: String {
-        let clean = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        return clean.isEmpty ? "物" : String(clean.prefix(1))
+    private var glyph: String {
+        ProductGlyph.symbol(title: title, seed: seed)
     }
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [pair.top, pair.bottom],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+        GeometryReader { proxy in
+            let unit = min(proxy.size.width, proxy.size.height)
 
-            // 一道斜向柔光，纯色块看起来才不会像占位图。
-            LinearGradient(
-                colors: [.white.opacity(0.55), .white.opacity(0)],
-                startPoint: .topLeading,
-                endPoint: .center
-            )
+            ZStack {
+                LinearGradient(
+                    colors: [pair.top, pair.bottom],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
 
-            Circle()
-                .fill(pair.accent.opacity(0.12))
-                .frame(width: 90, height: 90)
-                .blur(radius: 14)
-                .offset(x: 34, y: 40)
+                // 一道从左上落下来的柔光，纯色块才不会像占位图。
+                LinearGradient(
+                    colors: [.white.opacity(0.34), .white.opacity(0)],
+                    startPoint: .topLeading,
+                    endPoint: .center
+                )
 
-            Text(initial)
-                .font(.system(size: 34, weight: .bold))
-                .foregroundStyle(pair.ink.opacity(0.72))
+                // 图标底下垫一块半透明白圆，浅底上轮廓更清楚。
+                Circle()
+                    .fill(.white.opacity(0.38))
+                    .frame(width: unit * 0.66, height: unit * 0.66)
+
+                Image(systemName: glyph)
+                    .font(.system(size: unit * 0.36, weight: .light))
+                    .foregroundStyle(pair.ink.opacity(0.78))
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .clipped()
     }

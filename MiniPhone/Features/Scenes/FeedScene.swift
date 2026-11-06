@@ -19,7 +19,7 @@ struct FeedScene: View {
         switch UserDefaults.standard.string(forKey: "previewState") {
         case "feedProfile": return .mine
         case "market": return .market
-        case "feedInbox", "feedChat", "feedShare": return .messages
+        case "feedInbox", "feedChat", "feedShare", "feedCard": return .messages
         default: return .home
         }
     }()
@@ -31,6 +31,9 @@ struct FeedScene: View {
     private var proactive: ProactiveFeedService { .shared }
     @State private var statusText: String?
     @State private var statusTask: Task<Void, Never>?
+    /// 分享完要打开的那段私聊。tick 单独计数，连着分享到同一段也会再触发一次。
+    @State private var shareThreadID: UUID?
+    @State private var shareTick = 0
 
     private var currentPage: RefreshPage {
         phoneTab == .market ? .shop : .feed
@@ -94,7 +97,12 @@ struct FeedScene: View {
                 case .market:
                     MarketView(world: world)
                 case .messages:
-                    FeedInboxPage(world: world, settings: settings)
+                    FeedInboxPage(
+                        world: world,
+                        settings: settings,
+                        openThreadID: shareThreadID,
+                        openTick: shareTick
+                    )
                 case .mine:
                     FeedProfilePage(
                         world: world,
@@ -121,6 +129,27 @@ struct FeedScene: View {
                 character: character,
                 settings: settings
             ) else { return }
+
+            // 转帖先把帖子卡片放进消息流，附言排在它后面。
+            if item.kind == .postShare {
+                let card = FeedPostCardPayload(
+                    noteID: item.noteID?.uuidString ?? "",
+                    title: item.noteTitle,
+                    body: item.noteBody,
+                    tag: item.noteTag,
+                    coverSeed: item.coverSeed
+                )
+                let cardLine = StoredMessage(
+                    characterUID: character.uid,
+                    role: .assistant,
+                    text: card.encoded(),
+                    channel: .feedShare,
+                    threadID: item.threadID,
+                    createdAt: item.createdAt.addingTimeInterval(-1)
+                )
+                cardLine.character = character
+                context.insert(cardLine)
+            }
 
             // 开场白补进同一份角色记忆，界面按 channel 过滤。
             let opening = StoredMessage(
@@ -210,7 +239,12 @@ struct FeedScene: View {
                             LazyVStack(spacing: PhoneMetrics.Space.xs) {
                                 ForEach(column) { note in
                                     NavigationLink {
-                                        FeedDetailPage(note: note, world: world, settings: settings)
+                                        FeedDetailPage(
+                                            note: note,
+                                            world: world,
+                                            settings: settings,
+                                            onShared: handleShared
+                                        )
                                     } label: {
                                         FeedCard(note: note, width: width)
                                     }
@@ -291,6 +325,13 @@ struct FeedScene: View {
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
+    }
+
+    /// 分享完直接切到消息 tab 并展开那段私聊，卡片就在里面。
+    private func handleShared(_ threadID: UUID) {
+        shareThreadID = threadID
+        shareTick += 1
+        phoneTab = .messages
     }
 
     // MARK: - 刷新

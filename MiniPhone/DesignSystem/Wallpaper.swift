@@ -1,10 +1,12 @@
 import SwiftUI
+import UIKit
 
 /// 内置壁纸。
 ///
-/// 全部用代码画，不打图片进包体——换主题只是换一组参数。
-/// 每张壁纸由「基底渐变 + 若干模糊光斑 + 暗角」三层叠出来，
-/// 模拟真机壁纸那种有纵深的明暗分布，而不是一味平的渐变色。
+/// 旧版四套都是深底 + 四周压暗，叠上白色状态栏和图标文字会显脏。
+/// 现在四套全换成浅色：第一套是随包的云朵图，另外三套仍由代码画，
+/// 图片读不到时自动退回渐变，不会露黑屏。
+/// case 名字沿用旧值，是为了让已经存进 UserDefaults 的主题不用迁移也能变干净。
 enum WallpaperTheme: String, CaseIterable, Identifiable {
     case midnight
     case forest
@@ -15,64 +17,73 @@ enum WallpaperTheme: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .midnight: return "深夜蓝"
-        case .forest: return "苔绿"
-        case .ember: return "余烬"
-        case .graphite: return "石墨"
+        case .midnight: return "云朵"
+        case .forest: return "薄荷"
+        case .ember: return "奶油"
+        case .graphite: return "雾蓝"
         }
     }
 
-    /// 基底渐变，左上到右下。
+    /// 只有第一套用位图。文件名不带扩展名，`Bundle.main.url` 自己拼 .jpg。
+    var imageName: String? {
+        self == .midnight ? "daydream" : nil
+    }
+
+    var image: Image? {
+        guard let imageName,
+              let url = Bundle.main.url(forResource: imageName, withExtension: "jpg"),
+              let uiImage = UIImage(contentsOfFile: url.path) else { return nil }
+        return Image(uiImage: uiImage)
+    }
+
+    /// 基底渐变，左上到右下。位图主题用这组色当兜底。
     var baseColors: [Color] {
         switch self {
         case .midnight:
             return [
-                Color(red: 0.10, green: 0.16, blue: 0.34),
-                Color(red: 0.03, green: 0.05, blue: 0.12)
+                Color(red: 0.98, green: 0.88, blue: 0.93),
+                Color(red: 0.80, green: 0.90, blue: 0.98)
             ]
         case .forest:
             return [
-                Color(red: 0.11, green: 0.25, blue: 0.20),
-                Color(red: 0.02, green: 0.06, blue: 0.05)
+                Color(red: 0.92, green: 0.98, blue: 0.94),
+                Color(red: 0.80, green: 0.94, blue: 0.90)
             ]
         case .ember:
             return [
-                Color(red: 0.42, green: 0.18, blue: 0.12),
-                Color(red: 0.09, green: 0.04, blue: 0.05)
+                Color(red: 1.00, green: 0.96, blue: 0.88),
+                Color(red: 0.98, green: 0.88, blue: 0.82)
             ]
         case .graphite:
             return [
-                Color(red: 0.22, green: 0.23, blue: 0.25),
-                Color(red: 0.05, green: 0.05, blue: 0.06)
+                Color(red: 0.94, green: 0.96, blue: 1.00),
+                Color(red: 0.82, green: 0.88, blue: 0.96)
             ]
         }
     }
 
-    /// 叠在基底上的光斑。坐标和半径都按屏幕长边的比例给，换个机型不会跑偏。
+    /// 叠在基底上的光斑。透明度压得很低，浅底上只留一点纵深。
     var blobs: [WallpaperBlob] {
         switch self {
         case .midnight:
             return [
-                WallpaperBlob(x: 0.18, y: 0.12, radius: 0.46, color: Color(red: 0.28, green: 0.46, blue: 0.92)),
-                WallpaperBlob(x: 0.86, y: 0.34, radius: 0.38, color: Color(red: 0.44, green: 0.30, blue: 0.78)),
-                WallpaperBlob(x: 0.50, y: 0.92, radius: 0.44, color: Color(red: 0.14, green: 0.30, blue: 0.62))
+                WallpaperBlob(x: 0.18, y: 0.16, radius: 0.46, color: Color(red: 0.98, green: 0.78, blue: 0.88)),
+                WallpaperBlob(x: 0.82, y: 0.62, radius: 0.40, color: Color(red: 0.76, green: 0.88, blue: 0.98))
             ]
         case .forest:
             return [
-                WallpaperBlob(x: 0.22, y: 0.16, radius: 0.48, color: Color(red: 0.24, green: 0.58, blue: 0.44)),
-                WallpaperBlob(x: 0.82, y: 0.58, radius: 0.40, color: Color(red: 0.13, green: 0.36, blue: 0.30)),
-                WallpaperBlob(x: 0.44, y: 0.88, radius: 0.42, color: Color(red: 0.52, green: 0.72, blue: 0.44))
+                WallpaperBlob(x: 0.22, y: 0.16, radius: 0.48, color: Color(red: 0.72, green: 0.92, blue: 0.82)),
+                WallpaperBlob(x: 0.82, y: 0.72, radius: 0.42, color: Color(red: 0.86, green: 0.96, blue: 0.88))
             ]
         case .ember:
             return [
-                WallpaperBlob(x: 0.76, y: 0.14, radius: 0.44, color: Color(red: 0.92, green: 0.48, blue: 0.22)),
-                WallpaperBlob(x: 0.20, y: 0.48, radius: 0.40, color: Color(red: 0.68, green: 0.22, blue: 0.20)),
-                WallpaperBlob(x: 0.60, y: 0.90, radius: 0.38, color: Color(red: 0.86, green: 0.38, blue: 0.40))
+                WallpaperBlob(x: 0.76, y: 0.18, radius: 0.44, color: Color(red: 0.99, green: 0.86, blue: 0.72)),
+                WallpaperBlob(x: 0.20, y: 0.72, radius: 0.40, color: Color(red: 0.99, green: 0.93, blue: 0.84))
             ]
         case .graphite:
             return [
-                WallpaperBlob(x: 0.30, y: 0.20, radius: 0.50, color: Color(red: 0.42, green: 0.44, blue: 0.48)),
-                WallpaperBlob(x: 0.78, y: 0.66, radius: 0.44, color: Color(red: 0.30, green: 0.32, blue: 0.36))
+                WallpaperBlob(x: 0.30, y: 0.22, radius: 0.50, color: Color(red: 0.84, green: 0.90, blue: 0.99)),
+                WallpaperBlob(x: 0.78, y: 0.70, radius: 0.44, color: Color(red: 0.92, green: 0.94, blue: 0.99))
             ]
         }
     }
@@ -99,35 +110,44 @@ struct WallpaperView: View {
             let unit = max(width, height)
 
             ZStack {
-                LinearGradient(
-                    colors: theme.baseColors,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
+                if let image = theme.image {
+                    image
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: width, height: height)
+                        .clipped()
+                } else {
+                    LinearGradient(
+                        colors: theme.baseColors,
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
 
-                ForEach(Array(theme.blobs.enumerated()), id: \.offset) { _, blob in
-                    let diameter = blob.radius * unit * 2
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [blob.color.opacity(0.85), blob.color.opacity(0)],
-                                center: .center,
-                                startRadius: 0,
-                                endRadius: diameter / 2
+                    ForEach(Array(theme.blobs.enumerated()), id: \.offset) { _, blob in
+                        let diameter = blob.radius * unit * 2
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [blob.color.opacity(0.45), blob.color.opacity(0)],
+                                    center: .center,
+                                    startRadius: 0,
+                                    endRadius: diameter / 2
+                                )
                             )
-                        )
-                        .frame(width: diameter, height: diameter)
-                        .position(x: blob.x * width, y: blob.y * height)
-                        .blur(radius: unit * 0.05)
+                            .frame(width: diameter, height: diameter)
+                            .position(x: blob.x * width, y: blob.y * height)
+                            .blur(radius: unit * 0.04)
+                    }
                 }
 
-                // 暗角：压暗四周，让白色文字在任意壁纸上都能读。
-                RadialGradient(
-                    colors: [.clear, .black.opacity(0.5)],
-                    center: .center,
-                    startRadius: unit * 0.22,
-                    endRadius: unit * 0.78
+                // 只压顶部一小段：状态栏和锁屏时间仍是白字，浅底上要有一点暗才读得出。
+                LinearGradient(
+                    colors: [.black.opacity(0.16), .clear],
+                    startPoint: .top,
+                    endPoint: .bottom
                 )
+                .frame(height: height * 0.22)
+                .frame(maxHeight: .infinity, alignment: .top)
             }
             .frame(width: width, height: height)
         }

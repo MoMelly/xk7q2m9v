@@ -56,6 +56,15 @@ extension WorldStore {
         return item
     }
 
+    /// 用户分享帖子之后，把会话列表的预览换成这次分享。
+    /// 不写 activity：这是「我」的动作，不该记成角色做过的事。
+    func updateFeedThreadPreview(threadID: UUID, message: String) {
+        guard let index = state.feedInbox.firstIndex(where: { $0.threadID == threadID }) else { return }
+        state.feedInbox[index].message = message
+        state.feedInbox[index].createdAt = Date()
+        save()
+    }
+
     /// 截图状态下给市集铺几件商品，正常启动不调用。
     func seedPreviewShop() {
         guard state.shop.isEmpty else { return }

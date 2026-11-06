@@ -11,6 +11,10 @@ struct FeedInboxPage: View {
 
     @Environment(\.modelContext) private var context
     @Query private var companions: [Companion]
+    /// 外层分享完传进来的 thread。正常启动都是 nil。
+    var openThreadID: UUID? = nil
+    var openTick: Int = 0
+
     @State private var segment: Segment = UserDefaults.standard.string(forKey: "previewState") == "feedShare"
         ? .share
         : .direct
@@ -62,9 +66,15 @@ struct FeedInboxPage: View {
         }
         .task { @MainActor in
             let state = UserDefaults.standard.string(forKey: "previewState") ?? ""
-            guard state == "feedChat" || state == "feedShare" else { return }
-            let kind: FeedInboxKind = state == "feedChat" ? .directMessage : .postShare
+            guard ["feedChat", "feedShare", "feedCard"].contains(state) else { return }
+            let kind: FeedInboxKind = state == "feedShare" ? .postShare : .directMessage
             openedItem = world.state.feedInbox.first { $0.kind == kind }
+        }
+        .onChange(of: openTick) { _, _ in
+            guard let thread = openThreadID,
+                  let item = world.state.feedInbox.first(where: { $0.threadID == thread }) else { return }
+            segment = .direct
+            openedItem = item
         }
     }
 

@@ -59,7 +59,13 @@ final class FeedChatService {
             .suffix(20)
 
         var request: [ChatMessage] = [ChatMessage(role: .system, text: system)]
-        request.append(contentsOf: history.map { $0.asChatMessage })
+        // 帖子卡片在库里是一行 JSON，进提示词前换成一句人话。
+        request.append(contentsOf: history.map { message in
+            ChatMessage(
+                role: message.role == .user ? .user : .assistant,
+                text: FeedPostCardPayload.readable(message.text)
+            )
+        })
 
         let client = OpenAICompatibleClient(config: settings.config)
         do {

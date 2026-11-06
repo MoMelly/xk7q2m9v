@@ -29,6 +29,10 @@ targets:
       - path: Assets/Music
         type: folder
         buildPhase: resources
+      # 默认浅色壁纸。单文件资源落在 bundle 根目录，
+      # WallpaperTheme.image 用 Bundle.main.url(forResource:withExtension:) 读。
+      - path: Assets/Wallpaper/daydream.jpg
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melly.miniphone

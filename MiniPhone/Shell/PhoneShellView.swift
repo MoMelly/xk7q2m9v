@@ -43,11 +43,11 @@ struct PhoneShellView: View {
         case "notes": destination = .scene(.notes)
         case "music": destination = .scene(.music)
         case "health": destination = .scene(.health)
-        case "market", "feedInbox", "feedChat", "feedShare": destination = .scene(.feed)
+        case "market", "feedInbox", "feedChat", "feedShare", "feedCard": destination = .scene(.feed)
         case "feed": destination = .scene(.feed)
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
-        case "chatDetail": destination = .chat
+        case "chatDetail", "chatMine", "chatEditor": destination = .chat
         default: destination = nil
         }
         guard let destination else { return nil }
@@ -107,6 +107,7 @@ struct PhoneShellView: View {
             world.ensureToday(wakeHour: 7, sleepHour: 23)
             world.seedSceneContentIfNeeded()
             UserProfileBook.ensureDefault(in: context)
+            DefaultAssistant.ensure(in: context)
             seedPreviewContentIfNeeded()
         }
         .onChange(of: world.pendingNotices) { _, pages in
@@ -233,7 +234,7 @@ struct PhoneShellView: View {
         case "market":
             world.seedPreviewShop()
 
-        case "feedInbox", "feedChat", "feedShare":
+        case "feedInbox", "feedChat", "feedShare", "feedCard":
             seedPreviewInbox()
 
         default:
@@ -248,7 +249,7 @@ struct PhoneShellView: View {
         guard world.state.feedInbox.isEmpty else { return }
 
         let character: Companion
-        if let existing = companions.first {
+        if let existing = companions.first(where: { $0.name == "小满" }) {
             character = existing
         } else {
             let fresh = Companion(
@@ -295,6 +296,26 @@ struct PhoneShellView: View {
         world.deliverFeedInbox(direct)
 
         for item in [share, direct] {
+            if item.kind == .postShare {
+                let sharedPost = FeedPostCardPayload(
+                    noteID: item.noteID?.uuidString ?? "",
+                    title: item.noteTitle,
+                    body: item.noteBody,
+                    tag: item.noteTag,
+                    coverSeed: item.coverSeed
+                )
+                let cardLine = StoredMessage(
+                    characterUID: character.uid,
+                    role: .assistant,
+                    text: sharedPost.encoded(),
+                    channel: .feedShare,
+                    threadID: item.threadID,
+                    createdAt: item.createdAt.addingTimeInterval(-1)
+                )
+                cardLine.character = character
+                context.insert(cardLine)
+            }
+
             let message = StoredMessage(
                 characterUID: character.uid,
                 role: .assistant,
@@ -306,6 +327,24 @@ struct PhoneShellView: View {
             message.character = character
             context.insert(message)
         }
+        // 演示「我分享了一篇帖子」：卡片落在私信 thread 里，不是转帖通道。
+        let myPost = FeedPostCardPayload(
+            noteID: UUID().uuidString,
+            title: "给自己留的一小时",
+            body: "什么都不做，坐着发呆也算数。",
+            tag: "记录",
+            coverSeed: 264
+        )
+        let cardMessage = StoredMessage(
+            characterUID: character.uid,
+            role: .user,
+            text: myPost.encoded(),
+            channel: .feedDM,
+            threadID: direct.threadID,
+            createdAt: Date().addingTimeInterval(-240)
+        )
+        cardMessage.character = character
+        context.insert(cardMessage)
         try? context.save()
     }
 

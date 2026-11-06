@@ -3,7 +3,7 @@ import SwiftData
 
 /// 「信息」App 的会话列表。
 ///
-/// 底部三格把功能摆到明面上：消息、通话、联系人。上一版通话记录、
+/// 底部四格把功能摆到明面上：消息、通话、联系人、我的。上一版通话记录、
 /// 角色资料、发起通话全藏在二级页或长按菜单里，列表层看不出该去哪点。
 /// 顶栏是大标题 + 搜索 + 新建；列表保持深色玻璃。
 struct ConversationListView: View {
@@ -14,12 +14,15 @@ struct ConversationListView: View {
     @Environment(WorldStore.self) private var world
     @Query(sort: [SortDescriptor(\Companion.sortIndex), SortDescriptor(\Companion.createdAt)])
     private var characters: [Companion]
+    @Query private var profiles: [UserProfile]
 
     @State private var opened: Companion?
-    @State private var showCreator = false
+    @State private var showCreator = UserDefaults.standard.string(forKey: "previewState") == "chatEditor"
     @State private var showCallHistory = false
     @State private var pendingDelete: Companion?
-    @State private var tab: Tab = .messages
+    @State private var tab: Tab = UserDefaults.standard.string(forKey: "previewState") == "chatMine"
+        ? .mine
+        : .messages
     @State private var query = ""
     @State private var callKind: CallKind?
     @State private var callTarget: Companion?
@@ -29,6 +32,7 @@ struct ConversationListView: View {
         case messages = "消息"
         case calls = "通话"
         case contacts = "联系人"
+        case mine = "我的"
 
         var id: String { rawValue }
 
@@ -37,6 +41,7 @@ struct ConversationListView: View {
             case .messages: return "bubble.left.and.bubble.right"
             case .calls: return "phone"
             case .contacts: return "person.2"
+            case .mine: return "person.crop.circle"
             }
         }
     }
@@ -114,6 +119,7 @@ struct ConversationListView: View {
             case .messages: messagesList
             case .calls: callsList
             case .contacts: contactsList
+            case .mine: myProfile
             }
 
             tabBar
@@ -295,6 +301,26 @@ struct ConversationListView: View {
         }
     }
 
+    // MARK: - 我的
+
+    private var myProfile: some View {
+        Group {
+            if let profile = profiles.first(where: { $0.isDefault }) ?? profiles.first {
+                MyProfilePage(profile: profile)
+            } else {
+                VStack(spacing: 12) {
+                    Image(systemName: "person.crop.circle")
+                        .font(.system(size: 28))
+                        .foregroundStyle(Theme.cream.opacity(0.5))
+                    Text("还没有我的资料")
+                        .font(.system(size: PhoneMetrics.FontSize.sub))
+                        .foregroundStyle(Theme.cream.opacity(0.7))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+    }
+
     // MARK: - 联系人
 
     private var contactsList: some View {
@@ -329,7 +355,7 @@ struct ConversationListView: View {
                     Text("「我的人设」和「世界」在桌面的设置里")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Theme.cream.opacity(0.8))
-                    Text("通话记录、角色资料都从这三个格子进去，不用长按。")
+                    Text("通话记录、角色资料都从这几个格子进去，不用长按。")
                         .font(.system(size: 11))
                         .foregroundStyle(Theme.cream.opacity(0.45))
                 }

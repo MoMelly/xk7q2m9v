@@ -8,6 +8,9 @@ import SwiftUI
 /// 三层同圆心：绿皮 → 白瓤 → 红瓤。三层的平口都在同一条线上，
 /// 所以绿边只在弧上出现，收口处自然尖细——真切片就是这个样子。
 /// 白瓤刻意留得很薄：厚了像塑料模型，薄薄一条才像刚切开的断面。
+///
+/// 光只留两处：红瓤顶部压下来的一层薄亮，和弧左半边一道反光。
+/// 叠太多层 plusLighter 会把中间洗成一片白，看着像糊了油。
 struct WatermelonMark: View {
     var size: CGFloat = 40
 
@@ -47,25 +50,24 @@ struct WatermelonMark: View {
             // 红瓤
             redFlesh(radius: radius, center: center)
 
-            // 弧上那道玻璃似的反光：沿外缘走一圈，只在左半边亮
+            // 弧上那道反光只走左半边，右半边留在暗处才有体积。
             SliceShape(radius: radius * 0.985, center: center)
                 .stroke(
                     LinearGradient(
-                        colors: [.white.opacity(0.75), .white.opacity(0.05), .white.opacity(0.22)],
+                        colors: [.white.opacity(0.42), .white.opacity(0.04)],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     ),
-                    lineWidth: max(0.8, size * 0.022)
+                    lineWidth: max(0.7, size * 0.014)
                 )
-                .blendMode(.plusLighter)
 
             seedsLayer(radius: radius, center: center)
         }
         .frame(width: size, height: size)
     }
 
-    /// 红瓤：顶部偏亮、往下压深，再叠一层偏心高光和一道斜向玻璃反光。
-    /// 通透感全靠这几层叠出来，纯色红瓤会像贴在图标上的一块纸。
+    /// 红瓤：上亮下深，再叠一层从平口压下来的薄亮。
+    /// 不用径向高光也不叠斜向反光条——那两层在大图标上会互相洗白。
     private func redFlesh(radius: CGFloat, center: CGPoint) -> some View {
         ZStack {
             SliceShape(radius: radius * 0.86, center: center)
@@ -83,27 +85,12 @@ struct WatermelonMark: View {
 
             SliceShape(radius: radius * 0.86, center: center)
                 .fill(
-                    RadialGradient(
-                        colors: [.white.opacity(0.42), .clear],
-                        center: UnitPoint(x: 0.32, y: 0.28),
-                        startRadius: 0,
-                        endRadius: radius * 0.95
+                    LinearGradient(
+                        colors: [.white.opacity(0.14), .clear],
+                        startPoint: .top,
+                        endPoint: .center
                     )
                 )
-
-            // 斜向反光条，从左上切到右下，模拟玻璃表面的一道高光
-            Capsule()
-                .fill(.white.opacity(0.20))
-                .frame(width: radius * 1.5, height: max(1.5, radius * 0.10))
-                .rotationEffect(.degrees(-18))
-                .offset(x: -radius * 0.18, y: radius * 0.10)
-                .blur(radius: max(0.6, radius * 0.03))
-                .blendMode(.plusLighter)
-
-            // 弧底一道回光，切片才像有厚度
-            SliceShape(radius: radius * 0.86, center: center)
-                .stroke(.white.opacity(0.16), lineWidth: max(0.6, radius * 0.03))
-                .blur(radius: max(0.4, radius * 0.02))
         }
         .compositingGroup()
     }
