@@ -98,7 +98,9 @@ struct HomeScreenView: View {
     }
 
     private var dockWash: Double {
-        ThemeStore.shared.isNight ? 0 : 0.34
+        // 叠得薄了还是灰的：系统材质在外壳的深色方案下压得比想象中狠，
+        // 0.34 只在粉壁上留一层灰膜，要 0.62 才真的发白。
+        ThemeStore.shared.isNight ? 0 : 0.62
     }
 }
 
