@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// 外壳总容器。
 ///
@@ -16,10 +17,14 @@ struct PhoneShellView: View {
     @State private var toastTask: Task<Void, Never>?
     @State private var noticeTask: Task<Void, Never>?
 
+    /// 截图状态下要直开的那段会话。正常启动不会用到，也不写任何演示数据。
+    @Query(sort: \Companion.createdAt, order: .forward) private var companions: [Companion]
+
     // MARK: - 截图用的启动状态
 
-    /// 启动参数 `-previewState lock|home|chat|moments|settings|calendar|music|health`
-    /// 让外壳直接落到指定状态。截图流水线靠它跳过手势。
+    /// 启动参数 `-previewState <名字>` 让外壳直接落到指定状态。
+    /// `chatDetail` 和 `feedProfile` 是两级页面，靠桌面图标点不到，所以各留一个状态；
+    /// 截图流水线靠这些状态跳过多层手势。
     private static var previewState: String {
         UserDefaults.standard.string(forKey: "previewState") ?? "lock"
     }
@@ -40,7 +45,9 @@ struct PhoneShellView: View {
         case "health": destination = .scene(.health)
         case "shopping": destination = .scene(.shopping)
         case "feed": destination = .scene(.feed)
+        case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
+        case "chatDetail": destination = .chat
         default: destination = nil
         }
         guard let destination else { return nil }
@@ -100,6 +107,7 @@ struct PhoneShellView: View {
             world.ensureToday(wakeHour: 7, sleepHour: 23)
             world.seedSceneContentIfNeeded()
             UserProfileBook.ensureDefault(in: context)
+            seedPreviewContentIfNeeded()
         }
         .onChange(of: world.pendingNotices) { _, pages in
             guard !pages.isEmpty else { return }
@@ -152,7 +160,11 @@ struct PhoneShellView: View {
     private func appLayer(_ app: PhoneApp) -> some View {
         switch app.destination {
         case .chat:
-            ConversationListView(settings: settings, onExit: closeApp)
+            if Self.previewState == "chatDetail", let character = companions.first {
+                ChatView(character: character, settings: settings, onExit: closeApp)
+            } else {
+                ConversationListView(settings: settings, onExit: closeApp)
+            }
         case .moments:
             MomentsView(settings: settings, onExit: closeApp)
         case .settings:
@@ -162,6 +174,63 @@ struct PhoneShellView: View {
         case .placeholder:
             // 占位图标不会走进来，open(_:) 里已经拦掉了。
             EmptyView()
+        }
+    }
+
+    // MARK: - 截图用的演示数据
+
+    /// 只在带 `-previewState` 启动时写。正常启动读不到这个键，一条都不会插。
+    /// 聊天详情和我的主页没有预置内容就是空态，截图看不出布局对不对。
+    @MainActor
+    private func seedPreviewContentIfNeeded() {
+        switch Self.previewState {
+        case "chatDetail":
+            guard companions.isEmpty else { return }
+            let character = Companion(
+                name: "小满",
+                persona: "住在隔壁、话不多但记性很好的女生，说话短，不爱用感叹号。",
+                greeting: "回来啦？今天楼下那家关得早。"
+            )
+            character.signature = "慢一点也没关系"
+            context.insert(character)
+
+            let lines: [(ChatMessage.Role, String)] = [
+                (.assistant, "回来啦？今天楼下那家关得早。"),
+                (.user, "啊，那我明天早点去。"),
+                (.assistant, "嗯，我给你留了张便签在门上。")
+            ]
+            for (index, line) in lines.enumerated() {
+                let message = StoredMessage(
+                    characterUID: character.uid,
+                    role: line.0,
+                    text: line.1,
+                    createdAt: Date().addingTimeInterval(Double(index) * 60 - 180)
+                )
+                message.character = character
+                context.insert(message)
+            }
+            try? context.save()
+
+        case "feedProfile":
+            guard !world.state.feed.contains(where: { $0.authorName == "我" }) else { return }
+            world.publishNote(
+                title: "今天把窗台收拾了一下",
+                body: "擦完灰才发现那盆薄荷偷偷长高了一截。",
+                tag: "日常"
+            )
+            world.publishNote(
+                title: "晚自习后的操场",
+                body: "灯只亮了一半，风比白天凉很多。",
+                tag: "傍晚"
+            )
+            world.publishNote(
+                title: "给自己留的一小时",
+                body: "什么都不做，坐着发呆也算数。",
+                tag: "记录"
+            )
+
+        default:
+            break
         }
     }
 

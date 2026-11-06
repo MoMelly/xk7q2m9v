@@ -127,7 +127,7 @@ jobs:
           guarded 30 xcrun simctl terminate "$DEVICE_ID" com.melly.miniphone || true
           sleep 2
 
-          for state in lock home chat moments settings calendar notes music health shopping feed letters; do
+          for state in lock home chat chatDetail moments settings calendar notes music health shopping feed feedProfile letters; do
             # -previewState 只在冷启动时读。上一次没退干净就会变成热启动，
             # 参数不生效、界面停在上一个状态，拍出来的图会张冠李戴。
             guarded 25 xcrun simctl terminate "$DEVICE_ID" com.melly.miniphone || true

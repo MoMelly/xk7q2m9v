@@ -10,7 +10,10 @@ struct FeedScene: View {
     let settings: SettingsStore
     var onClose: () -> Void
 
-    @State private var phoneTab: PhoneTab = .home
+    /// 截图状态 `feedProfile` 直接落到「我的」，省掉一层点击；正常启动都是首页。
+    @State private var phoneTab: PhoneTab = UserDefaults.standard.string(forKey: "previewState") == "feedProfile"
+        ? .mine
+        : .home
     @State private var feedTab: FeedTab = .discover
     @State private var isComposing = false
     /// 直接取单例而不是存进 @State：@State 的初始化不在 body 里，

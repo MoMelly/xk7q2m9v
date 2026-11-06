@@ -68,7 +68,9 @@ struct AppIconTile: View {
                 )
                 .blendMode(.plusLighter)
 
-            if app.id == "feed" {
+            // 按打开目标判断而不是 id：桌面那份是 `feed`，Dock 那份是 `dock.feed`，
+            // 只认 id 会让两处同一个 App 画出两个不一样的图标。
+            if app.destination == .scene(.feed) {
                 // 西瓜皮不用 SF Symbol，也不用白色圆徽章打底：
                 // 切片自己带白瓤收边，落在红底上轮廓已经够清楚，
                 // 再垫一个白圆就成了「圆里贴了张图」，反而把通透镜面压死。
