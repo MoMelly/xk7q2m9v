@@ -38,6 +38,10 @@ targets:
       - path: Assets/Stickers
         type: folder
         buildPhase: resources
+      # 内置头像照片。同上，subdirectory: "Avatars"。
+      - path: Assets/Avatars
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melly.miniphone

@@ -9,11 +9,7 @@ struct MyProfilePage: View {
     @Bindable var profile: UserProfile
 
     @Environment(\.modelContext) private var context
-
-    private let columns = Array(
-        repeating: GridItem(.flexible(), spacing: 10),
-        count: 8
-    )
+    @State private var showAvatarPicker = false
 
     var body: some View {
         ScrollView {
@@ -27,22 +23,48 @@ struct MyProfilePage: View {
         }
         .background(Theme.backgroundGradient.ignoresSafeArea())
         .onDisappear(perform: save)
+        .sheet(isPresented: $showAvatarPicker) {
+            AvatarPickerSheet(
+                fallbackNote: "不用照片时，显示首字或下面挑的符号。",
+                imageKey: $profile.avatarImageKey,
+                fileName: $profile.avatarFileName
+            )
+            .onDisappear(perform: save)
+        }
     }
 
     // MARK: - 卡片
 
     private var avatarCard: some View {
         VStack(spacing: PhoneMetrics.Space.s) {
-            currentAvatar
+            Button {
+                showAvatarPicker = true
+            } label: {
+                currentAvatar
+            }
+            .buttonStyle(.plain)
 
             Text(profile.name.isEmpty ? "我" : profile.name)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(AppSurface.light.label)
 
-            Text("点一个换头像")
+            Text("点一下换头像")
                 .font(.system(size: PhoneMetrics.FontSize.caption))
                 .foregroundStyle(AppSurface.light.secondaryLabel)
 
+            symbolRow
+                .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(PhoneMetrics.Space.m)
+        .background(AppSurface.light.rowSurface)
+        .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.grouped, style: .continuous))
+    }
+
+    /// 符号只在没照片的时候看得见，所以有照片就把这一排收起来。
+    @ViewBuilder
+    private var symbolRow: some View {
+        if profile.avatarPhoto == nil {
             LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(FeedDefaultAvatar.symbols, id: \.self) { symbol in
                     Button {
@@ -67,31 +89,42 @@ struct MyProfilePage: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.top, 4)
+        } else {
+            Text("想改用符号头像，就在换头像里选「不用照片」。")
+                .font(.system(size: PhoneMetrics.FontSize.caption))
+                .foregroundStyle(AppSurface.light.secondaryLabel)
         }
-        .frame(maxWidth: .infinity)
-        .padding(PhoneMetrics.Space.m)
-        .background(AppSurface.light.rowSurface)
-        .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.grouped, style: .continuous))
     }
+
+    private let columns = Array(
+        repeating: GridItem(.flexible(), spacing: 10),
+        count: 8
+    )
 
     private var currentAvatar: some View {
         let tint = AvatarTint(rawValue: profile.avatarTintRaw) ?? .mint
 
         return ZStack {
-            Circle().fill(tint.gradient)
-
-            if profile.avatarSymbol.isEmpty {
-                Text(String(profile.name.prefix(1)))
-                    .font(.system(size: 28, weight: .semibold, design: .serif))
-                    .foregroundStyle(.white)
+            if let photo = profile.avatarPhoto {
+                Image(uiImage: photo)
+                    .resizable()
+                    .scaledToFill()
             } else {
-                Image(systemName: profile.avatarSymbol)
-                    .font(.system(size: 30, weight: .medium))
-                    .foregroundStyle(.white)
+                Circle().fill(tint.gradient)
+
+                if profile.avatarSymbol.isEmpty {
+                    Text(String(profile.name.prefix(1)))
+                        .font(.system(size: 28, weight: .semibold, design: .serif))
+                        .foregroundStyle(.white)
+                } else {
+                    Image(systemName: profile.avatarSymbol)
+                        .font(.system(size: 30, weight: .medium))
+                        .foregroundStyle(.white)
+                }
             }
         }
         .frame(width: 68, height: 68)
+        .clipShape(Circle())
         .overlay {
             Circle().strokeBorder(.white.opacity(0.5), lineWidth: 1)
         }

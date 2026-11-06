@@ -19,6 +19,13 @@ final class Companion {
     var name: String = ""
     /// 头像底色，存预设色名而不是 RGB，换主题时能整体调。
     var avatarTintRaw: String = "mint"
+    /// 内置头像照片的资源名，形如 `avatar_03`。空表示不用照片。
+    ///
+    /// 照片和底色并存而不是互斥：照片读不出来（比如换了包、资源被清）
+    /// 还能回落到渐变圆加首字，不至于显示一个空白圈。
+    var avatarImageKey: String = ""
+    /// 用户从相册传的头像文件名，落在 `Documents/avatars`。空表示没传。
+    var avatarFileName: String = ""
     /// 人设。用户写什么就是什么，不做结构化，避免限制表达。
     var persona: String = ""
     /// 开场白。新建会话时作为第一条消息落库。
@@ -211,6 +218,10 @@ final class UserProfile {
     var avatarTintRaw: String = "mint"
     /// 内置矢量头像的符号名。空串表示显示名字首字。
     var avatarSymbol: String = ""
+    /// 内置头像照片的资源名，形如 `avatar_05`。优先于符号。
+    var avatarImageKey: String = ""
+    /// 从相册传的头像文件名。优先于内置照片。
+    var avatarFileName: String = ""
     /// 新会话默认用哪个。
     var isDefault: Bool = false
     var createdAt: Date = Date()

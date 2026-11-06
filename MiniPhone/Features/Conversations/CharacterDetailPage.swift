@@ -38,6 +38,15 @@ struct CharacterDetailPage: View {
         return profiles.first(where: { $0.isDefault })?.name ?? "我"
     }
 
+    /// 行尾的小字。只写「几个能用」，全开时不写满——
+    /// 一行放不下具体名字，点进去看更准。
+    private var stickerSummary: String {
+        let total = StickerLibrary.shared.items.count
+        guard total > 0 else { return "没有表情" }
+        let open = StickerLibrary.shared.available(for: character).count
+        return open == total ? "全部 \(total) 个" : "\(open) / \(total)"
+    }
+
     var body: some View {
         AppScreen(title: "详情", onClose: onClose) {
             ScrollView {
@@ -127,6 +136,21 @@ struct CharacterDetailPage: View {
                                 symbolTint: Theme.IconTint.indigo,
                                 title: "我以谁的身份",
                                 value: personaName,
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        RowDivider()
+
+                        NavigationLink {
+                            CharacterStickerPage(character: character)
+                        } label: {
+                            GroupedRow(
+                                symbol: "face.smiling.fill",
+                                symbolTint: Theme.IconTint.pink,
+                                title: "能用哪些表情",
+                                value: stickerSummary,
                                 showsChevron: true
                             )
                         }

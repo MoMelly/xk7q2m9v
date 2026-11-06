@@ -50,6 +50,7 @@ enum DefaultAssistant {
         )
         assistant.signature = "这部手机里管添东西的那个"
         assistant.avatarTintRaw = "sky"
+        assistant.avatarImageKey = "avatar_05"
         context.insert(assistant)
 
         for (index, line) in sampleLines.enumerated() {

@@ -30,9 +30,13 @@ enum AccentTheme: String, CaseIterable, Identifiable {
     }
 
     /// 自定义那一档没有固定色，取用户自己挑的。
+    ///
+    /// 莓果红从 #E83A56 换到 #D93A3F：原来那个蓝分量太高，
+    /// 大面积铺在浅色页面上会往品红偏，看着像没调准的粉。
+    /// 压掉蓝、稍微提一点绿，落回正红，跟西瓜瓤对得上。
     var color: Color? {
         switch self {
-        case .berry: return Color(red: 0.91, green: 0.23, blue: 0.34)
+        case .berry: return Color(red: 0.851, green: 0.216, blue: 0.231)
         case .retro: return Color(red: 0.29, green: 0.47, blue: 0.39)
         case .mist: return Color(red: 0.35, green: 0.50, blue: 0.66)
         case .lavender: return Color(red: 0.54, green: 0.48, blue: 0.79)
@@ -141,7 +145,7 @@ final class ThemeStore {
     }
 
     var accent: Color {
-        accentTheme.color ?? Color(hex: customAccentHex) ?? Color(red: 0.91, green: 0.23, blue: 0.34)
+        accentTheme.color ?? Color(hex: customAccentHex) ?? Color(red: 0.851, green: 0.216, blue: 0.231)
     }
 
     /// 比主题色压暗一档。价格、强调文字用它，同一个色相才有主次。

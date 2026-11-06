@@ -16,6 +16,9 @@ struct CharacterEditorView: View {
 
     @State private var name = ""
     @State private var tintRaw = AvatarTint.mint.rawValue
+    @State private var avatarKey = ""
+    @State private var avatarFile = ""
+    @State private var showAvatarPicker = false
     @State private var preset: RoleplayPreset = .daily
     @State private var persona = ""
     @State private var greeting = ""
@@ -41,6 +44,8 @@ struct CharacterEditorView: View {
 
         _name = State(initialValue: character?.name ?? "")
         _tintRaw = State(initialValue: character?.avatarTintRaw ?? AvatarTint.mint.rawValue)
+        _avatarKey = State(initialValue: character?.avatarImageKey ?? "")
+        _avatarFile = State(initialValue: character?.avatarFileName ?? "")
         _preset = State(initialValue: character?.preset ?? .daily)
         _persona = State(initialValue: character?.persona ?? "")
         _greeting = State(initialValue: character?.greeting ?? "")
@@ -100,7 +105,37 @@ struct CharacterEditorView: View {
                     WorldEntryListView(character: character)
                 }
             }
+            .sheet(isPresented: $showAvatarPicker) {
+                AvatarPickerSheet(
+                    fallbackNote: "不用照片时，头像显示名字第一个字。",
+                    imageKey: $avatarKey,
+                    fileName: $avatarFile
+                )
+            }
         }
+    }
+
+    // MARK: - 头像
+
+    private var avatarTint: AvatarTint {
+        AvatarTint(rawValue: tintRaw) ?? .mint
+    }
+
+    /// 上传优先，其次内置。跟 `Companion.avatarPhoto` 一个顺序，
+    /// 不然编辑器里看到的和存完看到的不是同一张。
+    private var previewPhoto: UIImage? {
+        if !avatarFile.isEmpty, let uploaded = AvatarPhoto.load(fileName: avatarFile) {
+            return uploaded
+        }
+        if !avatarKey.isEmpty {
+            return AvatarPhoto.builtIn(key: avatarKey)
+        }
+        return nil
+    }
+
+    private var previewInitial: String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "?" : String(trimmed.prefix(1))
     }
 
     // MARK: - 顶栏与卡片骨架
@@ -199,8 +234,44 @@ struct CharacterEditorView: View {
                     .font(.system(size: PhoneMetrics.FontSize.sub))
             }
             divider
-            HStack(spacing: 8) {
+            HStack(spacing: PhoneMetrics.Space.s) {
                 Text("头像")
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                    .frame(width: 58, alignment: .leading)
+
+                Button {
+                    showAvatarPicker = true
+                } label: {
+                    ZStack {
+                        if let photo = previewPhoto {
+                            Image(uiImage: photo)
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Circle().fill(avatarTint.gradient)
+                            Text(previewInitial)
+                                .font(.system(size: 18, weight: .semibold, design: .serif))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+                    .overlay {
+                        Circle().strokeBorder(.white.opacity(0.35), lineWidth: 1)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                Text(previewPhoto == nil ? "选一张照片" : "换一张")
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.secondaryLabel)
+
+                Spacer(minLength: 0)
+            }
+            divider
+            HStack(spacing: 8) {
+                Text("底色")
                     .font(.system(size: PhoneMetrics.FontSize.sub))
                     .foregroundStyle(AppSurface.light.label)
                     .frame(width: 58, alignment: .leading)
@@ -432,6 +503,8 @@ struct CharacterEditorView: View {
         target.greeting = greeting
         target.preset = preset
         target.avatarTintRaw = tintRaw
+        target.avatarImageKey = avatarKey
+        target.avatarFileName = avatarFile
         target.replyLength = replyLength
         target.isGroup = isGroup
         target.membersNote = membersNote

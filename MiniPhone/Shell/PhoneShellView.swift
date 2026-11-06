@@ -229,6 +229,8 @@ struct PhoneShellView: View {
                 greeting: "回来啦？今天楼下那家关得早。"
             )
             character.signature = "慢一点也没关系"
+            // 截图要能看出照片头像的实际效果，不然拍出来还是渐变圆。
+            character.avatarImageKey = "avatar_09"
             context.insert(character)
 
             let lines: [(ChatMessage.Role, String)] = [
@@ -293,6 +295,7 @@ struct PhoneShellView: View {
                 greeting: ""
             )
             fresh.signature = "慢一点也没关系"
+            fresh.avatarImageKey = "avatar_09"
             context.insert(fresh)
             character = fresh
         }
