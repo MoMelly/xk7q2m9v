@@ -102,6 +102,19 @@ struct SettingsView: View {
                                 showsChevron: true
                             )
                         }
+
+                        RowDivider()
+
+                        rowLink {
+                            StickerPage()
+                        } label: {
+                            GroupedRow(
+                                symbol: "face.smiling",
+                                symbolTint: Theme.IconTint.orange,
+                                title: "表情",
+                                showsChevron: true
+                            )
+                        }
                     }
 
                     GroupedSection {

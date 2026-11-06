@@ -33,6 +33,11 @@ targets:
       # WallpaperTheme.image 用 Bundle.main.url(forResource:withExtension:) 读。
       - path: Assets/Wallpaper/daydream.jpg
         buildPhase: resources
+      # 内置表情。folder reference 保留目录结构，
+      # 代码里用 subdirectory: "Stickers" 取图。
+      - path: Assets/Stickers
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.melly.miniphone

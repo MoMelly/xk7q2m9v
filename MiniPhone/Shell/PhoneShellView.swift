@@ -141,6 +141,7 @@ struct PhoneShellView: View {
             world.seedSceneContentIfNeeded()
             UserProfileBook.ensureDefault(in: context)
             DefaultAssistant.ensure(in: context)
+            BuiltInStickers.ensure(in: context)
             seedPreviewContentIfNeeded()
         }
         .onChange(of: world.pendingNotices) { _, pages in
