@@ -6,9 +6,22 @@ import SwiftUI
 /// 信号条和电池刻意手绘：直接用 SF Symbol 的 `cellularbars` 和 `battery.100`
 /// 比例偏胖，一眼就能看出是拼的，反而不如自己按 iOS 的尺寸画。
 struct StatusBarView: View {
-    var tint: Color = .white
+    /// 传了就按传的来；不传跟着日夜：日间深字，夜间白字。
+    /// 原来固定白色，浅色壁纸上全靠一层黑阴影硬撑，远看是一排灰点。
+    var tint: Color? = nil
 
     private let horizontalPadding: CGFloat = 28
+
+    private var resolvedTint: Color {
+        if let tint { return tint }
+        return ThemeStore.shared.isNight
+            ? .white
+            : Theme.IconSurface.statusDay
+    }
+
+    private var textShadow: Color {
+        ThemeStore.shared.isNight ? .black.opacity(0.28) : .white.opacity(0.7)
+    }
 
     var body: some View {
         TimelineView(.everyMinute) { context in
@@ -21,13 +34,13 @@ struct StatusBarView: View {
                 Spacer(minLength: 0)
 
                 HStack(spacing: 6) {
-                    CellularBars(tint: tint)
-                    WifiGlyph(tint: tint)
-                    BatteryGlyph(tint: tint)
+                    CellularBars(tint: resolvedTint)
+                    WifiGlyph(tint: resolvedTint)
+                    BatteryGlyph(tint: resolvedTint)
                 }
             }
-            .foregroundStyle(tint)
-            .shadow(color: .black.opacity(0.28), radius: 2, y: 1)
+            .foregroundStyle(resolvedTint)
+            .shadow(color: textShadow, radius: 2, y: 1)
             .padding(.horizontal, horizontalPadding)
             .frame(height: PhoneMetrics.statusBarHeight)
         }

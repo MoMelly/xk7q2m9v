@@ -13,7 +13,9 @@ struct HomeScreenView: View {
         ZStack {
             WallpaperBackdrop(theme: wallpaper, videoEnabled: videoWallpaperEnabled)
                 .blur(radius: 0.8)
-                .overlay(Color.black.opacity(0.1))
+                // 压暗只在夜间做。日间是浅色壁纸，再蒙一层黑会整块发灰，
+                // 图标下面是深色名字，底又灰，看着就脏。
+                .overlay(Color.black.opacity(ThemeStore.shared.isNight ? 0.34 : 0))
 
             VStack(spacing: 0) {
                 StatusBarView()
@@ -63,7 +65,7 @@ struct HomeScreenView: View {
     private var pageDots: some View {
         HStack(spacing: 6) {
             Circle()
-                .fill(.white)
+                .fill(ThemeStore.shared.isNight ? Color.white : Theme.IconSurface.pageDotDay)
                 .frame(width: 6, height: 6)
         }
     }
@@ -85,7 +87,18 @@ struct HomeScreenView: View {
         .padding(.horizontal, PhoneMetrics.dockHorizontalPadding)
         .frame(height: PhoneMetrics.dockHeight)
         .glassSurface(cornerRadius: 34)
+        // 日间在浅壁纸上给 Dock 补一层白：系统材质跟着外层深色方案走，
+        // 单靠 glassEffect 会压成一块深灰，粉壁纸上像贴了块黑玻璃。
+        .overlay {
+            RoundedRectangle(cornerRadius: 34, style: .continuous)
+                .fill(Color.white.opacity(dockWash))
+                .allowsHitTesting(false)
+        }
         .padding(.horizontal, 12)
+    }
+
+    private var dockWash: Double {
+        ThemeStore.shared.isNight ? 0 : 0.34
     }
 }
 

@@ -92,12 +92,13 @@ struct SettingsView: View {
                         RowDivider()
 
                         rowLink {
-                            AppearancePage(settings: settings)
+                            ThemePage(settings: settings)
                         } label: {
                             GroupedRow(
-                                symbol: "photo.on.rectangle.angled",
+                                symbol: "paintpalette.fill",
                                 symbolTint: Theme.IconTint.pink,
-                                title: "外观与壁纸",
+                                title: "主题",
+                                value: ThemeStore.shared.accentTheme.displayName,
                                 showsChevron: true
                             )
                         }

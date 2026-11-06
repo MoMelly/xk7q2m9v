@@ -32,12 +32,14 @@ struct FeedThreadView: View {
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                LazyVStack(spacing: 10) {
+                LazyVStack(spacing: 6) {
                     ForEach(Array(messages.enumerated()), id: \.offset) { index, message in
                         if shouldShowTime(at: index) {
                             timeLabel(message.createdAt)
                         }
+                        // 换人说话拉开一点，同一个人连着发挤一点，跟主聊天一个节奏。
                         bubble(message)
+                            .padding(.top, gapBefore(index))
                     }
                 }
                 .padding(.horizontal, PhoneMetrics.Space.m)
@@ -67,6 +69,11 @@ struct FeedThreadView: View {
     private func shouldShowTime(at index: Int) -> Bool {
         guard index > 0 else { return true }
         return messages[index].createdAt.timeIntervalSince(messages[index - 1].createdAt) > 300
+    }
+
+    private func gapBefore(_ index: Int) -> CGFloat {
+        guard index > 0 else { return 0 }
+        return messages[index - 1].role == messages[index].role ? 0 : 12
     }
 
     private func timeLabel(_ date: Date) -> some View {

@@ -159,7 +159,7 @@ struct ChatView: View {
     private var transcript: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: 6) {
                     if messages.isEmpty && viewModel.displayedStreamingText.isEmpty {
                         emptyState
                     }
@@ -175,6 +175,7 @@ struct ChatView: View {
                             speaker: message.speaker,
                             isNarration: message.isNarration
                         )
+                        .padding(.top, gapBefore(index))
                         .id(message.uid)
                     }
 
@@ -217,6 +218,15 @@ struct ChatView: View {
         } else {
             proxy.scrollTo("bottom", anchor: .bottom)
         }
+    }
+
+    /// 同一人连着说留 6，换个人说话再压 12 上去（合计 18）。
+    ///
+    /// 原来整列统一 12：自己连着发三段和对方回一句，视觉上是同一个密度，
+    /// 一屏下来全糊成一片，读不出谁在接话。微信那种节奏靠的就是这个落差。
+    private func gapBefore(_ index: Int) -> CGFloat {
+        guard index > 0 else { return 0 }
+        return messages[index - 1].role == messages[index].role ? 0 : 12
     }
 
     /// 两条消息间隔超过 30 分钟才插时间，否则满屏都是时间戳。

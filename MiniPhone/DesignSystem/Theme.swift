@@ -11,11 +11,25 @@ enum Theme {
     /// 错误提示用的暖红。压暗过，深色底上不刺眼。
     static let warning = Color(red: 1.0, green: 0.62, blue: 0.55)
 
-    /// 设置页与场景页的浅色体系。外壳是深色模式，这三个必须写成绝对色值，
-    /// 不能用 `.primary` / `.secondary` 之类会跟着配色方案翻转的语义色。
-    static let settingsBackground = Color(red: 0.95, green: 0.96, blue: 0.97)
-    static let cardSurface = Color(red: 1.0, green: 1.0, blue: 1.0)
-    static let secondaryInk = Color(red: 0.43, green: 0.45, blue: 0.48)
+    /// 设置页与场景页的浅色体系。
+    ///
+    /// 外壳是深色模式，这些必须写成绝对色值，不能用 `.primary` 之类会跟着配色方案
+    /// 翻转的语义色。夜间由 `ThemeStore` 统一翻过来，页面不用各写一套。
+    static var settingsBackground: Color {
+        ThemeStore.shared.isNight
+            ? Color(red: 0.10, green: 0.10, blue: 0.12)
+            : Color(red: 0.95, green: 0.96, blue: 0.97)
+    }
+    static var cardSurface: Color {
+        ThemeStore.shared.isNight
+            ? Color(red: 0.16, green: 0.16, blue: 0.18)
+            : Color(red: 1.0, green: 1.0, blue: 1.0)
+    }
+    static var secondaryInk: Color {
+        ThemeStore.shared.isNight
+            ? Color.white.opacity(0.58)
+            : Color(red: 0.43, green: 0.45, blue: 0.48)
+    }
 
     static var backgroundGradient: LinearGradient {
         LinearGradient(
@@ -31,22 +45,45 @@ enum Theme {
 
     // MARK: - 浅色 App 的语义色
 
-    /// systemGroupedBackground。浅色 App 的页面底色。
-    static let groupedBackground = Color(red: 0.949, green: 0.949, blue: 0.969)
+    /// systemGroupedBackground。浅色 App 的页面底色，夜间压成近黑。
+    static var groupedBackground: Color {
+        ThemeStore.shared.isNight
+            ? Color(red: 0.08, green: 0.08, blue: 0.10)
+            : Color(red: 0.949, green: 0.949, blue: 0.969)
+    }
     /// 分组列表里的行与卡片。
-    static let rowSurface = Color.white
+    static var rowSurface: Color {
+        ThemeStore.shared.isNight
+            ? Color(red: 0.15, green: 0.15, blue: 0.17)
+            : Color.white
+    }
     /// 浅色 App 的主文字。
-    static let label = Color.black
+    static var label: Color {
+        ThemeStore.shared.isNight ? Color.white : Color.black
+    }
     /// 浅色 App 的次文字。
-    static let secondaryLabel = Color(red: 0.235, green: 0.235, blue: 0.263).opacity(0.6)
+    static var secondaryLabel: Color {
+        ThemeStore.shared.isNight
+            ? Color.white.opacity(0.55)
+            : Color(red: 0.235, green: 0.235, blue: 0.263).opacity(0.6)
+    }
     /// 行内分隔线。
-    static let separator = Color(red: 0.776, green: 0.776, blue: 0.784)
-    /// 系统蓝。浅色 App 的 tint。
-    static let tint = Color(red: 0.0, green: 0.478, blue: 1.0)
-    /// 西瓜皮 / 淘宝那一系的品牌红。选中态、加购按钮、价格都用它。
-    static let brand = Color(red: 0.94, green: 0.35, blue: 0.30)
-    /// 价格数字，比品牌红再深一点，白底上更立得住。
-    static let price = Color(red: 0.92, green: 0.26, blue: 0.20)
+    static var separator: Color {
+        ThemeStore.shared.isNight
+            ? Color.white.opacity(0.14)
+            : Color(red: 0.776, green: 0.776, blue: 0.784)
+    }
+    /// 系统蓝。浅色 App 的 tint，夜里提亮一档。
+    static var tint: Color {
+        ThemeStore.shared.isNight
+            ? Color(red: 0.36, green: 0.62, blue: 1.0)
+            : Color(red: 0.0, green: 0.478, blue: 1.0)
+    }
+    /// 品牌色。以前写死一个番茄红，现在跟主题走；
+    /// 选中态、加购按钮、价格都读这里，换主题色整套界面一起变。
+    static var brand: Color { ThemeStore.shared.accent }
+    /// 价格数字，比品牌色再深一档，白底上更立得住。
+    static var price: Color { ThemeStore.shared.accentDeep }
     /// 笔记里的话题链接蓝。
     static let link = Color(red: 0.20, green: 0.42, blue: 0.86)
 
@@ -75,6 +112,28 @@ enum Theme {
         static let flesh = Color(red: 0.90, green: 0.22, blue: 0.28)
         static let fleshDeep = Color(red: 0.76, green: 0.12, blue: 0.20)
         static let seed = Color(red: 0.16, green: 0.14, blue: 0.13)
+    }
+
+    /// 图标与桌面那一层的固定色。
+    ///
+    /// 矢量图标只有白底、黑底两种硬底，这两个值不跟主题走——
+    /// 跟了就会变成「白底跟着主题变粉」，那就不是白底了。
+    enum IconSurface {
+        static let lightTop = Color(red: 1.0, green: 1.0, blue: 1.0)
+        static let lightBottom = Color(red: 0.94, green: 0.94, blue: 0.955)
+        static let darkTop = Color(red: 0.19, green: 0.19, blue: 0.21)
+        static let darkBottom = Color(red: 0.09, green: 0.09, blue: 0.11)
+        /// 图标下面那行名字。日间深、夜间白。
+        static let labelDay = Color(red: 0.16, green: 0.15, blue: 0.17)
+        /// 假状态栏的字，日间深。
+        static let statusDay = Color(red: 0.20, green: 0.19, blue: 0.22)
+        /// 桌面页码点，日间深。
+        static let pageDotDay = Color(red: 0.30, green: 0.28, blue: 0.32)
+        /// 主题页里日间 / 夜间两张小预览卡的底色。
+        static let dayPreview = Color(red: 0.98, green: 0.93, blue: 0.94)
+        static let nightPreview = Color(red: 0.12, green: 0.12, blue: 0.14)
+        static let sunGlyph = Color(red: 0.93, green: 0.55, blue: 0.22)
+        static let moonGlyph = Color(red: 0.72, green: 0.76, blue: 0.95)
     }
 
     /// 阴影只有三档。

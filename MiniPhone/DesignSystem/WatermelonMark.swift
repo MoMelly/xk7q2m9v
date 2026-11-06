@@ -13,6 +13,9 @@ import SwiftUI
 /// 叠太多层 plusLighter 会把中间洗成一片白，看着像糊了油。
 struct WatermelonMark: View {
     var size: CGFloat = 40
+    /// 单色版：给白底 / 黑底图标用。传了颜色就只画一片实心切片加一道内弧，
+    /// 不画皮、瓤、籽三层的色差——那三层的灰阶差在小图标上读不出结构，只剩噪点。
+    var monochrome: Color? = nil
 
     /// 切片高度占宽度的比例。半圆的天然比例是 0.5，
     /// 压到 0.56 让弧显得饱满一点，小尺寸下不至于像一弯眉毛。
@@ -32,6 +35,30 @@ struct WatermelonMark: View {
         let radius = width / 2
         let center = CGPoint(x: width / 2, y: (size - width * heightRatio) / 2 + radius * 0.06)
 
+        ZStack {
+            if let monochrome {
+                monoSlice(radius: radius, center: center, color: monochrome)
+            } else {
+                coloredSlice(radius: radius, center: center)
+            }
+        }
+        .frame(width: size, height: size)
+    }
+
+    /// 单色切片：一块实心半圆，靠一道更浅的内弧分出「皮」和「瓤」。
+    private func monoSlice(radius: CGFloat, center: CGPoint, color: Color) -> some View {
+        ZStack {
+            SliceShape(radius: radius, center: center)
+                .fill(color)
+
+            SliceShape(radius: radius * 0.78, center: center)
+                .fill(color.opacity(0.42))
+        }
+        .compositingGroup()
+    }
+
+    /// 彩色切片：绿皮、白瓤、红瓤三层同心。
+    private func coloredSlice(radius: CGFloat, center: CGPoint) -> some View {
         ZStack {
             // 绿皮
             SliceShape(radius: radius, center: center)
@@ -63,7 +90,6 @@ struct WatermelonMark: View {
 
             seedsLayer(radius: radius, center: center)
         }
-        .frame(width: size, height: size)
     }
 
     /// 红瓤：上亮下深，再叠一层从平口压下来的薄亮。

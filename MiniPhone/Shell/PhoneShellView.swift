@@ -38,7 +38,7 @@ struct PhoneShellView: View {
         switch previewState {
         case "chat": destination = .chat
         case "moments": destination = .moments
-        case "settings": destination = .settings
+        case "settings", "theme": destination = .settings
         case "calendar": destination = .scene(.calendar)
         case "notes": destination = .scene(.notes)
         case "music": destination = .scene(.music)
@@ -48,10 +48,30 @@ struct PhoneShellView: View {
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
         case "chatDetail", "chatMine", "chatEditor": destination = .chat
+        case "chatNight": destination = .chat
         default: destination = nil
         }
         guard let destination else { return nil }
         return AppCatalog.home.first { $0.destination == destination }
+    }
+
+    /// 夜间截图：状态名带 Night 后缀就切到夜间。
+    /// 只改内存值不落盘，别让截图流水线把用户设置改成夜间。
+    private static var previewNight: Bool {
+        previewState.hasSuffix("Night")
+    }
+
+    /// 图标样式截图：`homeVector` / `homeDark` 各对应一种矢量画法，
+    /// 同样只改内存，不动用户已经存下来的设置。
+    private static func applyPreviewTheme() {
+        switch previewState {
+        case "homeVector":
+            ThemeStore.shared.iconStyleRaw = IconStyle.light.rawValue
+        case "homeDark":
+            ThemeStore.shared.iconStyleRaw = IconStyle.dark.rawValue
+        default:
+            break
+        }
     }
 
     var body: some View {
@@ -70,6 +90,15 @@ struct PhoneShellView: View {
                     videoWallpaperEnabled: settings.videoWallpaperEnabled
                 )
                 .transition(.opacity)
+            }
+
+            // 夜间：桌面和锁屏这一层压黑。App 页自己走深色 token，
+            // 再蒙一遍会把里面的白色卡片也压灰，所以只盖壁纸这一层。
+            if ThemeStore.shared.isNight {
+                Color.black.opacity(0.30)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
             }
 
             if let app = openedApp {
@@ -104,6 +133,10 @@ struct PhoneShellView: View {
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .task { @MainActor in
+            if Self.previewNight {
+                ThemeStore.shared.appearanceRaw = AppearanceMode.night.rawValue
+            }
+            Self.applyPreviewTheme()
             world.ensureToday(wakeHour: 7, sleepHour: 23)
             world.seedSceneContentIfNeeded()
             UserProfileBook.ensureDefault(in: context)
