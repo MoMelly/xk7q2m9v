@@ -19,6 +19,7 @@ struct PhoneShellView: View {
 
     /// 截图状态下要直开的那段会话。正常启动不会用到，也不写任何演示数据。
     @Query(sort: \Companion.createdAt, order: .forward) private var companions: [Companion]
+    @Query(sort: \UserProfile.createdAt, order: .forward) private var profiles: [UserProfile]
 
     // MARK: - 截图用的启动状态
 
@@ -155,6 +156,7 @@ struct PhoneShellView: View {
             DefaultAssistant.ensure(in: context)
             BuiltInStickers.ensure(in: context)
             StickerLibrary.shared.reload(context: context)
+            retirePortraitAvatars()
             seedPreviewContentIfNeeded()
         }
         .onChange(of: world.pendingNotices) { _, pages in
@@ -223,6 +225,31 @@ struct PhoneShellView: View {
         case .placeholder:
             // 占位图标不会走进来，open(_:) 里已经拦掉了。
             EmptyView()
+        }
+    }
+
+    // MARK: - 数据迁移
+
+    /// 早期版本内置过一组真人照片头像，后来整组撤掉了。
+    ///
+    /// 老库里还挂着 `avatar_p` 这种键，图已经不随包了，读出来是空，
+    /// 头像会退成一块渐变圆加首字。启动时扫一遍换成现有的随机图，
+    /// 只在真的存在这种键时才写库，正常启动不碰。
+    @MainActor
+    private func retirePortraitAvatars() {
+        var touched = false
+
+        for character in companions where AvatarPhoto.isRetired(key: character.avatarImageKey) {
+            character.avatarImageKey = AvatarPhoto.randomKey()
+            touched = true
+        }
+        for profile in profiles where AvatarPhoto.isRetired(key: profile.avatarImageKey) {
+            profile.avatarImageKey = AvatarPhoto.randomKey()
+            touched = true
+        }
+
+        if touched {
+            try? context.save()
         }
     }
 

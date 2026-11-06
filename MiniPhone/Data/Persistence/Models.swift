@@ -218,7 +218,7 @@ final class UserProfile {
     var avatarTintRaw: String = "mint"
     /// 内置矢量头像的符号名。空串表示显示名字首字。
     var avatarSymbol: String = ""
-    /// 内置头像照片的资源名，形如 `avatar_05`。优先于符号。
+    /// 内置头像照片的资源名，形如 `avatar_c01`。优先于符号。
     var avatarImageKey: String = ""
     /// 从相册传的头像文件名。优先于内置照片。
     var avatarFileName: String = ""

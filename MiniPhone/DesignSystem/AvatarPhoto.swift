@@ -1,21 +1,24 @@
 import Foundation
 import UIKit
 
-/// 内置头像的三组。
+/// 内置头像的四组。
 ///
-/// 不是所有人都想让角色长一张真人脸：二次元、纯风景都常见，
-/// 分组是为了让人一眼扫到自己要的那类，而不是在一堆图里翻。
+/// 一开始有一组真人照片，后来全撤了：这个 App 里的角色是陪聊的虚构人物，
+/// 挂一张真人脸反而别扭，也不该拿陌生人的照片去冒充角色。
+/// 现在只留猫狗、卡通、二次元插画和风景，没有一张真人。
 enum AvatarGroup: String, CaseIterable, Identifiable {
-    case photo
+    case pet
+    case mascot
     case anime
     case scenery
 
     var id: String { rawValue }
 
-    /// 文件名里的组标记：`avatar_p01` 里的 `p`。
+    /// 文件名里的组标记：`avatar_c01` 里的 `c`。
     var filePrefix: String {
         switch self {
-        case .photo: return "avatar_p"
+        case .pet: return "avatar_c"
+        case .mascot: return "avatar_k"
         case .anime: return "avatar_a"
         case .scenery: return "avatar_s"
         }
@@ -23,7 +26,8 @@ enum AvatarGroup: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .photo: return "真人"
+        case .pet: return "猫狗"
+        case .mascot: return "卡通"
         case .anime: return "二次元"
         case .scenery: return "风景"
         }
@@ -55,7 +59,7 @@ enum AvatarPhoto {
     ///
     /// 扫目录而不是写死数组：以后往里加几张照片不用回来改代码，
     /// 也不会出现「加了文件但界面里没有」这种对不上的情况。
-    /// 分组靠文件名前缀（`avatar_p01` / `avatar_a01` / `avatar_s01`），
+    /// 分组靠文件名前缀（`avatar_c01` / `avatar_k01` / `avatar_a01` / `avatar_s01`），
     /// 加图时把文件按前缀放进来就会自动归位。
     static let gallery: [AvatarGroup: [String]] = {
         guard let folder = Bundle.main.url(forResource: "Avatars", withExtension: nil),
@@ -74,6 +78,12 @@ enum AvatarPhoto {
 
     static func keys(in group: AvatarGroup) -> [String] {
         gallery[group] ?? []
+    }
+
+    /// 早期版本内置过一组真人照片（`avatar_p` 前缀），后来整组撤掉了。
+    /// 老库里还挂着这些键，读不到文件会退化成字母圈，启动时拿这个判断后换掉。
+    static func isRetired(key: String) -> Bool {
+        key.hasPrefix("avatar_p")
     }
 
     /// 随手抽一张，给没挑过头像的人当初始值。
