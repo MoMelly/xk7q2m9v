@@ -48,7 +48,7 @@ struct HomeScreenView: View {
                 Button {
                     onOpen(app)
                 } label: {
-                    AppIconTile(app: app)
+                    AppIconTile(app: app).iconFrame(app)
                 }
                 .buttonStyle(IconPressStyle())
             }
@@ -81,7 +81,7 @@ struct HomeScreenView: View {
                 Button {
                     onOpen(app)
                 } label: {
-                    AppIconTile(app: app, showsLabel: false)
+                    AppIconTile(app: app, showsLabel: false).iconFrame(app)
                 }
                 .buttonStyle(IconPressStyle())
                 .frame(maxWidth: .infinity)
@@ -89,16 +89,19 @@ struct HomeScreenView: View {
         }
         .padding(.horizontal, PhoneMetrics.dockHorizontalPadding)
         .frame(height: PhoneMetrics.dockHeight)
-        // 白膜直接垫进玻璃里，不再外面叠 overlay：材质本体被外壳深色方案
-        // 压暗后，外面那层白只会调成一块灰，垫进去才能保住玻璃的透亮。
-        // 日间 0.70：材质的灰底在浅色壁纸上就是脏灰，白膜要盖过它才算「纯」，
-        // 0.46 那档还是灰的（她 11-07 二次点名）；留 0.3 透壁纸，玻璃不死白。
+        // 玻璃的底色由 tint 决定，但材质本身的明暗跟「配色方案」走：
+        // 外壳锁的是深色，于是这块玻璃总按深色材质渲染，外面垫多少白都只是灰。
+        // 所以先把这一段按浅色渲染，再垫一层薄白——出来才是透亮的玻璃，
+        // 和聊天里那几颗玻璃气泡同一个档。
         .glassSurface(
             cornerRadius: 34,
-            tint: ThemeStore.shared.isNight
-                ? Color.white.opacity(0.14)
-                : Color.white.opacity(0.70)
+            tint: ThemeStore.shared.isNight ? Theme.Glass.dockNight : Theme.Glass.dockDay
         )
+        .environment(\.colorScheme, .light)
+        .overlay {
+            RoundedRectangle(cornerRadius: 34, style: .continuous)
+                .strokeBorder(Theme.Glass.dockRim, lineWidth: 0.6)
+        }
         .padding(.horizontal, 12)
     }
 }
@@ -109,5 +112,31 @@ struct IconPressStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.88 : 1)
             .animation(.spring(response: 0.26, dampingFraction: 0.68), value: configuration.isPressed)
+    }
+}
+
+/// 图标画在主屏的哪一格（全局坐标）。
+///
+/// 打开动效要从被点的那颗图标长出来，所以外壳得先知道它的位置和大小。
+/// 主屏网格和 Dock 各上报一次，外壳收成一份按 App id 索引的字典。
+struct IconFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
+extension View {
+    /// 把这一块的全局坐标报给外壳。只在主屏上用。
+    func iconFrame(_ app: PhoneApp) -> some View {
+        background(
+            GeometryReader { proxy in
+                Color.clear.preference(
+                    key: IconFramePreferenceKey.self,
+                    value: [app.id: proxy.frame(in: .global)]
+                )
+            }
+        )
     }
 }

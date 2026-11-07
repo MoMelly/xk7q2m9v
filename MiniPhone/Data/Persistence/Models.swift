@@ -164,6 +164,18 @@ final class StoredMessage {
     /// 模拟图片的种子，0 表示这条消息没带图。
     /// 图不落文件，靠这个数现画，所以备份里也只是一行整数。
     var imageSeed: Int = 0
+
+    /// 已撤回。文本还留着（导出、排查、模型上下文都要用到），只是界面不显示。
+    var isRecalled: Bool = false
+
+    /// 引用的是谁说的、说了什么。两段都空表示这条没引用。
+    /// 存文本而不是存消息 id：被引用那条删了，引用块还读得出来。
+    var quoteSpeaker: String = ""
+    var quoteText: String = ""
+
+    /// 改过的时间。空表示没编辑过。
+    var editedAt: Date?
+
     var createdAt: Date = Date()
 
     var character: Companion?
@@ -203,11 +215,19 @@ final class StoredMessage {
     var asChatMessage: ChatMessage {
         // 带图的消息在历史里得说清楚，不然模型会看到一条只有半句话、
         // 或者干脆空白的内容，接不上刚才聊到哪儿。
-        let body: String
+        var body: String
         if imageSeed > 0 {
             body = text.isEmpty ? "[发了一张图]" : "\(text)（附图）"
         } else {
             body = text
+        }
+        // 撤回和引用都要让模型知道，否则它会对着一段自己「没说过」的话往下接。
+        // 只带一句标记，不复述原文。
+        if isRecalled {
+            body = "[这条已撤回]"
+        }
+        if !quoteText.isEmpty {
+            body = "（引用\(quoteSpeaker)：\(quoteText.prefix(40))）\(body)"
         }
         return ChatMessage(id: uid, role: role, text: body, createdAt: createdAt)
     }

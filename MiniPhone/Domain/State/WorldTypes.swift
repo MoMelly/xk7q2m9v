@@ -245,6 +245,49 @@ struct Letter: Codable, Identifiable, Hashable {
     var body: String
     var createdAt: Date
     var isRead: Bool
+    /// 收藏。加了这颗星之后，老存档里没有这个键——解码要容忍缺字段，
+    /// 不然一份保存好的世界状态会因为一封信读不出来而整份退回空。
+    var isFavorite: Bool
+
+    /// 显式声明一份键表：下面写了自定义解码，靠合成的键表容易两边对不上。
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case fromName
+        case title
+        case body
+        case createdAt
+        case isRead
+        case isFavorite
+    }
+
+    init(
+        id: UUID,
+        fromName: String,
+        title: String,
+        body: String,
+        createdAt: Date,
+        isRead: Bool,
+        isFavorite: Bool = false
+    ) {
+        self.id = id
+        self.fromName = fromName
+        self.title = title
+        self.body = body
+        self.createdAt = createdAt
+        self.isRead = isRead
+        self.isFavorite = isFavorite
+    }
+
+    init(from decoder: Decoder) throws {
+        let box = try decoder.container(keyedBy: CodingKeys.self)
+        id = try box.decode(UUID.self, forKey: .id)
+        fromName = try box.decode(String.self, forKey: .fromName)
+        title = try box.decode(String.self, forKey: .title)
+        body = try box.decode(String.self, forKey: .body)
+        createdAt = try box.decode(Date.self, forKey: .createdAt)
+        isRead = try box.decode(Bool.self, forKey: .isRead)
+        isFavorite = try box.decodeIfPresent(Bool.self, forKey: .isFavorite) ?? false
+    }
 }
 
 /// 西瓜皮式的一条笔记。

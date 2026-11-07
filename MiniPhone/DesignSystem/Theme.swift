@@ -220,4 +220,27 @@ enum Theme {
             }
         }
     }
+
+    /// 玻璃的底座色。
+    ///
+    /// `glassEffect` 的 tint 决定这块玻璃「压在什么东西上」：
+    /// 压深色，玻璃就沉下去；垫白色，玻璃就浮起来。
+    /// 同一个玻璃档两侧要用不同的底座，才有「谁在说话」的明度差。
+    enum Glass {
+        /// 角色气泡：黑压进玻璃，比背景沉一档。
+        static let bubbleCharacter = Color.black.opacity(0.26)
+        /// 我的气泡：白垫进玻璃，比背景亮一档。
+        static let bubbleUser = Color.white.opacity(0.14)
+
+        /// 气泡边缘那道极细的亮边，日间 / 夜间各一档。
+        static let bubbleRimCharacter = Color.white.opacity(0.12)
+        static let bubbleRimUser = Color.white.opacity(0.22)
+
+        /// 主屏 Dock 与信息底栏。数值偏低是有意的：整块要透出壁纸，
+        /// 太满就成了白塑料板，和系统那种玻璃不是一回事。
+        static let dockDay = Color.white.opacity(0.34)
+        static let dockNight = Color.white.opacity(0.16)
+        /// Dock 顶沿的高光，一道就行。
+        static let dockRim = Color.white.opacity(0.5)
+    }
 }

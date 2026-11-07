@@ -406,6 +406,13 @@ final class WorldStore {
         save()
     }
 
+    /// 收藏 / 取消收藏。读不读和收不收藏是两件事，所以不联动。
+    func toggleLetterFavorite(_ id: UUID) {
+        guard let index = state.letters.firstIndex(where: { $0.id == id }) else { return }
+        state.letters[index].isFavorite.toggle()
+        save()
+    }
+
     // MARK: - 提示词上下文
 
     /// 交给 PromptBuilder 的只读快照。这里不拼提示词，业务层不写文案。

@@ -4,34 +4,77 @@ import SwiftUI
 ///
 /// 桌面上的「邮件」改名成信件：这里不收工作邮件，只收角色写来的信。
 /// 结构照系统的信箱：一行一封，左边发信人、右边时间，未读用一个小红点。
+/// 顶上一排分类（全部 / 未读 / 收藏），行尾一颗星直接收。
 struct LetterScene: View {
     let world: WorldStore
     let settings: SettingsStore
     var onClose: () -> Void
 
-    private var letters: [Letter] {
+    @State private var filter: Filter = .all
+
+    /// 三档分类。不做「按角色筛」：信本来就不多，一屏能看完，
+    /// 多一层筛选等于多一次点击。
+    enum Filter: String, CaseIterable, Identifiable {
+        case all
+        case unread
+        case favorite
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .all: return "全部"
+            case .unread: return "未读"
+            case .favorite: return "收藏"
+            }
+        }
+    }
+
+    private var allLetters: [Letter] {
         world.state.letters.sorted { $0.createdAt > $1.createdAt }
+    }
+
+    private var letters: [Letter] {
+        switch filter {
+        case .all:
+            return allLetters
+        case .unread:
+            return allLetters.filter { !$0.isRead }
+        case .favorite:
+            return allLetters.filter { $0.isFavorite }
+        }
     }
 
     var body: some View {
         AppScreen(title: "信件", surface: .light, onClose: onClose) {
-            if letters.isEmpty {
-                emptyState
-            } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        ForEach(letters) { letter in
-                            NavigationLink {
-                                LetterReaderPage(letter: letter, world: world)
-                            } label: {
-                                row(letter)
-                            }
-                            .buttonStyle(.plain)
+            VStack(spacing: 0) {
+                SegmentedTabs(items: Filter.allCases, title: { $0.title }, selection: $filter)
+                    .padding(.horizontal, PhoneMetrics.Space.m)
+                    .padding(.top, PhoneMetrics.Space.xs)
+                    .padding(.bottom, PhoneMetrics.Space.s)
 
-                            RowDivider()
+                if letters.isEmpty {
+                    emptyState
+                } else {
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(letters) { letter in
+                                HStack(spacing: 0) {
+                                    NavigationLink {
+                                        LetterReaderPage(letter: letter, world: world)
+                                    } label: {
+                                        row(letter)
+                                    }
+                                    .buttonStyle(.plain)
+
+                                    starButton(letter)
+                                }
+
+                                RowDivider()
+                            }
                         }
+                        .background(AppSurface.light.rowSurface)
                     }
-                    .background(AppSurface.light.rowSurface)
                 }
             }
         }
@@ -60,6 +103,23 @@ struct LetterScene: View {
             ——小助手
             """
         )
+    }
+
+    /// 行尾那颗星。收藏和已读是两件事，点星不改未读状态。
+    private func starButton(_ letter: Letter) -> some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.18)) {
+                world.toggleLetterFavorite(letter.id)
+            }
+        } label: {
+            Image(systemName: letter.isFavorite ? "star.fill" : "star")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(letter.isFavorite ? Theme.warning : AppSurface.light.secondaryLabel.opacity(0.55))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(letter.isFavorite ? "取消收藏" : "收藏")
     }
 
     private func row(_ letter: Letter) -> some View {
@@ -107,25 +167,48 @@ struct LetterScene: View {
                     .lineLimit(2)
             }
         }
-        .padding(.horizontal, PhoneMetrics.Space.m)
+        .padding(.leading, PhoneMetrics.Space.m)
+        .padding(.trailing, PhoneMetrics.Space.xxs)
         .padding(.vertical, PhoneMetrics.Space.s)
         .frame(minHeight: PhoneMetrics.Row.detailed)
         .contentShape(Rectangle())
     }
 
+    @ViewBuilder
     private var emptyState: some View {
         VStack(spacing: PhoneMetrics.Space.xs) {
-            Image(systemName: "envelope.open")
+            Image(systemName: filter == .favorite ? "star" : "envelope.open")
                 .font(.system(size: 30, weight: .light))
-            Text("还没有收到信")
+
+            Text(emptyTitle)
                 .font(.system(size: PhoneMetrics.FontSize.sub))
-            Text("在角色详情页里点「让 TA 写封信」，写好的信会放在这里。")
+
+            Text(emptyHint)
                 .font(.system(size: PhoneMetrics.FontSize.caption))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, PhoneMetrics.Space.xl)
         }
         .foregroundStyle(AppSurface.light.secondaryLabel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyTitle: String {
+        switch filter {
+        case .all: return "还没有收到信"
+        case .unread: return "都读完了"
+        case .favorite: return "还没有收藏的信"
+        }
+    }
+
+    private var emptyHint: String {
+        switch filter {
+        case .all:
+            return "在角色详情页里点「让 TA 写封信」，写好的信会放在这里。"
+        case .unread:
+            return "读过的信在「全部」里。"
+        case .favorite:
+            return "点每行右边那颗星，就能把信收起来。"
+        }
     }
 }
 
@@ -136,23 +219,28 @@ struct LetterReaderPage: View {
     let letter: Letter
     let world: WorldStore
 
+    /// 从世界里读最新的一份：收藏状态改了要立刻反映到那颗星上。
+    private var current: Letter {
+        world.state.letters.first(where: { $0.id == letter.id }) ?? letter
+    }
+
     var body: some View {
-        AppPage(title: letter.title, surface: .light) {
+        AppPage(title: current.title, surface: .light) {
             ScrollView {
                 VStack(alignment: .leading, spacing: PhoneMetrics.Space.m) {
                     HStack(spacing: PhoneMetrics.Space.xs) {
-                        Text("来自 \(letter.fromName)")
+                        Text("来自 \(current.fromName)")
                             .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .medium))
                             .foregroundStyle(AppSurface.light.secondaryLabel)
 
                         Spacer(minLength: 0)
 
-                        Text(TimeFormat.monthDayTime(letter.createdAt))
+                        Text(TimeFormat.monthDayTime(current.createdAt))
                             .font(.system(size: PhoneMetrics.FontSize.caption))
                             .foregroundStyle(AppSurface.light.secondaryLabel)
                     }
 
-                    Text(letter.body)
+                    Text(current.body)
                         .font(.system(size: 16, design: .serif))
                         .foregroundStyle(AppSurface.light.label)
                         .lineSpacing(8)
@@ -165,6 +253,17 @@ struct LetterReaderPage: View {
                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
                 )
                 .padding(PhoneMetrics.Space.m)
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    world.toggleLetterFavorite(current.id)
+                } label: {
+                    Image(systemName: current.isFavorite ? "star.fill" : "star")
+                        .foregroundStyle(current.isFavorite ? Theme.warning : Theme.secondaryLabel)
+                }
+                .accessibilityLabel(current.isFavorite ? "取消收藏" : "收藏")
             }
         }
         .onAppear { world.markLetterRead(letter.id) }

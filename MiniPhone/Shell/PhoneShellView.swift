@@ -13,6 +13,12 @@ struct PhoneShellView: View {
     @State private var isLocked: Bool = PhoneShellView.previewLocked
     @State private var openedApp: PhoneApp? = PhoneShellView.previewApp
     @State private var openedAt: Date?
+    /// 打开动效的进度：0 = 还是那颗图标的大小，1 = 铺满全屏。
+    @State private var appOpenProgress: CGFloat = 1
+    /// 被点的那颗图标的全局位置，裁剪就是从这里长出来的。
+    @State private var appLaunchAnchor: CGRect = .zero
+    /// 主屏上报的图标位置，按 App id 索引。
+    @State private var iconFrames: [String: CGRect] = [:]
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
     @State private var noticeTask: Task<Void, Never>?
@@ -104,6 +110,9 @@ struct PhoneShellView: View {
                     videoWallpaperEnabled: settings.videoWallpaperEnabled
                 )
                 .transition(.opacity)
+                .onPreferenceChange(IconFramePreferenceKey.self) { frames in
+                    iconFrames = frames
+                }
             }
 
             // 夜间：桌面和锁屏这一层压黑。App 页自己走深色 token，
@@ -117,12 +126,7 @@ struct PhoneShellView: View {
 
             if let app = openedApp {
                 appLayer(app)
-                    .transition(
-                        .asymmetric(
-                            insertion: .scale(scale: PhoneMetrics.appLaunchStartScale).combined(with: .opacity),
-                            removal: .scale(scale: 0.94).combined(with: .opacity)
-                        )
-                    )
+                    .mask { launchMask }
                     .zIndex(2)
             }
 
@@ -142,7 +146,6 @@ struct PhoneShellView: View {
             }
         }
         .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isLocked)
-        .animation(.spring(response: 0.36, dampingFraction: 0.84), value: openedApp)
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: world.pendingNotices)
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
@@ -203,6 +206,40 @@ struct PhoneShellView: View {
         noticeTask?.cancel()
         withAnimation(.easeOut(duration: 0.22)) {
             world.consumeNotice()
+        }
+    }
+
+    // MARK: - 打开动效
+
+    /// 打开 / 关闭时的裁剪：一块圆角矩形从被点的图标长到全屏。
+    ///
+    /// 不用整层缩放：缩放时四边会先露出主屏，看上去就是「上边下边先流出一道痕」。
+    /// 裁剪则始终有一块完整画面在框内，边缘不会漏。
+    /// 圆角从图标的 22% 收到 0，和真机 App 展开的观感一致。
+    private var launchMask: some View {
+        GeometryReader { proxy in
+            let t = min(max(appOpenProgress, 0), 1)
+            let origin = proxy.frame(in: .global).origin
+            let start = CGRect(
+                x: appLaunchAnchor.minX - origin.x,
+                y: appLaunchAnchor.minY - origin.y,
+                width: appLaunchAnchor.width,
+                height: appLaunchAnchor.height
+            )
+            let full = CGRect(origin: .zero, size: proxy.size)
+            let rect = CGRect(
+                x: start.minX + (full.minX - start.minX) * t,
+                y: start.minY + (full.minY - start.minY) * t,
+                width: start.width + (full.width - start.width) * t,
+                height: start.height + (full.height - start.height) * t
+            )
+
+            RoundedRectangle(
+                cornerRadius: PhoneMetrics.iconCornerRadius * (1 - t),
+                style: .continuous
+            )
+            .frame(width: max(rect.width, 1), height: max(rect.height, 1))
+            .position(x: rect.midX, y: rect.midY)
         }
     }
 
@@ -473,8 +510,26 @@ struct PhoneShellView: View {
     private func open(_ app: PhoneApp) {
         switch app.destination {
         case .chat, .moments, .settings, .scene:
+            // 先把画面挂上、再让裁剪从小长到大。
+            // 反过来做（先动画再建视图）动画会等视图建完，就是那下卡顿。
+            appLaunchAnchor = iconFrames[app.id] ?? .zero
+            appOpenProgress = 0
             openedApp = app
             openedAt = Date()
+
+            guard !appLaunchAnchor.isEmpty else {
+                // 没拿到图标位置（比如预览直开）就直接铺满，不做假的放大。
+                appOpenProgress = 1
+                return
+            }
+
+            // 下一帧再动：这一帧先把 App 的内容建出来，
+            // 建完的那一帧裁剪还停在图标大小，看不出停顿。
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+                    appOpenProgress = 1
+                }
+            }
         case .placeholder:
             showToast("「\(app.name)」还没做")
         }
@@ -484,7 +539,18 @@ struct PhoneShellView: View {
         if let app = openedApp, let start = openedAt {
             world.noteUsage(appName: app.name, seconds: Date().timeIntervalSince(start))
         }
-        openedApp = nil
-        openedAt = nil
+        guard !appLaunchAnchor.isEmpty else {
+            openedApp = nil
+            openedAt = nil
+            return
+        }
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.9)) {
+            appOpenProgress = 0
+        } completion: {
+            openedApp = nil
+            openedAt = nil
+            appLaunchAnchor = .zero
+            appOpenProgress = 1
+        }
     }
 }

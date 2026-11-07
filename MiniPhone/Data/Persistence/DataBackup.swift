@@ -30,6 +30,12 @@ enum DataBackup {
             var createdAt: Date
             /// v3 新增。模拟图片的画图种子，0 或缺省 = 纯文字。
             var imageSeed: Int?
+            /// v4 新增。撤回 / 引用 / 编辑这三件事要跟着备份走，
+            /// 否则恢复之后撤回的消息又冒出来，引用块也丢了。
+            var isRecalled: Bool?
+            var quoteSpeaker: String?
+            var quoteText: String?
+            var editedAt: Date?
         }
 
         struct Char: Codable {
@@ -158,7 +164,11 @@ enum DataBackup {
                                     speaker: $0.speaker,
                                     isNarration: $0.isNarration,
                                     createdAt: $0.createdAt,
-                                    imageSeed: $0.imageSeed == 0 ? nil : $0.imageSeed
+                                    imageSeed: $0.imageSeed == 0 ? nil : $0.imageSeed,
+                                    isRecalled: $0.isRecalled ? true : nil,
+                                    quoteSpeaker: $0.quoteSpeaker.isEmpty ? nil : $0.quoteSpeaker,
+                                    quoteText: $0.quoteText.isEmpty ? nil : $0.quoteText,
+                                    editedAt: $0.editedAt
                                 )
                             },
                         signature: character.signature,
@@ -352,6 +362,10 @@ enum DataBackup {
                     createdAt: message.createdAt
                 )
                 stored.imageSeed = message.imageSeed ?? 0
+                stored.isRecalled = message.isRecalled ?? false
+                stored.quoteSpeaker = message.quoteSpeaker ?? ""
+                stored.quoteText = message.quoteText ?? ""
+                stored.editedAt = message.editedAt
                 stored.character = character
                 context.insert(stored)
                 messageCount += 1

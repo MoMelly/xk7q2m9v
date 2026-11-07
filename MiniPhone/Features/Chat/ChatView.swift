@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// 和某个角色的对话页。
 ///
@@ -26,6 +27,11 @@ struct ChatView: View {
     /// 输入栏的完整态开关。默认收成一条安静的提示条——页面上摆一个
     /// 等着打字的输入框，看上去就像对话正在进行到一半；点一下才醒。
     @State private var isComposerActive = false
+
+    /// 正在引用的那条。发出去时带在消息上，发完清空。
+    @State private var quoting: StoredMessage?
+    /// 正在改的那条。不为空时发送键改成「覆写」而不是「新增」。
+    @State private var editingTarget: StoredMessage?
 
     init(character: Companion, settings: SettingsStore, onExit: @escaping () -> Void) {
         self.character = character
@@ -63,6 +69,21 @@ struct ChatView: View {
                 }
                 if showPhotos {
                     ChatPhotoPanel { sendPhoto($0) }
+                }
+                if let target = editingTarget {
+                    ChatContextBar(
+                        symbol: "pencil",
+                        title: "正在改这一句",
+                        detail: target.text,
+                        onCancel: cancelEdit
+                    )
+                } else if let source = quoting {
+                    ChatContextBar(
+                        symbol: "quote.opening",
+                        title: "引用 \(source.role == .user ? "我" : character.name)",
+                        detail: source.text,
+                        onCancel: { quoting = nil }
+                    )
                 }
                 composer
             }
@@ -223,16 +244,9 @@ struct ChatView: View {
                             timeSeparator(message.createdAt)
                         }
 
-                        MessageBubble(
-                            text: message.text,
-                            isUser: message.role == .user,
-                            speaker: message.speaker,
-                            isNarration: message.isNarration,
-                            imageSeed: message.imageSeed,
-                            userStyle: settings.chatBubbleStyle
-                        )
-                        .padding(.top, gapBefore(index))
-                        .id(message.uid)
+                        bubble(for: message)
+                            .padding(.top, gapBefore(index))
+                            .id(message.uid)
                     }
 
                     if viewModel.isStreaming {
@@ -246,7 +260,7 @@ struct ChatView: View {
                     }
 
                     if let errorText = viewModel.errorText {
-                        errorCard(errorText)
+                        ChatErrorCard(text: errorText, onDismiss: { viewModel.clearError() })
                     }
 
                     Color.clear.frame(height: 1).id("bottom")
@@ -293,60 +307,69 @@ struct ChatView: View {
         return current.timeIntervalSince(previous) > 60 * 30
     }
 
-    private func timeSeparator(_ date: Date) -> some View {
-        Text(CharacterClock.separatorText(date))
-            .font(.system(size: 10, weight: .medium))
-            .tracking(0.6)
-            .foregroundStyle(Theme.cream.opacity(0.36))
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, 2)
+    /// 一条气泡加上它的长按菜单。
+    ///
+    /// 菜单里的动作都只改这一条消息，不碰对话状态：
+    /// 撤回留文本、编辑覆写、删除真删、复制进剪贴板。
+    private func bubble(for message: StoredMessage) -> some View {
+        MessageBubble(
+            text: message.text,
+            isUser: message.role == .user,
+            speaker: message.speaker,
+            isNarration: message.isNarration,
+            imageSeed: message.imageSeed,
+            userStyle: settings.chatBubbleStyle,
+            isRecalled: message.isRecalled,
+            quoteSpeaker: message.quoteSpeaker,
+            quoteText: message.quoteText,
+            isEdited: message.editedAt != nil
+        )
+        .chatMessageMenu(
+            for: message,
+            canRecall: message.role == .user,
+            onCopy: { UIPasteboard.general.string = message.text },
+            onQuote: { beginQuote(message) },
+            onEdit: { beginEdit(message) },
+            onRecall: { recall(message) },
+            onDelete: { delete(message) }
+        )
+    }
+
+    private func beginQuote(_ message: StoredMessage) {
+        editingTarget = nil
+        quoting = message
+        isComposerActive = true
+    }
+
+    private func beginEdit(_ message: StoredMessage) {
+        quoting = nil
+        editingTarget = message
+        draft = message.text
+        isComposerActive = true
+        isInputFocused = true
+    }
+
+    private func cancelEdit() {
+        editingTarget = nil
+        draft = ""
+    }
+
+    private func recall(_ message: StoredMessage) {
+        message.isRecalled = true
+        try? context.save()
+    }
+
+    private func delete(_ message: StoredMessage) {
+        context.delete(message)
+        try? context.save()
     }
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("还没说话")
-                .font(Theme.serif(19, weight: .medium))
-                .foregroundStyle(Theme.cream)
-
-            Text(settings.isConfigured
-                 ? "直接打字就行。它会按自己的人设和作息回你。"
-                 : "先去设置填一个 API Key，不然它没法回话。")
-                .font(.system(size: 12))
-                .foregroundStyle(Theme.mint.opacity(0.7))
-                .lineSpacing(4)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .glassSurface(cornerRadius: 18)
-        .padding(.top, 8)
+        ChatEmptyState(isConfigured: settings.isConfigured)
     }
 
-    private func errorCard(_ text: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("出错了")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(Theme.warning)
-
-                Spacer(minLength: 0)
-
-                Button("知道了") { viewModel.clearError() }
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.mint.opacity(0.8))
-                    .buttonStyle(.plain)
-            }
-
-            Text(text)
-                .font(.system(size: 12).monospaced())
-                .foregroundStyle(Theme.cream.opacity(0.9))
-                .textSelection(.enabled)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.black.opacity(0.25))
-        )
+    private func timeSeparator(_ date: Date) -> some View {
+        ChatTimeSeparator(date: date)
     }
 
     // MARK: - 输入条
@@ -519,8 +542,28 @@ struct ChatView: View {
         guard canSend else { return }
         let text = draft
         draft = ""
+
+        // 编辑态下发送 = 覆写那一条，不新起一条。
+        if let target = editingTarget {
+            target.text = text
+            target.editedAt = Date()
+            editingTarget = nil
+            try? context.save()
+            return
+        }
+
+        let quoted = quoting
+        quoting = nil
+
         Task {
-            await viewModel.send(text, character: character, context: context, settings: settings)
+            await viewModel.send(
+                text,
+                character: character,
+                context: context,
+                settings: settings,
+                quoteSpeaker: quoted.map { $0.role == .user ? "我" : character.name } ?? "",
+                quoteText: quoted?.text ?? ""
+            )
         }
     }
 

@@ -18,8 +18,45 @@ struct MessageBubble: View {
     var imageSeed: Int = 0
     /// 用户气泡的样式档。设置 → 聊天背景里选，默认薄荷。
     var userStyle: ChatBubbleStyle = .mint
+    /// 已撤回：整条收成中间一行小字，不显示原来的内容。
+    var isRecalled: Bool = false
+    /// 引用的是谁、说了什么。两段都空表示没引用。
+    var quoteSpeaker: String = ""
+    var quoteText: String = ""
+    /// 改过。气泡底部标一行「已编辑」。
+    var isEdited: Bool = false
 
     var body: some View {
+        if isRecalled {
+            recalledRow
+        } else {
+            messageRow
+        }
+    }
+
+    /// 撤回后不留空泡，改成一条居中的状态行——真机就是这样。
+    private var recalledRow: some View {
+        Text(isUser ? "你撤回了一条消息" : "\(senderName)撤回了一条消息")
+            .font(.system(size: 11))
+            .foregroundStyle(Theme.cream.opacity(0.38))
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical, 2)
+    }
+
+    private var senderName: String {
+        if let speaker, !speaker.isEmpty { return speaker }
+        return "对方"
+    }
+
+    private var hasQuote: Bool { !quoteText.isEmpty }
+
+    /// 引用块里的字色：跟着气泡底色走，彩色气泡上不能用米白。
+    private var quoteInk: Color {
+        if isUser, userStyle != .glass { return userStyle.labelColor.opacity(0.66) }
+        return Theme.cream.opacity(0.58)
+    }
+
+    private var messageRow: some View {
         HStack(alignment: .bottom, spacing: 8) {
             if isUser { Spacer(minLength: 40) }
 
@@ -107,28 +144,75 @@ struct MessageBubble: View {
                 .padding(.horizontal, 4)
         } else if isUser {
             // 彩色档走实底，玻璃档没有实底、气泡跟着背景走。
-            let body = label(body)
+            let filled = bubbleStack(body)
                 .foregroundStyle(userStyle.labelColor)
-                .lineSpacing(4)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
 
             if let fill = userStyle.fillColor {
-                body.background(
+                filled.background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(fill)
                 )
             } else {
-                body.glassSurface(cornerRadius: 18)
+                // 玻璃档：我这边垫白，整颗比背景亮一档。
+                filled
+                    .glassSurface(cornerRadius: 18, tint: Theme.Glass.bubbleUser)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(Theme.Glass.bubbleRimUser, lineWidth: 0.5)
+                    }
             }
         } else {
-            label(body)
+            // 角色侧用同一档玻璃，但底座压黑：两侧同深同浅就分不清是谁在说。
+            bubbleStack(body)
                 .foregroundStyle(Theme.cream)
-                .lineSpacing(4)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .glassSurface(cornerRadius: 18)
+                .glassSurface(cornerRadius: 18, tint: Theme.Glass.bubbleCharacter)
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .strokeBorder(Theme.Glass.bubbleRimCharacter, lineWidth: 0.5)
+                }
         }
+    }
+
+    /// 气泡里的竖排内容：引用块 → 正文 → 已编辑。
+    /// 内边距和圆角只在这里加一次，三种分支共用同一份度量。
+    private func bubbleStack(_ body: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            if hasQuote {
+                quoteBlock
+            }
+
+            label(body)
+                .lineSpacing(4)
+
+            if isEdited {
+                Text("已编辑")
+                    .font(.system(size: 9))
+                    .foregroundStyle(quoteInk.opacity(0.8))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+    }
+
+    /// 引用块：左侧一道竖线，上面谁说的、下面原话首两行。
+    private var quoteBlock: some View {
+        HStack(alignment: .top, spacing: 6) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(quoteInk.opacity(0.55))
+                .frame(width: 2.5)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(quoteSpeaker.isEmpty ? "引用" : quoteSpeaker)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(quoteInk.opacity(0.9))
+
+                Text(quoteText)
+                    .font(.system(size: 12))
+                    .foregroundStyle(quoteInk)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.bottom, 2)
     }
 
     /// 返回 `Text` 而不是 `some View`：流式光标要用 `+` 拼在正文后面，
