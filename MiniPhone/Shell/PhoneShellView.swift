@@ -65,6 +65,7 @@ struct PhoneShellView: View {
         case "feed": destination = .scene(.feed)
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
+        case "reading": destination = .scene(.reading)
         case "storyGame": destination = .scene(.storyGame)
         case "chatDetail", "chatMine", "chatEditor", "chatStickers", "chatPhoto", "chatDynamic", "chatGlass", "avatarPicker",
              "charDetail", "call": destination = .chat
@@ -352,6 +353,42 @@ struct PhoneShellView: View {
 
         case "market":
             world.seedPreviewShop()
+
+        case "reading":
+            // 书架空着看不出列高和进度条的排布，垫两本进来。
+            var descriptor = FetchDescriptor<ReadingBook>()
+            descriptor.fetchLimit = 1
+            guard (try? context.fetch(descriptor))?.isEmpty ?? true else { return }
+            let long = ReadingBook(
+                title: "雨天记事",
+                body: """
+                窗外的雨从昨天夜里就没有停过。
+
+                我把椅子挪到窗边，坐了一整个下午。楼下那条路上没有什么人，偶尔有一把伞过去，伞面压得很低，看不清是谁。
+
+                快到傍晚的时候，雨小了一点。我下楼买了一杯热的，回来的时候杯壁上已经全是水汽。纸杯拿在手里发软。
+
+                天完全黑下来之前，最后一点光落在对面的墙上。那面墙本来是白的，被雨泡了一天，看起来有点像旧纸。
+                """
+            )
+            long.paragraphIndex = 2
+            long.lastReadAt = Date()
+            context.insert(long)
+
+            let short = ReadingBook(
+                title: "他写的三段",
+                body: """
+                第一段：关于天气。
+
+                第二段：关于你说过的那家店。
+
+                第三段：没写完。
+                """
+            )
+            short.paragraphIndex = 1
+            short.lastReadAt = Date().addingTimeInterval(-3600)
+            context.insert(short)
+            try? context.save()
 
         case "feedInbox", "feedChat", "feedShare", "feedCard":
             seedPreviewInbox()

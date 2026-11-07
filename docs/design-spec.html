@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小手机 · 设计稿 v2</title>
+<style>
+  :root {
+    --ink: #1b1720;
+    --ink-2: #5d5767;
+    --ink-3: #8a8494;
+    --paper: #f4f1f5;
+    --card: #ffffff;
+    --line: rgba(27, 23, 32, 0.08);
+    --accent: #d4568c;
+    --radius-card: 12px;
+    --radius-widget: 22px;
+    --radius-glass: 28px;
+  }
+
+  * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+
+  body {
+    margin: 0;
+    padding: 48px 32px 80px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  /* ---------- 页头 ---------- */
+  .head { margin-bottom: 40px; }
+  .head h1 {
+    margin: 0 0 6px;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .head .sub { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.7; }
+  .head .sub b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- 原则条 ---------- */
+  .rules {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 24px 0 44px;
+  }
+  .rule {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+  }
+  .rule .k {
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+  }
+  .rule .v { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .rule p { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--ink-2); }
+
+  /* ---------- 屏幕排布 ---------- */
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 36px;
+    margin-bottom: 56px;
+    align-items: flex-start;
+  }
+  figure { margin: 0; flex: 0 0 auto; }
+  figcaption {
+    margin-top: 16px;
+    width: 300px;
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink-2);
+  }
+  figcaption .t { display: block; font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 3px; }
+  figcaption .id {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--accent);
+    background: rgba(212, 86, 140, 0.1);
+    border-radius: 5px;
+    padding: 1px 5px;
+    vertical-align: 1px;
+  }
+
+  /* ---------- 手机壳 ---------- */
+  .phone {
+    position: relative;
+    width: 300px;
+    height: 640px;
+    border-radius: 46px;
+    overflow: hidden;
+    background:
+      radial-gradient(110% 70% at 12% 0%, #f2b4cd 0%, rgba(242, 180, 205, 0) 48%),
+      radial-gradient(100% 65% at 95% 12%, #d98cae 0%, rgba(217, 140, 174, 0) 55%),
+      radial-gradient(95% 65% at 5% 100%, #432c4a 0%, rgba(67, 44, 74, 0) 62%),
+      linear-gradient(168deg, #e8a4c2 0%, #c07c9d 30%, #85567a 62%, #4a3350 100%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 22px 44px -18px rgba(80, 40, 65, 0.45);
+    color: #fff;
+    font-size: 13px;
+    text-shadow: 0 1px 2px rgba(52, 16, 40, 0.22);
+  }
+
+  /* 状态栏 */
+  .sb {
+    position: relative;
+    z-index: 3;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 22px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+  .sb .right { display: flex; gap: 5px; align-items: center; opacity: 0.95; }
+  .sb .bars { display: flex; gap: 2px; align-items: flex-end; }
+  .sb .bars i { display: block; width: 2.5px; background: #fff; border-radius: 1px; }
+  .sb .bars i:nth-child(1) { height: 4px; }
+  .sb .bars i:nth-child(2) { height: 6px; }
+  .sb .bars i:nth-child(3) { height: 8px; }
+  .sb .bars i:nth-child(4) { height: 10px; opacity: 0.4; }
+  .sb .batt {
+    width: 20px; height: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 3px;
+    position: relative;
+  }
+  .sb .batt::before {
+    content: ""; position: absolute; inset: 1.5px; width: 70%;
+    background: #fff; border-radius: 1.5px;
+  }
+  .sb .batt::after {
+    content: ""; position: absolute; right: -3px; top: 3px;
+    width: 2px; height: 4px; border-radius: 0 1px 1px 0;
+    background: rgba(255, 255, 255, 0.85);
+  }
+
+  /* 磨砂档位：三档 */
+  .frost-1 {
+    background: rgba(255, 255, 255, 0.16);
+    -webkit-backdrop-filter: blur(4px) saturate(150%);
+    backdrop-filter: blur(4px) saturate(150%);
+    border: 0.8px solid rgba(255, 255, 255, 0.34);
+    border-radius: var(--radius-card);
+  }
+  .frost-2 {
+    background: rgba(255, 255, 255, 0.24);
+    -webkit-backdrop-filter: blur(14px) saturate(170%);
+    backdrop-filter: blur(14px) saturate(170%);
+    border: 0.8px solid rgba(255, 255, 255, 0.46);
+    border-radius: var(--radius-widget);
+    box-shadow: 0 8px 18px -12px rgba(70, 30, 55, 0.55);
+  }
+  .frost-3 {
+    background: rgba(255, 255, 255, 0.3);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    border: 0.8px solid rgba(255, 255, 255, 0.52);
+    border-radius: var(--radius-glass);
+    box-shadow: 0 10px 22px -14px rgba(70, 30, 55, 0.5);
+  }
+
+  /* ---------- 主屏 ---------- */
+  .home { padding: 6px 18px 0; position: relative; z-index: 2; }
+  .widgets { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .wg { padding: 13px 14px; height: 132px; display: flex; flex-direction: column; justify-content: space-between; }
+  .wg.wide {
+    height: 84px;
+    margin-bottom: 12px;
+    justify-content: center;
+    gap: 6px;
+  }
+  .wg .next { display: flex; align-items: center; gap: 9px; }
+  .wg .next .tm { font-size: 12px; font-weight: 600; opacity: 0.9; }
+  .wg .next .nm { font-size: 15px; font-weight: 600; letter-spacing: -0.2px; }
+  .wg .next .ar { margin-left: auto; font-size: 14px; opacity: 0.5; }
+  .wg .top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .wg .lbl { font-size: 10px; font-weight: 600; letter-spacing: 0.6px; opacity: 0.78; }
+  .wg .big { font-size: 27px; font-weight: 600; letter-spacing: -1px; line-height: 1; }
+  .wg .small { font-size: 11px; opacity: 0.85; line-height: 1.5; }
+  .wg .flame { font-size: 20px; }
+  .wg .days { display: flex; gap: 3px; margin-top: 6px; }
+  .wg .days i {
+    width: 100%; height: 3px; border-radius: 2px;
+    background: rgba(255, 255, 255, 0.34);
+  }
+  .wg .days i.on { background: #ffd9a8; }
+
+  .icons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px 6px;
+    margin-top: 20px;
+  }
+  .ic { text-align: center; }
+  .ic .box {
+    width: 46px; height: 46px;
+    margin: 0 auto 5px;
+    border-radius: 12px;
+    display: grid; place-items: center;
+    font-size: 20px;
+    box-shadow: 0 4px 10px -5px rgba(60, 25, 45, 0.5);
+  }
+  .ic span { font-size: 9.5px; opacity: 0.95; text-shadow: 0 1px 2px rgba(60, 25, 45, 0.35); }
+
+  .dots { display: flex; justify-content: center; gap: 5px; margin: 14px 0 10px; }
+  .dots i { width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, 0.42); }
+  .dots i.on { background: rgba(255, 255, 255, 0.95); }
+
+  .dock {
+    position: absolute;
+    left: 14px; right: 14px; bottom: 16px;
+    height: 74px;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 14px;
+    z-index: 2;
+  }
+  .dock .box { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font-size: 20px; }
+
+  /* ---------- 通用 App 顶栏 ---------- */
+  .navbar {
+    position: relative; z-index: 3;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 2px 18px 10px;
+    font-size: 13px; font-weight: 600;
+  }
+  .nav-back { font-size: 18px; opacity: 0.92; }
+  .nav-title { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .nav-title em { font-style: normal; font-size: 9.5px; font-weight: 400; opacity: 0.72; }
+
+  /* ---------- 聊天 ---------- */
+  .chat-body {
+    position: relative; z-index: 5;
+    padding: 4px 14px 0;
+    display: flex; flex-direction: column; gap: 9px;
+    height: calc(100% - 162px);
+    overflow: visible;
+  }
+  .sepa { text-align: center; font-size: 9.5px; opacity: 0.6; margin: 2px 0; }
+  .msg { display: flex; gap: 7px; align-items: flex-end; max-width: 88%; position: relative; }
+  .msg .av {
+    width: 27px; height: 27px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    border: 0.8px solid rgba(255, 255, 255, 0.45);
+    display: grid; place-items: center; font-size: 12px;
+    flex: 0 0 auto;
+  }
+  .bub {
+    position: relative;
+    padding: 9px 12px;
+    font-size: 12.5px; line-height: 1.55;
+    border-radius: 16px;
+  }
+  /* 角色：黑 26% 压进玻璃 —— 更实、更沉 */
+  .bub.them {
+    background: rgba(0, 0, 0, 0.26);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+    border: 0.8px solid rgba(255, 255, 255, 0.12);
+    border-bottom-left-radius: 5px;
+    color: #fff;
+  }
+  /* 自己：白 14% 压进玻璃 —— 更透 */
+  .msg.me { margin-left: auto; flex-direction: row-reverse; }
+  .bub.mine {
+    background: rgba(255, 255, 255, 0.14);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    backdrop-filter: blur(16px) saturate(160%);
+    border: 0.8px solid rgba(255, 255, 255, 0.22);
+    border-bottom-right-radius: 5px;
+    color: #fff;
+  }
+  .quote {
+    border-left: 2px solid rgba(255, 255, 255, 0.45);
+    padding: 1px 0 1px 7px;
+    margin-bottom: 6px;
+    font-size: 10.5px;
+    opacity: 0.72;
+    line-height: 1.45;
+  }
+  .quote b { display: block; font-size: 9.5px; opacity: 0.85; font-weight: 600; }
+  .pat { text-align: center; font-size: 9.5px; opacity: 0.72; }
+  .pat b { font-weight: 600; }
+
+  .inputbar {
+    position: absolute; left: 14px; right: 14px; bottom: 16px;
+    height: 46px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 6px 0 14px;
+    z-index: 4;
+    border-radius: 23px;
+  }
+  .inputbar .ph { flex: 1; font-size: 12px; opacity: 0.62; }
+  .inputbar .btn {
+    width: 30px; height: 30px; border-radius: 50%;
+    display: grid; place-items: center;
+    background: rgba(255, 255, 255, 0.22);
+    font-size: 14px;
+  }
+  .inputbar .btn.voice { background: rgba(255, 255, 255, 0.3); }
+
+  .bub.pressed { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.5); }
+
+  /* 长按菜单浮层 */
+  .menu {
+    position: absolute;
+    z-index: 6;
+    right: auto;
+    left: 0;
+    bottom: calc(100% + 7px);
+    background: rgba(26, 22, 30, 0.94);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 0.8px solid rgba(255, 255, 255, 0.18);
+    border-radius: 14px;
+    padding: 4px;
+    display: flex;
+    box-shadow: 0 14px 30px -12px rgba(30, 10, 25, 0.6);
+  }
+  .menu div {
+    padding: 6px 9px;
+    font-size: 10.5px;
+    white-space: nowrap;
+    color: #fff;
+    border-right: 0.6px solid rgba(255, 255, 255, 0.14);
+  }
+  .menu div:last-child { border-right: 0; }
+  .menu div.dim { opacity: 0.4; }
+
+  /* ---------- 信件 ---------- */
+  .seg {
+    position: relative; z-index: 3;
+    margin: 2px 18px 12px;
+    display: flex;
+    padding: 3px;
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.16);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    border: 0.8px solid rgba(255, 255, 255, 0.28);
+  }
+  .seg div {
+    flex: 1; text-align: center;
+    font-size: 11.5px; font-weight: 500;
+    padding: 5px 0;
+    border-radius: 7px;
+    opacity: 0.8;
+  }
+  .seg div.on {
+    background: rgba(255, 255, 255, 0.34);
+    opacity: 1;
+    font-weight: 600;
+  }
+  .letters { position: relative; z-index: 2; padding: 0 14px; display: flex; flex-direction: column; gap: 9px; }
+  .letter { padding: 12px 13px; display: flex; gap: 10px; align-items: flex-start; }
+  .letter .stamp {
+    width: 26px; height: 34px; border-radius: 3px;
+    background: rgba(255, 255, 255, 0.32);
+    display: grid; place-items: center; font-size: 13px;
+    flex: 0 0 auto;
+  }
+  .letter .txt { flex: 1; min-width: 0; }
+  .letter .from { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+  .letter .body { font-size: 10.5px; opacity: 0.74; line-height: 1.5; }
+  .letter .meta { font-size: 9px; opacity: 0.55; margin-top: 4px; }
+  .star { font-size: 13px; opacity: 0.34; }
+  .star.on { opacity: 1; color: #ffd98a; }
+  .unread-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #ffd98a; margin-top: 5px;
+  }
+
+  /* ---------- 情侣空间 ---------- */
+  .couple { position: relative; z-index: 2; padding: 0 16px; }
+  .spark {
+    padding: 18px 16px;
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 12px;
+  }
+  .spark .flame-big { font-size: 34px; line-height: 1; }
+  .spark .num { font-size: 30px; font-weight: 700; letter-spacing: -1px; line-height: 1; }
+  .spark .cap { font-size: 10.5px; opacity: 0.78; margin-top: 3px; }
+  .spark .right { margin-left: auto; text-align: right; font-size: 9.5px; opacity: 0.7; line-height: 1.8; white-space: nowrap; }
+  .week { display: flex; gap: 5px; margin-bottom: 12px; }
+  .week i {
+    flex: 1; height: 4px; border-radius: 2px;
+    background: rgba(255, 255, 255, 0.28);
+  }
+  .week i.on { background: #ffd9a8; }
+  .task {
+    padding: 12px 13px;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 8px;
+  }
+  .task .tt { flex: 1; font-size: 12px; }
+  .task .tt em { display: block; font-style: normal; font-size: 9.5px; opacity: 0.62; margin-top: 2px; }
+  .task .plus {
+    font-size: 10px; font-weight: 600;
+    padding: 4px 9px; border-radius: 20px;
+    background: rgba(255, 217, 168, 0.28);
+    border: 0.8px solid rgba(255, 217, 168, 0.5);
+    color: #ffe9c8;
+  }
+  .task.done .plus { background: rgba(255, 255, 255, 0.16); border-color: rgba(255, 255, 255, 0.24); color: #fff; opacity: 0.7; }
+
+  /* ---------- 查手机 ---------- */
+  .peek-note {
+    position: relative; z-index: 2;
+    margin: 0 16px 10px;
+    font-size: 9.5px; opacity: 0.7;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .peek-tabs {
+    position: relative; z-index: 2;
+    margin: 0 16px 10px;
+    display: flex; gap: 6px;
+  }
+  .peek-tabs div {
+    font-size: 10.5px;
+    padding: 5px 11px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 0.8px solid rgba(255, 255, 255, 0.2);
+    opacity: 0.85;
+  }
+  .peek-tabs div.on {
+    background: rgba(255, 255, 255, 0.32);
+    border-color: rgba(255, 255, 255, 0.48);
+    opacity: 1; font-weight: 600;
+  }
+  .peek-list { position: relative; z-index: 2; padding: 0 16px; display: flex; flex-direction: column; gap: 2px; }
+  .peek-row {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 11px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 0.6px solid rgba(255, 255, 255, 0.13);
+  }
+  .peek-row:first-child { border-radius: 10px 10px 2px 2px; }
+  .peek-row:last-child { border-radius: 2px 2px 10px 10px; }
+  .peek-row .av2 {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.26);
+    display: grid; place-items: center; font-size: 11px;
+  }
+  .peek-row .who { flex: 1; min-width: 0; }
+  .peek-row .who b { display: block; font-size: 11.5px; font-weight: 600; }
+  .peek-row .who span { font-size: 10px; opacity: 0.66; }
+  .peek-row .when { font-size: 9px; opacity: 0.5; }
+
+  /* ---------- 日程 ---------- */
+  .sched { position: relative; z-index: 2; padding: 0 16px; }
+  .day-head {
+    display: flex; align-items: baseline; gap: 8px;
+    margin-bottom: 12px;
+  }
+  .day-head .d { font-size: 26px; font-weight: 300; letter-spacing: -0.5px; }
+  .day-head .w { font-size: 11px; opacity: 0.72; }
+  .tl { position: relative; padding-left: 40px; display: flex; flex-direction: column; gap: 8px; }
+  .tl::before {
+    content: ""; position: absolute; left: 32px; top: 4px; bottom: 4px;
+    width: 1px; background: rgba(255, 255, 255, 0.16);
+  }
+  .ev { position: relative; padding: 10px 12px; }
+  .ev .hh {
+    position: absolute; left: -40px; top: 11px;
+    font-size: 9.5px; opacity: 0.62; width: 26px; text-align: right;
+  }
+  .ev .bar {
+    position: absolute; left: 31px; top: 12px;
+    width: 3px; height: 16px; border-radius: 2px;
+  }
+  .ev .ttl { font-size: 12px; font-weight: 600; }
+  .ev .sub { font-size: 10px; opacity: 0.68; margin-top: 2px; }
+  .ev.active { border-color: rgba(255, 255, 255, 0.62); background: rgba(255, 255, 255, 0.34); }
+  .ev .go { position: absolute; right: 11px; top: 12px; font-size: 11px; opacity: 0.55; }
+
+  /* 日程详情浮层 */
+  .sheet {
+    position: absolute; left: 10px; right: 10px; bottom: 10px;
+    z-index: 6;
+    padding: 16px;
+    border-radius: 22px;
+    background: rgba(255, 255, 255, 0.3);
+    -webkit-backdrop-filter: blur(28px) saturate(190%);
+    backdrop-filter: blur(28px) saturate(190%);
+    border: 0.8px solid rgba(255, 255, 255, 0.52);
+    box-shadow: 0 -10px 34px -14px rgba(50, 20, 40, 0.5);
+  }
+  .sheet .grab { width: 32px; height: 3.5px; border-radius: 2px; background: rgba(255, 255, 255, 0.45); margin: 0 auto 12px; }
+  .sheet .h { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .sheet .m { font-size: 10.5px; opacity: 0.72; margin-bottom: 10px; }
+  .sheet .line { display: flex; gap: 8px; font-size: 11px; margin-bottom: 5px; opacity: 0.9; }
+  .sheet .line b { font-weight: 600; opacity: 0.7; width: 38px; flex: 0 0 auto; }
+  .sheet .acts { display: flex; gap: 7px; margin-top: 12px; }
+  .sheet .acts div {
+    flex: 1; text-align: center; font-size: 11px; font-weight: 500;
+    padding: 7px 0; border-radius: 10px;
+    background: rgba(255, 255, 255, 0.22);
+    border: 0.8px solid rgba(255, 255, 255, 0.3);
+  }
+  .sheet .acts div.pri { background: rgba(255, 255, 255, 0.44); font-weight: 600; }
+
+  /* ---------- 页脚 ---------- */
+  .foot {
+    border-top: 1px solid var(--line);
+    padding-top: 22px;
+    font-size: 12.5px;
+    line-height: 1.85;
+    color: var(--ink-2);
+  }
+  .foot h3 { font-size: 14px; color: var(--ink); margin: 0 0 8px; }
+  .foot ul { margin: 0 0 18px; padding-left: 18px; }
+  .foot code {
+    background: rgba(27, 23, 32, 0.06);
+    padding: 1px 5px; border-radius: 4px;
+    font-size: 11.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="head">
+    <h1>小手机 · 设计稿 v2</h1>
+    <p class="sub">
+      这一版只解决一件事：<b>材质</b>。上一版的卡片是实白板，压在那张粉色壁纸上是浮着的、发白的，
+      所以看起来朴素。这一版全部换成磨砂 —— 壁纸的颜色透上来，边缘只留一圈细高光，阴影几乎没有。<br>
+      下面六屏是这一批要落地的东西，屏下的编号对应 <code>docs/REQUIREMENTS.md</code>。
+    </p>
+  </div>
+
+  <div class="rules">
+    <div class="rule">
+      <div class="k">材质</div>
+      <div class="v">三档磨砂，只按用途分</div>
+      <p>微糊（列表行，4px）／中糊（卡片、小组件，14px）／重糊（Dock、输入条、浮层，22px）。不再有实白底板。</p>
+    </div>
+    <div class="rule">
+      <div class="k">厚度</div>
+      <div class="v">光在上，压在下的感觉</div>
+      <p>0.8px 白描边 + 顶部一道更亮的边。阴影半径小、偏移小，只是让边缘离地，不是投影。</p>
+    </div>
+    <div class="rule">
+      <div class="k">对比</div>
+      <div class="v">谁在说话靠明度分</div>
+      <p>角色是黑 26% 压进玻璃（沉），自己是白 14%（透）。同一档玻璃，两种底座。</p>
+    </div>
+  </div>
+
+  <!-- ================= 第一排 ================= -->
+  <div class="row">
+
+    <!-- 主屏 -->
+    <figure>
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <span class="right">
+            <span class="bars"><i></i><i></i><i></i><i></i></span>
+            <span class="batt"></span>
+          </span>
+        </div>
+
+        <div class="home">
+          <div class="wg wide frost-2">
+            <div class="top">
+              <span class="lbl">今天 · 周五</span>
+              <span class="small" style="opacity:.72">4 件</span>
+            </div>
+            <div class="next">
+              <span class="tm">09:30</span>
+              <span class="nm">设计评审</span>
+              <span class="ar">›</span>
+            </div>
+          </div>
+
+          <div class="widgets">
+            <div class="wg frost-2">
+              <div class="top">
+                <span class="lbl">杭州</span>
+                <span style="font-size:13px">☁️</span>
+              </div>
+              <div>
+                <div class="big">17°</div>
+                <div class="small">多云转晴 · 最高 21°</div>
+              </div>
+            </div>
+
+            <div class="wg frost-2">
+              <div class="top">
+                <span class="lbl">火 花</span>
+                <span class="flame">🔥</span>
+              </div>
+              <div>
+                <div class="big">23<span style="font-size:11px;font-weight:400"> 天</span></div>
+                <div class="days">
+                  <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+                  <i class="on"></i><i></i><i></i>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="icons">
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#5ad08a,#28a760)">💬</div><span>信息</span></div>
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#8fb8ff,#4b7bec)">📷</div><span>相册</span></div>
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#ffd479,#f0a52e)">📅</div><span>日历</span></div>
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#ffb3c8,#e2688f)">✉️</div><span>信件</span></div>
+
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#b9a5ff,#7b62d8)">🎵</div><span>音乐</span></div>
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#9fe0d8,#3fae9e)">📖</div><span>阅读</span></div>
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#ffc08a,#f08a3c)">💗</div><span>情侣空间</span></div>
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#a8d8ff,#4a90d9)">🩺</div><span>健康</span></div>
+
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#ffe08a,#e6b32c)">📝</div><span>笔记</span></div>
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#d6c4ff,#8b6fe0)">🎬</div><span>西瓜皮</span></div>
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#ff9db0,#e2547a)">📺</div><span>直播</span></div>
+            <div class="ic"><div class="box" style="background:linear-gradient(160deg,#a9b6c9,#6b7a90)">⚙️</div><span>设置</span></div>
+          </div>
+
+          <div class="dots"><i class="on"></i><i></i><i></i></div>
+        </div>
+
+        <div class="dock frost-3">
+          <div class="box" style="background:linear-gradient(160deg,#5ad08a,#28a760)">💬</div>
+          <div class="box" style="background:linear-gradient(160deg,#8fb8ff,#4b7bec)">📷</div>
+          <div class="box" style="background:linear-gradient(160deg,#b9a5ff,#7b62d8)">🎵</div>
+          <div class="box" style="background:linear-gradient(160deg,#ffb3c8,#e2688f)">✉️</div>
+        </div>
+      </div>
+      <figcaption>
+        <span class="t">主屏<span class="id">S-16 / S-05</span></span>
+        小组件进主屏，磨砂一档；Dock 用最重那档免得图标糊在壁纸上；小组件占满一整行，别再挤成四格。
+      </figcaption>
+    </figure>
+
+    <!-- 聊天 -->
+    <figure>
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <span class="right">
+            <span class="bars"><i></i><i></i><i></i><i></i></span>
+            <span class="batt"></span>
+          </span>
+        </div>
+
+        <div class="navbar">
+          <span class="nav-back">‹</span>
+          <div class="nav-title">
+            <span>沈砚</span>
+            <em>在听 · 你在我就在</em>
+          </div>
+          <span style="font-size:15px;opacity:.75">⋯</span>
+        </div>
+
+        <div class="chat-body">
+          <div class="sepa">今天 21:04</div>
+
+          <div class="msg">
+            <div class="av">🐈</div>
+            <div class="bub them pressed">
+              <div class="quote"><b>你说</b>你几点回来</div>
+              刚出地铁。雨比早上大了。
+              <div class="menu">
+                <div>复制</div><div>引用</div><div>编辑</div><div>撤回</div><div class="dim">删除</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="msg me">
+            <div class="av">🫧</div>
+            <div class="bub mine">
+              <div class="quote"><b>沈砚</b>刚出地铁。雨比早上大了。</div>
+              带伞了吗
+            </div>
+          </div>
+
+          <div class="pat"><b>你</b> 拍了拍 <b>沈砚</b> 的肩膀 · 他愣了一下</div>
+
+          <div class="msg">
+            <div class="av">🐈</div>
+            <div class="bub them">
+              没。淋一点没事，反正回去也要洗澡。
+              <div style="font-size:8.5px;opacity:.55;margin-top:4px">已编辑</div>
+            </div>
+          </div>
+
+          <div class="pat" style="opacity:.5">你撤回了一条消息</div>
+
+          <div class="msg me">
+            <div class="av">🫧</div>
+            <div class="bub mine">那我下来接你</div>
+          </div>
+
+          <div class="msg">
+            <div class="av">🐈</div>
+            <div class="bub them">不用。你在楼下站着，我走过去更快。</div>
+          </div>
+        </div>
+
+        <div class="inputbar frost-3">
+          <span class="ph">说点什么</span>
+          <div class="btn">💭</div>
+          <div class="btn voice">🎙</div>
+        </div>
+      </div>
+      <figcaption>
+        <span class="t">聊天<span class="id">C-13 / C-20~22</span></span>
+        角色沉、自己透。长按出菜单（截图里是按住角色那条的样子）；输入栏多一颗心声键，点开看他此刻在想什么。
+      </figcaption>
+    </figure>
+
+    <!-- 信件 -->
+    <figure>
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <span class="right">
+            <span class="bars"><i></i><i></i><i></i><i></i></span>
+            <span class="batt"></span>
+          </span>
+        </div>
+
+        <div class="navbar">
+          <span class="nav-back">‹</span>
+          <div class="nav-title"><span>信件</span></div>
+          <span style="font-size:13px;opacity:.7">筛选</span>
+        </div>
+
+        <div class="seg">
+          <div class="on">全部 12</div>
+          <div>未读 3</div>
+          <div>收藏 4</div>
+        </div>
+
+        <div class="letters">
+          <div class="letter frost-1" style="border-radius:12px">
+            <div class="stamp">✉️</div>
+            <div class="txt">
+              <div class="from">沈砚 <span class="unread-dot" style="display:inline-block;vertical-align:1px"></span></div>
+              <div class="body">写给你的第 23 封。今天路过你说的那家店，关门了…</div>
+              <div class="meta">昨天 22:14</div>
+            </div>
+            <div class="star on">★</div>
+          </div>
+
+          <div class="letter frost-1" style="border-radius:12px">
+            <div class="stamp">✉️</div>
+            <div class="txt">
+              <div class="from">沈砚 <span class="unread-dot" style="display:inline-block;vertical-align:1px"></span></div>
+              <div class="body">雨下到第三天了。你要是还不回来，我就把窗关死了。</div>
+              <div class="meta">今天 07:40</div>
+            </div>
+            <div class="star">☆</div>
+          </div>
+
+          <div class="letter frost-1" style="border-radius:12px">
+            <div class="stamp">✉️</div>
+            <div class="txt">
+              <div class="from">沈砚</div>
+              <div class="body">你说想看我小时候的照片，我翻了一下，只有一张。</div>
+              <div class="meta">周一 19:02</div>
+            </div>
+            <div class="star on">★</div>
+          </div>
+
+          <div class="letter frost-1" style="border-radius:12px;opacity:.72">
+            <div class="stamp">✉️</div>
+            <div class="txt">
+              <div class="from">沈砚</div>
+              <div class="body">那本书我读完了。你想让我说说哪一段？</div>
+              <div class="meta">上周日</div>
+            </div>
+            <div class="star">☆</div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        <span class="t">信件<span class="id">P-14 / P-15</span></span>
+        顶部分段带数量，行尾星标点亮即收藏。收藏的不动时间顺序，只在「收藏」那一档里单独出现。
+      </figcaption>
+    </figure>
+  </div>
+
+  <!-- ================= 第二排 ================= -->
+  <div class="row">
+
+    <!-- 情侣空间 -->
+    <figure>
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <span class="right">
+            <span class="bars"><i></i><i></i><i></i><i></i></span>
+            <span class="batt"></span>
+          </span>
+        </div>
+
+        <div class="navbar">
+          <span class="nav-back">‹</span>
+          <div class="nav-title"><span>情侣空间</span><em>和沈砚</em></div>
+          <span style="font-size:13px;opacity:.7">⋯</span>
+        </div>
+
+        <div class="couple">
+          <div class="spark frost-3">
+            <span class="flame-big">🔥</span>
+            <div>
+              <div class="num">23</div>
+              <div class="cap">连续第 23 天 · 今晚再说一句话就续上</div>
+            </div>
+            <div class="right">最长 41 天<br>在一起 118 天</div>
+          </div>
+
+          <div class="week">
+            <i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i>
+            <i class="on"></i><i></i><i></i>
+          </div>
+
+          <div class="task frost-1 done">
+            <div class="tt">今天说过话<em>已完成 · +1</em></div>
+            <div class="plus">已续</div>
+          </div>
+
+          <div class="task frost-1">
+            <div class="tt">互相拍一拍<em>还差一次</em></div>
+            <div class="plus">+1</div>
+          </div>
+
+          <div class="task frost-1">
+            <div class="tt">一起听完一首歌<em>在听《雨》· 2:11 / 4:02</em></div>
+            <div class="plus">+1</div>
+          </div>
+
+          <div class="task frost-1">
+            <div class="tt">给他写一封信<em>本周还没写过</em></div>
+            <div class="plus">+1</div>
+          </div>
+
+          <div class="task frost-1" style="opacity:.8">
+            <div class="tt">断火记录<em>上次断在 10 月 14 日 · 他说「没事，明天重新点」</em></div>
+            <div class="plus">查看</div>
+          </div>
+
+          <div style="margin-top:14px;font-size:10px;opacity:.6;line-height:1.7">
+            火断了不清零，从 1 重来，并留一句话在「断火记录」里。
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        <span class="t">情侣空间 · 火花<span class="id">G-14（新）</span></span>
+        每天说话自动 +1；几件小事各 +1 但每天封顶。断一天不清零，第二天从 1 重来，之前的天数进「最长」。
+      </figcaption>
+    </figure>
+
+    <!-- 查手机 -->
+    <figure>
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <span class="right">
+            <span class="bars"><i></i><i></i><i></i><i></i></span>
+            <span class="batt"></span>
+          </span>
+        </div>
+
+        <div class="navbar">
+          <span class="nav-back">‹</span>
+          <div class="nav-title"><span>沈砚的手机</span><em>他不在旁边</em></div>
+          <span style="font-size:13px;opacity:.7">⏱ 3:00</span>
+        </div>
+
+        <div class="peek-note">🔒 只能看，不能改。他回来之前你得放下。</div>
+
+        <div class="peek-tabs">
+          <div class="on">微信</div>
+          <div>相册</div>
+          <div>备忘录</div>
+          <div>通话</div>
+        </div>
+
+        <div class="peek-list">
+          <div class="peek-row">
+            <div class="av2">🐈</div>
+            <div class="who"><b>妈</b><span>周末回来吃饭吗</span></div>
+            <div class="when">20:51</div>
+          </div>
+          <div class="peek-row">
+            <div class="av2">🏀</div>
+            <div class="who"><b>陈叙</b><span>那事儿你别跟他提</span></div>
+            <div class="when">19:30</div>
+          </div>
+          <div class="peek-row">
+            <div class="av2">🫧</div>
+            <div class="who"><b>你</b><span>带伞了吗</span></div>
+            <div class="when">21:06</div>
+          </div>
+          <div class="peek-row">
+            <div class="av2">📦</div>
+            <div class="who"><b>顺丰速运</b><span>您的包裹已放至丰巢</span></div>
+            <div class="when">17:12</div>
+          </div>
+          <div class="peek-row">
+            <div class="av2">🎓</div>
+            <div class="who"><b>辅导员</b><span>明天九点来一趟办公室</span></div>
+            <div class="when">16:40</div>
+          </div>
+          <div class="peek-row">
+            <div class="av2">🏢</div>
+            <div class="who"><b>设计组</b><span>周舟：第二版我看了，节奏没问题</span></div>
+            <div class="when">15:02</div>
+          </div>
+          <div class="peek-row">
+            <div class="av2">🍜</div>
+            <div class="who"><b>沈砚</b><span>（自己的备忘）记得吃晚饭</span></div>
+            <div class="when">12:30</div>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:2;margin:14px 16px 0;font-size:9.5px;opacity:.55;line-height:1.6">
+          点开一条会看到完整聊天记录 —— 内容由他这两天的世界状态生成，不是随机抓的。
+        </div>
+      </div>
+      <figcaption>
+        <span class="t">查手机<span class="id">M-19</span></span>
+        前面是拟真界面（微信列表 → 具体对话 → 相册 / 备忘录 / 通话），背后是世界状态文档进提示词，生成的是他这几天真实发生过的事。
+      </figcaption>
+    </figure>
+
+    <!-- 今日日程 -->
+    <figure>
+      <div class="phone">
+        <div class="sb">
+          <span>9:41</span>
+          <span class="right">
+            <span class="bars"><i></i><i></i><i></i><i></i></span>
+            <span class="batt"></span>
+          </span>
+        </div>
+
+        <div class="navbar">
+          <span class="nav-back">‹</span>
+          <div class="nav-title"><span>日历</span><em>今天</em></div>
+          <span style="font-size:13px;opacity:.7">＋</span>
+        </div>
+
+        <div class="sched">
+          <div class="day-head">
+            <span class="d">7</span>
+            <span class="w">周五 · 十一月</span>
+          </div>
+
+          <div class="tl">
+            <div class="ev frost-1 active" style="border-radius:12px">
+              <div class="hh">09:30</div>
+              <div class="bar" style="background:#8fd0ff"></div>
+              <div class="ttl">设计评审</div>
+              <div class="sub">A 座 12 楼 · 和陆敏</div>
+              <div class="go">›</div>
+            </div>
+
+            <div class="ev frost-1" style="border-radius:12px">
+              <div class="hh">12:00</div>
+              <div class="bar" style="background:#ffc98a"></div>
+              <div class="ttl">和沈砚吃午饭</div>
+              <div class="sub">他订了位 · 说有事跟你讲</div>
+              <div class="go">›</div>
+            </div>
+
+            <div class="ev frost-1" style="border-radius:12px">
+              <div class="hh">15:00</div>
+              <div class="bar" style="background:#c8a8ff"></div>
+              <div class="ttl">交稿</div>
+              <div class="sub">第二版 · 图已放共享盘</div>
+              <div class="go">›</div>
+            </div>
+
+            <div class="ev frost-1" style="border-radius:12px;opacity:.66">
+              <div class="hh">20:00</div>
+              <div class="bar" style="background:#ffa8c0"></div>
+              <div class="ttl">和他看那部片子</div>
+              <div class="sub">他提过三次了</div>
+              <div class="go">›</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sheet">
+          <div class="grab"></div>
+          <div class="h">设计评审</div>
+          <div class="m">今天 09:30 – 10:30 · 已过</div>
+          <div class="line"><b>地点</b><span>A 座 12 楼 3 号会议室</span></div>
+          <div class="line"><b>同去</b><span>陆敏、周舟</span></div>
+          <div class="line"><b>备注</b><span>带上第二版，她说只看交互</span></div>
+          <div class="acts">
+            <div class="pri">跟他提一句</div>
+            <div>改时间</div>
+            <div>删掉</div>
+          </div>
+        </div>
+      </div>
+      <figcaption>
+        <span class="t">日程<span class="id">P-01</span></span>
+        时间轴上的条目直接点，底部浮出一张详情卡：地点、同去、备注，还有「跟他提一句」把它带进对话。
+      </figcaption>
+    </figure>
+  </div>
+
+  <div class="foot">
+    <h3>这一版之后排的顺序</h3>
+    <ul>
+      <li><b>本批（已提交）</b>：磨砂材质全套、气泡深浅、消息长按（复制 / 引用 / 编辑 / 撤回 / 删除）、拍一拍、信件分类收藏、TXT 导入阅读。</li>
+      <li><b>第二批</b>：主屏小组件（天气 / 火花 / 日程）、今日日程点开详情、情侣空间火花。</li>
+      <li><b>第三批</b>：查手机重做（拟真界面 + 世界状态进提示词）、角色心声按钮。</li>
+      <li><b>待你定形态</b>：论坛（现在只有西瓜皮提问箱，不是论坛）、世界书常驻面板、公共记忆库。</li>
+    </ul>
+
+    <h3>说明</h3>
+    <ul>
+      <li>这版是给眼睛看的：材质、层级、间距、拆了几个浮层。落地时数值仍从 <code>Theme</code> / <code>PhoneMetrics</code> 取，视图里不写字面色值。</li>
+      <li>字阶沿用系统那套（34 / 17 / 15 / 13 / 12），没为了「好看」另起一套字号 —— 手机拟真类 App 一旦字号飘了，立刻像网页。</li>
+      <li>头像、立绘这些要素材的没画进来，等图。</li>
+    </ul>
+  </div>
+
+</div>
+</body>
+</html>
