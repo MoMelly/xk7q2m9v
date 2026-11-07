@@ -59,6 +59,7 @@ struct PhoneShellView: View {
         case "feed": destination = .scene(.feed)
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
+        case "storyGame": destination = .scene(.storyGame)
         case "chatDetail", "chatMine", "chatEditor", "chatStickers", "chatPhoto", "avatarPicker",
              "charDetail", "call": destination = .chat
         case "chatNight": destination = .chat
