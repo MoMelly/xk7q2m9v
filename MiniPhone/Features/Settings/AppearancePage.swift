@@ -12,6 +12,8 @@ struct AppearancePage: View {
     @State private var scope: WallpaperScope = .home
     @State private var pickedPhoto: PhotosPickerItem?
     @State private var photoError: String?
+    @State private var chatPickedPhoto: PhotosPickerItem?
+    @State private var chatPhotoError: String?
     @State private var showVideoImporter = false
     @State private var alertText: String?
 
@@ -27,6 +29,7 @@ struct AppearancePage: View {
                 VStack(spacing: PhoneMetrics.Space.xl) {
                     scopeSection
                     wallpaperSection
+                    chatSection
                     videoSection
                 }
                 .padding(.top, PhoneMetrics.Space.s)
@@ -36,6 +39,10 @@ struct AppearancePage: View {
         .onChange(of: pickedPhoto) { _, item in
             guard let item else { return }
             Task { await importPhoto(item) }
+        }
+        .onChange(of: chatPickedPhoto) { _, item in
+            guard let item else { return }
+            Task { await importChatPhoto(item) }
         }
         .fileImporter(
             isPresented: $showVideoImporter,
@@ -221,6 +228,82 @@ struct AppearancePage: View {
 
     // MARK: - 视频
 
+    private var chatSection: some View {
+        GroupedSection(
+            "聊天背景",
+            footer: "信息 App 的聊天页和会话列表共用一份。相册图上面会压一层暗膜，保证气泡文字看得清。"
+        ) {
+            ForEach(Array(ChatBackgroundMode.allCases.enumerated()), id: \.offset) { index, mode in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        settings.setChatBackground(mode)
+                    }
+                } label: {
+                    HStack(spacing: PhoneMetrics.Space.s) {
+                        ChatBackgroundSwatch(
+                            mode: mode,
+                            photo: mode == .photo
+                                ? WallpaperPhoto.load(fileName: settings.chatBackgroundPhoto)
+                                : nil
+                        )
+
+                        Text(mode.displayName)
+                            .font(.system(size: PhoneMetrics.FontSize.body))
+                            .foregroundStyle(Theme.label)
+
+                        Spacer(minLength: 0)
+
+                        if settings.chatBackgroundMode == mode {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Theme.tint)
+                        }
+                    }
+                    .padding(.horizontal, PhoneMetrics.Space.m)
+                    .frame(minHeight: PhoneMetrics.Row.detailed)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                if index < ChatBackgroundMode.allCases.count - 1 {
+                    RowDivider()
+                }
+            }
+
+            RowDivider()
+
+            PhotosPicker(selection: $chatPickedPhoto, matching: .images, photoLibrary: .shared()) {
+                HStack(spacing: PhoneMetrics.Space.s) {
+                    Image(systemName: "photo.badge.plus")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(Theme.tint)
+                        .frame(width: 40, height: 40)
+
+                    Text(settings.chatBackgroundMode == .photo ? "换一张相册图" : "用相册里的图")
+                        .font(.system(size: PhoneMetrics.FontSize.body))
+                        .foregroundStyle(Theme.label)
+
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, PhoneMetrics.Space.m)
+                .frame(minHeight: PhoneMetrics.Row.detailed)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if let message = chatPhotoError {
+                Text(message)
+                    .font(.system(size: PhoneMetrics.FontSize.footnote))
+                    .foregroundStyle(Theme.warning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, PhoneMetrics.Space.m)
+                    .padding(.bottom, PhoneMetrics.Space.xs)
+            }
+        }
+    }
+
+    // MARK: - 视频
+
     private var videoSection: some View {
         GroupedSection(
             "视频壁纸",
@@ -287,6 +370,28 @@ struct AppearancePage: View {
             WallpaperPhoto.delete(fileName: old)
         } catch {
             photoError = (error as? LocalizedError)?.errorDescription ?? "存不下这张图。"
+        }
+    }
+
+    /// 聊天背景的相册导入。和桌面壁纸同一套：存图、换文件名、
+    /// 删旧文件，一步步来，失败时旧图不动。
+    private func importChatPhoto(_ item: PhotosPickerItem) async {
+        defer { chatPickedPhoto = nil }
+        chatPhotoError = nil
+
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else {
+            chatPhotoError = "这张图读不出来，换一张试试。"
+            return
+        }
+
+        do {
+            let name = try WallpaperPhoto.save(image: image)
+            let old = settings.chatBackgroundPhoto
+            settings.setChatBackgroundPhoto(name)
+            WallpaperPhoto.delete(fileName: old)
+        } catch {
+            chatPhotoError = (error as? LocalizedError)?.errorDescription ?? "存不下这张图。"
         }
     }
 

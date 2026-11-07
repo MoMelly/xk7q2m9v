@@ -17,6 +17,8 @@ final class SettingsStore {
         static let lockSeparate = "shell.lockSeparate"
         static let lockWallpaper = "shell.lockWallpaper"
         static let lockWallpaperPhoto = "shell.lockWallpaperPhoto"
+        static let chatBackground = "chat.background.mode"
+        static let chatBackgroundPhoto = "chat.background.photo"
         static let temperature = "llm.temperature"
         static let maxTokens = "llm.maxTokens"
         static let notifyReplies = "notify.replies"
@@ -41,6 +43,11 @@ final class SettingsStore {
     var lockSeparate: Bool = false
     var lockWallpaperRaw: String = WallpaperTheme.midnight.rawValue
     var lockWallpaperPhoto: String = ""
+    /// 信息 App 的背景模式：主题渐变 / 流动动效 / 相册图片。
+    var chatBackgroundRaw: String = ChatBackgroundMode.theme.rawValue
+    /// 相册图存进 `Documents/wallpapers`（和桌面壁纸同一个池子），
+    /// 这里只记文件名。
+    var chatBackgroundPhoto: String = ""
     var temperature: Double = 0.9
     var maxTokens: Int = 900
     /// 回复到了但 App 不在前台时，发一条本地通知（不需要推送证书）。
@@ -76,6 +83,10 @@ final class SettingsStore {
             lockWallpaperRaw = storedLock
         }
         lockWallpaperPhoto = defaults.string(forKey: DefaultsKey.lockWallpaperPhoto) ?? ""
+        if let storedChatBackground = defaults.string(forKey: DefaultsKey.chatBackground) {
+            chatBackgroundRaw = storedChatBackground
+        }
+        chatBackgroundPhoto = defaults.string(forKey: DefaultsKey.chatBackgroundPhoto) ?? ""
         if defaults.object(forKey: DefaultsKey.temperature) != nil {
             temperature = defaults.double(forKey: DefaultsKey.temperature)
         }
@@ -138,6 +149,29 @@ final class SettingsStore {
 
     var billingMode: BillingMode {
         BillingMode(rawValue: billingModeRaw) ?? .perToken
+    }
+
+    var chatBackgroundMode: ChatBackgroundMode {
+        ChatBackgroundMode(rawValue: chatBackgroundRaw) ?? .theme
+    }
+
+    /// 切聊天背景模式。离开照片档就把照片文件清掉——跟壁纸同一原则：
+    /// 留着的话界面显示选的是渐变、实际却还压着一张图，谁也说不清。
+    func setChatBackground(_ mode: ChatBackgroundMode) {
+        guard mode.rawValue != chatBackgroundRaw else { return }
+        chatBackgroundRaw = mode.rawValue
+        if mode != .photo {
+            let old = chatBackgroundPhoto
+            chatBackgroundPhoto = ""
+            WallpaperPhoto.delete(fileName: old)
+        }
+        persist()
+    }
+
+    func setChatBackgroundPhoto(_ fileName: String) {
+        chatBackgroundRaw = ChatBackgroundMode.photo.rawValue
+        chatBackgroundPhoto = fileName
+        persist()
     }
 
     var generationPlan: GenerationPlan {
@@ -222,6 +256,8 @@ final class SettingsStore {
         defaults.set(lockSeparate, forKey: DefaultsKey.lockSeparate)
         defaults.set(lockWallpaperRaw, forKey: DefaultsKey.lockWallpaper)
         defaults.set(lockWallpaperPhoto, forKey: DefaultsKey.lockWallpaperPhoto)
+        defaults.set(chatBackgroundRaw, forKey: DefaultsKey.chatBackground)
+        defaults.set(chatBackgroundPhoto, forKey: DefaultsKey.chatBackgroundPhoto)
         defaults.set(temperature, forKey: DefaultsKey.temperature)
         defaults.set(maxTokens, forKey: DefaultsKey.maxTokens)
         defaults.set(notifyReplies, forKey: DefaultsKey.notifyReplies)

@@ -53,7 +53,7 @@ struct ChatView: View {
 
     var body: some View {
         ZStack {
-            Theme.backgroundGradient.ignoresSafeArea()
+            ChatBackgroundView(settings: settings).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 header
@@ -75,6 +75,9 @@ struct ChatView: View {
             case "chatStickers":
                 showStickers = true
                 isComposerActive = true
+            case "chatDynamic":
+                // 截图流水线拍动效背景这一档；正常启动读不到这个键。
+                settings.chatBackgroundRaw = ChatBackgroundMode.dynamic.rawValue
             case "chatPhoto":
                 showPhotos = true
                 isComposerActive = true

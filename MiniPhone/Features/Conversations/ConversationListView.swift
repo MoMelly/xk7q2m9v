@@ -58,7 +58,7 @@ struct ConversationListView: View {
 
     var body: some View {
         ZStack {
-            Theme.backgroundGradient.ignoresSafeArea()
+            ChatBackgroundView(settings: settings).ignoresSafeArea()
 
             if let opened {
                 ChatView(
