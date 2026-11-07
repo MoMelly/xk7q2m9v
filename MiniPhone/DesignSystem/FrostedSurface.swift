@@ -16,11 +16,16 @@ struct FrostedSurface: ViewModifier {
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        // 材质本身跟 colorScheme 走。外壳锁深色时，ultraThinMaterial 会算成暗色，
+        // 垫多少白最后还是一片灰。这里把材质单独按浅色渲染，出来的才是透亮的毛玻璃。
+        let scheme: ColorScheme = ThemeStore.shared.isNight ? .dark : .light
 
         return content
             .background {
                 ZStack {
-                    shape.fill(.ultraThinMaterial)
+                    shape
+                        .fill(.ultraThinMaterial)
+                        .environment(\.colorScheme, scheme)
                     shape.fill(tint)
                 }
             }
