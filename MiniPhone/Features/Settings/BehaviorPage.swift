@@ -35,6 +35,22 @@ struct BehaviorPage: View {
                         .padding(.horizontal, PhoneMetrics.Space.m)
                         .frame(minHeight: PhoneMetrics.Row.single)
                     }
+
+                    // 上面那台是「他看我」，这一台是「我看他」。
+                    // 私密那一档默认锁着，打开之后才会去生成、也才会展开。
+                    GroupedSection(
+                        "看他的手机",
+                        footer: "桌面上的「TA 的手机」就是这一台。私密那一档锁着的时候，生成时不会写出这一类内容；打开之后重新生成一次，才会出现在里面。"
+                    ) {
+                        Toggle(isOn: $settings.allowPrivatePeek) {
+                            Text("允许看私密那一档")
+                                .font(.system(size: PhoneMetrics.FontSize.body))
+                                .foregroundStyle(Theme.label)
+                        }
+                        .tint(Theme.tint)
+                        .padding(.horizontal, PhoneMetrics.Space.m)
+                        .frame(minHeight: PhoneMetrics.Row.single)
+                    }
                 }
                 .padding(.top, PhoneMetrics.Space.s)
                 .padding(.bottom, PhoneMetrics.Space.xl)
@@ -47,5 +63,6 @@ struct BehaviorPage: View {
             }
         }
         .onChange(of: settings.allowPhoneLookups) { _, _ in settings.persist() }
+        .onChange(of: settings.allowPrivatePeek) { _, _ in settings.persist() }
     }
 }

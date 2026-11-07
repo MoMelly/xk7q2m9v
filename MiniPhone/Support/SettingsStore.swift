@@ -27,6 +27,7 @@ final class SettingsStore {
         static let billingMode = "llm.billingMode"
         static let billingByModel = "llm.billingByModel"
         static let allowPhoneLookups = "privacy.allowPhoneLookups"
+        static let allowPrivatePeek = "privacy.allowPrivatePeek"
         static let videoWallpaper = "shell.videoWallpaper"
         static let refreshRules = "refresh.rules"
         static let refreshInterval = "refresh.interval"
@@ -63,6 +64,8 @@ final class SettingsStore {
     var billingModeRaw: String = BillingMode.perToken.rawValue
     /// 关掉时，电量、机型、使用记录一律不进提示词。默认关。
     var allowPhoneLookups: Bool = false
+    /// 允许看「他的手机」里私密那一档。默认关：这一档本来就该先问一句。
+    var allowPrivatePeek: Bool = false
     var videoWallpaperEnabled: Bool = false
 
     /// 每个会自己更新的页面各自的开关与概率。
@@ -114,6 +117,7 @@ final class SettingsStore {
             ?? defaults.string(forKey: DefaultsKey.billingMode)
             ?? BillingMode.perToken.rawValue
         allowPhoneLookups = defaults.bool(forKey: DefaultsKey.allowPhoneLookups)
+        allowPrivatePeek = defaults.bool(forKey: DefaultsKey.allowPrivatePeek)
         videoWallpaperEnabled = defaults.bool(forKey: DefaultsKey.videoWallpaper)
         if let data = defaults.data(forKey: DefaultsKey.refreshRules),
            let decoded = try? JSONDecoder().decode([RefreshRule].self, from: data) {
@@ -297,6 +301,7 @@ final class SettingsStore {
         defaults.set(billingModeRaw, forKey: DefaultsKey.billingMode)
         defaults.set(billingByModel, forKey: DefaultsKey.billingByModel)
         defaults.set(allowPhoneLookups, forKey: DefaultsKey.allowPhoneLookups)
+        defaults.set(allowPrivatePeek, forKey: DefaultsKey.allowPrivatePeek)
         defaults.set(videoWallpaperEnabled, forKey: DefaultsKey.videoWallpaper)
         if let data = try? JSONEncoder().encode(refreshRules) {
             defaults.set(data, forKey: DefaultsKey.refreshRules)
