@@ -23,6 +23,9 @@ struct ChatView: View {
     /// 发图面板。和表情面板互斥，同时开两个会把输入栏顶到看不见。
     @State private var showPhotos = false
     @FocusState private var isInputFocused: Bool
+    /// 输入栏的完整态开关。默认收成一条安静的提示条——页面上摆一个
+    /// 等着打字的输入框，看上去就像对话正在进行到一半；点一下才醒。
+    @State private var isComposerActive = false
 
     init(character: Companion, settings: SettingsStore, onExit: @escaping () -> Void) {
         self.character = character
@@ -66,8 +69,10 @@ struct ChatView: View {
             switch UserDefaults.standard.string(forKey: "previewState") {
             case "chatStickers":
                 showStickers = true
+                isComposerActive = true
             case "chatPhoto":
                 showPhotos = true
+                isComposerActive = true
             case "charDetail":
                 showDetail = true
             case "call":
@@ -76,6 +81,11 @@ struct ChatView: View {
                 break
             }
         }
+        // 收键盘、关面板、发完消息之后都试一次躺回收起态。
+        .onChange(of: isInputFocused) { _, _ in settleComposerIfNeeded() }
+        .onChange(of: showStickers) { _, _ in settleComposerIfNeeded() }
+        .onChange(of: showPhotos) { _, _ in settleComposerIfNeeded() }
+        .onChange(of: draft) { _, _ in settleComposerIfNeeded() }
         .sheet(isPresented: $showDetail) {
             CharacterDetailPage(
                 character: character,
@@ -331,7 +341,35 @@ struct ChatView: View {
 
     // MARK: - 输入条
 
+    @ViewBuilder
     private var composer: some View {
+        if isComposerActive {
+            activeComposer
+        } else {
+            restingComposer
+        }
+    }
+
+    /// 收起态：一条安静的提示条，没有按钮、没有光标。
+    /// 页面上常驻一个等着打字的输入框，看上去就像对话进行到一半；
+    /// 点一下才醒。整条可点，点完直接进完整输入态。
+    private var restingComposer: some View {
+        HStack {
+            Text("点这里说话")
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.cream.opacity(0.38))
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 38)
+        .glassSurface(cornerRadius: 22)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: activateComposer)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+
+    private var activeComposer: some View {
         HStack(spacing: 10) {
             // 微信那套：输入框左边的加号里放通话。拨号不再占桌面一格。
             GlassMenuButton(symbol: "plus", size: 30) {
@@ -391,6 +429,24 @@ struct ChatView: View {
         .glassSurface(cornerRadius: 26)
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
+    }
+
+    private func activateComposer() {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            isComposerActive = true
+        }
+        isInputFocused = true
+    }
+
+    /// 什么时候可以躺回去：没在打字、面板没开着、也没在等回复。
+    /// 流式中保持完整态——发送键上挂着进度圈，收起就看不见了。
+    private func settleComposerIfNeeded() {
+        let panelOpen = showStickers || showPhotos
+        if !isInputFocused && draft.isEmpty && !panelOpen && !viewModel.isStreaming {
+            withAnimation(.easeInOut(duration: 0.18)) {
+                isComposerActive = false
+            }
+        }
     }
 
     // MARK: - 表情面板

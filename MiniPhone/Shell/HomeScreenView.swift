@@ -86,21 +86,15 @@ struct HomeScreenView: View {
         }
         .padding(.horizontal, PhoneMetrics.dockHorizontalPadding)
         .frame(height: PhoneMetrics.dockHeight)
-        .glassSurface(cornerRadius: 34)
-        // 日间在浅壁纸上给 Dock 补一层白：系统材质跟着外层深色方案走，
-        // 单靠 glassEffect 会压成一块深灰，粉壁纸上像贴了块黑玻璃。
-        .overlay {
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .fill(Color.white.opacity(dockWash))
-                .allowsHitTesting(false)
-        }
+        // 白膜直接垫进玻璃里，不再外面叠 overlay：材质本体被外壳深色方案
+        // 压暗后，外面那层白只会调成一块灰，垫进去才能保住玻璃的透亮。
+        .glassSurface(
+            cornerRadius: 34,
+            tint: ThemeStore.shared.isNight
+                ? Color.white.opacity(0.14)
+                : Color.white.opacity(0.46)
+        )
         .padding(.horizontal, 12)
-    }
-
-    private var dockWash: Double {
-        // 叠得薄了还是灰的：系统材质在外壳的深色方案下压得比想象中狠，
-        // 0.34 只在粉壁上留一层灰膜，要 0.62 才真的发白。
-        ThemeStore.shared.isNight ? 0 : 0.62
     }
 }
 
