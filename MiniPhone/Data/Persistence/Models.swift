@@ -373,6 +373,53 @@ final class NoteItem {
     }
 }
 
+/// 我自己导入的一本 txt。
+///
+/// 只存纯文本，不解析排版：txt 里本来就没有排版，硬抽章节遇到格式不规整的
+/// 反而会把正文切碎。阅读进度按段落序号存，换字号也不会跑位。
+@Model
+final class ReadingBook {
+    var uid: UUID = UUID()
+    var title: String = ""
+    var body: String = ""
+    /// 读到第几段。段落由换行切出来，天然稳定。
+    var paragraphIndex: Int = 0
+    var paragraphCount: Int = 0
+    var addedAt: Date = Date()
+    var lastReadAt: Date?
+
+    init(title: String, body: String) {
+        self.uid = UUID()
+        self.title = title
+        self.body = body
+        self.addedAt = Date()
+        self.paragraphCount = ReadingBook.split(body).count
+    }
+
+    /// 按空行 / 换行切段，去掉全空的段。
+    static func split(_ text: String) -> [String] {
+        text
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    var paragraphs: [String] { ReadingBook.split(body) }
+
+    var progress: Double {
+        guard paragraphCount > 0 else { return 0 }
+        return min(1, Double(paragraphIndex) / Double(paragraphCount))
+    }
+
+    /// 列表里的第二行：字数 + 读到百分之几。
+    var summary: String {
+        let chars = body.count
+        let percent = Int((progress * 100).rounded())
+        return "\(chars) 字 · 读到 \(percent)%"
+    }
+}
+
 /// 设定集条目（世界书的简化版）：命中关键词才注入提示词。
 @Model
 final class WorldEntry {
