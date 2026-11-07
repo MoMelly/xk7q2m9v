@@ -102,7 +102,10 @@ enum StoryArchive {
         )) ?? []
         return files
             .filter { $0.pathExtension == "json" }
-            .compactMap { try? JSONDecoder.decodeWithISODate(StorySession.self, from: $0) }
+            .compactMap { url in
+                guard let data = try? Data(contentsOf: url) else { return nil }
+                return try? JSONDecoder.decodeWithISODate(StorySession.self, from: data)
+            }
             .sorted { $0.updatedAt > $1.updatedAt }
     }
 
