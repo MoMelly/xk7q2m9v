@@ -73,11 +73,13 @@ struct PreviewSeeder {
             world.seedPreviewShop()
 
         case "phonePeek":
-            // 截图要看到内容，不能是「还没生成」那一屏。垫一个角色 + 一台写好的手机。
-            let owner = companions.first?.name ?? "沈砚"
-            if companions.isEmpty {
+            // 截图要看到内容，不能是「还没生成」那一屏。
+            // 内置的小助手会在启动时自动建好，所以这里不能只看「有没有角色」，
+            // 要专门确认这台手机的主人存在。
+            let owner = "沈砚"
+            if !companions.contains(where: { $0.name == owner }) {
                 let character = Companion(
-                    name: "沈砚",
+                    name: owner,
                     persona: "在杭州做设计，话不多，记性好，习惯把事压在心里不说。",
                     greeting: "回来了？"
                 )

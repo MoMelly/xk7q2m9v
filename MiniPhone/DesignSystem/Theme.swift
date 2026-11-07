@@ -95,6 +95,8 @@ enum Theme {
         static let gray = Color(red: 0.48, green: 0.50, blue: 0.55)
         static let green = Color(red: 0.35, green: 0.60, blue: 0.40)
         static let indigo = Color(red: 0.55, green: 0.42, blue: 0.78)
+        static let teal = Color(red: 0.20, green: 0.62, blue: 0.66)
+        static let yellow = Color(red: 0.93, green: 0.72, blue: 0.18)
     }
 
     /// 「西瓜皮」自己的那套色。

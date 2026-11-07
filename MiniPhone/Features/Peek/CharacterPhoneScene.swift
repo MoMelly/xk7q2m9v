@@ -19,10 +19,11 @@ struct CharacterPhoneScene: View {
     private var service: CharacterPhoneService { .shared }
 
     /// 最近说过话的那个角色。查手机查的是「此刻在我旁边的那个人」，
-    /// 所以按最后一条消息时间挑，没说过话的排后面。
+    /// 所以按最后一条消息时间挑。内置的小助手不算 —— 它不是谈恋爱的对象。
     private var owner: Companion? {
-        companions
-            .filter { !$0.isFeedOnly }
+        let candidates = companions.filter { !$0.isFeedOnly && $0.name != DefaultAssistant.name }
+        let pool = candidates.isEmpty ? companions.filter { !$0.isFeedOnly } : candidates
+        return pool
             .sorted { lhs, rhs in
                 (lhs.lastMessageAt ?? .distantPast) > (rhs.lastMessageAt ?? .distantPast)
             }
@@ -99,8 +100,10 @@ struct CharacterPhoneScene: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(PhoneMetrics.Space.m)
+                .padding(PhoneMetrics.Space.l)
                 .frostedCard(cornerRadius: PhoneMetrics.Radius.widget, shadow: .none)
+
+                usageCard
 
                 footer(phone)
             }
@@ -115,9 +118,7 @@ struct CharacterPhoneScene: View {
     }
 
     private var note: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "lock.open")
-                .font(.system(size: 11, weight: .semibold))
+        HStack(spacing: 0) {
             Text("他不在旁边。看完记得放下。")
                 .font(.system(size: PhoneMetrics.FontSize.footnote))
             Spacer(minLength: 0)
@@ -127,15 +128,32 @@ struct CharacterPhoneScene: View {
         .padding(.top, PhoneMetrics.Space.s)
     }
 
+    /// 说明这块是干什么的，顺便把规矩讲清楚：翻过不等于他会知道。
+    private var usageCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("翻过的东西不会自动进他的记忆")
+                .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .medium))
+                .foregroundStyle(AppSurface.light.label)
+
+            Text("要不要把看到的事说出来，你自己决定。说了，他才知道你看过。")
+                .font(.system(size: PhoneMetrics.FontSize.caption))
+                .foregroundStyle(AppSurface.light.secondaryLabel)
+                .lineSpacing(3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(PhoneMetrics.Space.m)
+        .frostedCard(cornerRadius: PhoneMetrics.Radius.card, shadow: .none)
+    }
+
     private func tile(_ app: PeekApp, _ phone: CharacterPhone) -> some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 7) {
             ZStack(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                RoundedRectangle(cornerRadius: 15, style: .continuous)
                     .fill(app.tint)
-                    .frame(width: 54, height: 54)
+                    .frame(width: 62, height: 62)
                     .overlay {
                         Image(systemName: app.symbol)
-                            .font(.system(size: 22, weight: .medium))
+                            .font(.system(size: 25, weight: .medium))
                             .foregroundStyle(.white)
                     }
                     .opacity(app.needsPrivate && !settings.allowPrivatePeek ? 0.45 : 1)
@@ -152,7 +170,7 @@ struct CharacterPhoneScene: View {
             }
 
             Text(app.title)
-                .font(.system(size: 11))
+                .font(.system(size: 11.5))
                 .foregroundStyle(AppSurface.light.label)
                 .lineLimit(1)
         }
@@ -329,8 +347,8 @@ enum PeekApp: String, CaseIterable, Identifiable {
         switch self {
         case .chats: return Theme.IconTint.green
         case .album: return Theme.IconTint.orange
-        case .notes: return Theme.IconTint.orange
-        case .calls: return Theme.IconTint.green
+        case .notes: return Theme.IconTint.yellow
+        case .calls: return Theme.IconTint.teal
         case .shopping: return Theme.IconTint.pink
         case .web: return Theme.IconTint.indigo
         case .usage: return Theme.IconTint.gray
