@@ -88,11 +88,13 @@ struct HomeScreenView: View {
         .frame(height: PhoneMetrics.dockHeight)
         // 白膜直接垫进玻璃里，不再外面叠 overlay：材质本体被外壳深色方案
         // 压暗后，外面那层白只会调成一块灰，垫进去才能保住玻璃的透亮。
+        // 日间 0.70：材质的灰底在浅色壁纸上就是脏灰，白膜要盖过它才算「纯」，
+        // 0.46 那档还是灰的（她 11-07 二次点名）；留 0.3 透壁纸，玻璃不死白。
         .glassSurface(
             cornerRadius: 34,
             tint: ThemeStore.shared.isNight
                 ? Color.white.opacity(0.14)
-                : Color.white.opacity(0.46)
+                : Color.white.opacity(0.70)
         )
         .padding(.horizontal, 12)
     }
