@@ -3,9 +3,9 @@ import SwiftData
 
 /// 「信息」第四格：我的资料。
 ///
-/// 这一页只做目录：名字、签名、状态、头像各占一行，编辑全部收进次级页。
-/// 之前把头像、符号网格、底色、状态条全铺在一页上，看着像一张表单，
-/// 找一个要改的东西得扫整屏；列表加次级页是系统设置的标准走法。
+/// 这一页只做目录：状态、签名紧跟在头像名字下面，名字和头像的编辑在后两个分组，
+/// 具体编辑全收进次级页。分组底是液态玻璃，直接坐在页面的深绿渐变上，
+/// 不再垫白卡片——白卡片在这块深底上像贴了两张纸。
 struct MyProfilePage: View {
     @Bindable var profile: UserProfile
 
@@ -25,24 +25,28 @@ struct MyProfilePage: View {
             VStack(spacing: PhoneMetrics.Space.m) {
                 header
 
+                // 状态和签名紧跟在头像名字下面，是这页最常动的两行；
+                // 名字设完基本不再碰，排最后。
                 GroupedSection(
-                    "资料",
-                    footer: "名字、签名和状态会进角色的提示词。想用别的身份跟角色聊天，去「设置 → 我的人设」另建一个。"
+                    footer: "名字、签名和状态会进角色的提示词。想用别的身份跟角色聊天，去「设置 → 我的人设」另建一个。",
+                    surface: .glass,
+                    glass: true
                 ) {
                     Button {
-                        activeEditor = .name
+                        activeEditor = .status
                     } label: {
                         GroupedRow(
-                            symbol: "person.fill",
-                            symbolTint: Theme.IconTint.gray,
-                            title: "名字",
-                            value: profile.name.isEmpty ? nil : profile.name,
-                            showsChevron: true
+                            symbol: "sparkles",
+                            symbolTint: Theme.IconTint.purple,
+                            title: "状态",
+                            value: profile.statusText.isEmpty ? "没设" : profile.statusText,
+                            showsChevron: true,
+                            surface: .glass
                         )
                     }
                     .buttonStyle(.plain)
 
-                    RowDivider()
+                    RowDivider(surface: .glass)
 
                     Button {
                         activeEditor = .signature
@@ -52,22 +56,24 @@ struct MyProfilePage: View {
                             symbolTint: Theme.IconTint.green,
                             title: "签名",
                             value: profile.signature.isEmpty ? nil : profile.signature,
-                            showsChevron: true
+                            showsChevron: true,
+                            surface: .glass
                         )
                     }
                     .buttonStyle(.plain)
 
-                    RowDivider()
+                    RowDivider(surface: .glass)
 
                     Button {
-                        activeEditor = .status
+                        activeEditor = .name
                     } label: {
                         GroupedRow(
-                            symbol: "sparkles",
-                            symbolTint: Theme.IconTint.purple,
-                            title: "状态",
-                            value: profile.statusText.isEmpty ? "没设" : profile.statusText,
-                            showsChevron: true
+                            symbol: "person.fill",
+                            symbolTint: Theme.IconTint.gray,
+                            title: "名字",
+                            value: profile.name.isEmpty ? nil : profile.name,
+                            showsChevron: true,
+                            surface: .glass
                         )
                     }
                     .buttonStyle(.plain)
@@ -75,7 +81,9 @@ struct MyProfilePage: View {
 
                 GroupedSection(
                     "头像",
-                    footer: "有照片时符号不显示。想用回符号，在「换头像」里选「不用照片」。"
+                    footer: "有照片时符号不显示。想用回符号，在「换头像」里选「不用照片」。",
+                    surface: .glass,
+                    glass: true
                 ) {
                     Button {
                         showAvatarPicker = true
@@ -84,12 +92,13 @@ struct MyProfilePage: View {
                             symbol: "photo.on.rectangle",
                             symbolTint: Theme.IconTint.orange,
                             title: "换头像",
-                            showsChevron: true
+                            showsChevron: true,
+                            surface: .glass
                         )
                     }
                     .buttonStyle(.plain)
 
-                    RowDivider()
+                    RowDivider(surface: .glass)
 
                     Button {
                         activeEditor = .symbol
@@ -99,12 +108,13 @@ struct MyProfilePage: View {
                             symbolTint: Theme.IconTint.indigo,
                             title: "符号头像",
                             value: profile.avatarSymbol.isEmpty ? "首字" : "已选",
-                            showsChevron: true
+                            showsChevron: true,
+                            surface: .glass
                         )
                     }
                     .buttonStyle(.plain)
 
-                    RowDivider()
+                    RowDivider(surface: .glass)
 
                     Button {
                         activeEditor = .tint
@@ -113,7 +123,8 @@ struct MyProfilePage: View {
                             symbol: "paintpalette.fill",
                             symbolTint: Theme.IconTint.pink,
                             title: "底色",
-                            showsChevron: true
+                            showsChevron: true,
+                            surface: .glass
                         )
                     }
                     .buttonStyle(.plain)
@@ -168,6 +179,7 @@ struct MyProfilePage: View {
     // MARK: - 页头
 
     /// 只负责认人：头像、名字、现在的状态。可点的编辑都在下面的分组里。
+    /// 背景是固定的深绿渐变，文字用玻璃面的白，不跟深浅模式翻。
     private var header: some View {
         VStack(spacing: PhoneMetrics.Space.xs) {
             Button {
@@ -179,7 +191,7 @@ struct MyProfilePage: View {
 
             Text(profile.name.isEmpty ? "我" : profile.name)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(AppSurface.light.label)
+                .foregroundStyle(AppSurface.glass.label)
 
             if !profile.statusText.isEmpty {
                 HStack(spacing: 5) {
@@ -188,7 +200,7 @@ struct MyProfilePage: View {
                     }
                     Text(profile.statusText)
                         .font(.system(size: PhoneMetrics.FontSize.caption))
-                        .foregroundStyle(AppSurface.light.secondaryLabel)
+                        .foregroundStyle(AppSurface.glass.secondaryLabel)
                 }
             }
         }
