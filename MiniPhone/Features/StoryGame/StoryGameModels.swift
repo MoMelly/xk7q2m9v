@@ -70,6 +70,7 @@ struct StorySession: Codable, Identifiable, Hashable {
         characterNames: [String],
         playerName: String
     ) {
+        id = UUID()
         self.title = title
         self.premise = premise
         self.characterUIDs = characterUIDs
