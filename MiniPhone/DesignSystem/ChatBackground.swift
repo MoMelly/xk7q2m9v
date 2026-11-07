@@ -1,5 +1,45 @@
 import SwiftUI
 
+/// 用户气泡的样式档。
+///
+/// 她点名绿色气泡要能自定义。玻璃档是气泡跟着背景走的透明款；
+/// 彩色档换底色，文字自动配深浅（薄荷配深绿字，其余配白字）。
+enum ChatBubbleStyle: String, CaseIterable, Identifiable {
+    case mint
+    case blue
+    case pink
+    case purple
+    case glass
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .mint: return "薄荷"
+        case .blue: return "蓝"
+        case .pink: return "粉"
+        case .purple: return "紫"
+        case .glass: return "玻璃"
+        }
+    }
+
+    /// 玻璃档返回 nil，气泡走 glassSurface。
+    var fillColor: Color? {
+        switch self {
+        case .mint: return Theme.mint
+        case .blue: return Color(red: 0.36, green: 0.72, blue: 1.0)
+        case .pink: return Color(red: 1.0, green: 0.56, blue: 0.72)
+        case .purple: return Color(red: 0.72, green: 0.60, blue: 1.0)
+        case .glass: return nil
+        }
+    }
+
+    /// 底色上的字色。薄荷保持原来的深绿，其他亮色配白才不脏。
+    var labelColor: Color {
+        self == .mint ? Theme.deepGreen : .white
+    }
+}
+
 /// 信息 App 的背景模式。
 ///
 /// 主题渐变是墨绿底；流动动效在主题色上做缓慢漂移和呼吸；
@@ -131,5 +171,181 @@ struct ChatBackgroundSwatch: View {
             RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
                 .strokeBorder(Theme.separator, lineWidth: 0.5)
         }
+    }
+}
+
+/// 「聊天背景 + 气泡颜色」的设置节。
+///
+/// 外观页和「我的」页共用：她说换背景的入口藏在设置里找不到，
+/// 要在「我的」里也能进。所以整节抽出来，两处引用同一份。
+struct ChatBackgroundSection: View {
+    let settings: SettingsStore
+
+    @State private var pickedPhoto: PhotosPickerItem?
+    @State private var photoError: String?
+
+    var body: some View {
+        GroupedSection(
+            "聊天背景",
+            footer: "信息 App 的聊天页和会话列表共用一份。相册图上面会压一层暗膜，保证气泡文字看得清。"
+        ) {
+            modeRows
+            RowDivider()
+            photoRow
+
+            if let message = photoError {
+                Text(message)
+                    .font(.system(size: PhoneMetrics.FontSize.footnote))
+                    .foregroundStyle(Theme.warning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, PhoneMetrics.Space.m)
+                    .padding(.bottom, PhoneMetrics.Space.xs)
+            }
+
+            RowDivider()
+            bubbleRows
+        }
+    }
+
+    private var modeRows: some View {
+        ForEach(Array(ChatBackgroundMode.allCases.enumerated()), id: \.offset) { index, mode in
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    settings.setChatBackground(mode)
+                }
+            } label: {
+                HStack(spacing: PhoneMetrics.Space.s) {
+                    ChatBackgroundSwatch(
+                        mode: mode,
+                        photo: mode == .photo
+                            ? WallpaperPhoto.load(fileName: settings.chatBackgroundPhoto)
+                            : nil
+                    )
+
+                    Text(mode.displayName)
+                        .font(.system(size: PhoneMetrics.FontSize.body))
+                        .foregroundStyle(Theme.label)
+
+                    Spacer(minLength: 0)
+
+                    if settings.chatBackgroundMode == mode {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.tint)
+                    }
+                }
+                .padding(.horizontal, PhoneMetrics.Space.m)
+                .frame(minHeight: PhoneMetrics.Row.detailed)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if index < ChatBackgroundMode.allCases.count - 1 {
+                RowDivider()
+            }
+        }
+    }
+
+    private var photoRow: some View {
+        PhotosPicker(selection: $pickedPhoto, matching: .images, photoLibrary: .shared()) {
+            HStack(spacing: PhoneMetrics.Space.s) {
+                Image(systemName: "photo.badge.plus")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(Theme.tint)
+                    .frame(width: 40, height: 40)
+
+                Text(settings.chatBackgroundMode == .photo ? "换一张相册图" : "用相册里的图")
+                    .font(.system(size: PhoneMetrics.FontSize.body))
+                    .foregroundStyle(Theme.label)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, PhoneMetrics.Space.m)
+            .frame(minHeight: PhoneMetrics.Row.detailed)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onChange(of: pickedPhoto) { _, item in
+            guard let item else { return }
+            Task { await importPhoto(item) }
+        }
+    }
+
+    private var bubbleRows: some View {
+        ForEach(Array(ChatBubbleStyle.allCases.enumerated()), id: \.offset) { index, style in
+            Button {
+                settings.setChatBubble(style)
+            } label: {
+                HStack(spacing: PhoneMetrics.Space.s) {
+                    BubbleSwatch(style: style)
+
+                    Text(style.displayName)
+                        .font(.system(size: PhoneMetrics.FontSize.body))
+                        .foregroundStyle(Theme.label)
+
+                    Spacer(minLength: 0)
+
+                    if settings.chatBubbleStyle == style {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Theme.tint)
+                    }
+                }
+                .padding(.horizontal, PhoneMetrics.Space.m)
+                .frame(minHeight: PhoneMetrics.Row.detailed)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if index < ChatBubbleStyle.allCases.count - 1 {
+                RowDivider()
+            }
+        }
+    }
+
+    private func importPhoto(_ item: PhotosPickerItem) async {
+        defer { pickedPhoto = nil }
+        photoError = nil
+
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else {
+            photoError = "这张图读不出来，换一张试试。"
+            return
+        }
+
+        do {
+            let name = try WallpaperPhoto.save(image: image)
+            let old = settings.chatBackgroundPhoto
+            settings.setChatBackgroundPhoto(name)
+            WallpaperPhoto.delete(fileName: old)
+        } catch {
+            photoError = (error as? LocalizedError)?.errorDescription ?? "存不下这张图。"
+        }
+    }
+}
+
+/// 气泡样式行的小样：一枚迷你气泡。
+struct BubbleSwatch: View {
+    let style: ChatBubbleStyle
+
+    var body: some View {
+        Group {
+            if let fill = style.fillColor {
+                Text("你好")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(style.labelColor)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(fill))
+            } else {
+                Text("你好")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.cream)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .glassSurface(cornerRadius: 12)
+            }
+        }
+        .frame(width: 40, height: 40)
     }
 }

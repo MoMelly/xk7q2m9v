@@ -72,7 +72,7 @@ enum AppCatalog {
                  symbolTint: Color(red: 0.96, green: 0.30, blue: 0.40)),
         PhoneApp(id: "photos", name: "照片", symbol: "photo.fill",
                  colors: [Color(red: 1.0, green: 0.88, blue: 0.44), Color(red: 0.98, green: 0.54, blue: 0.48)],
-                 destination: .moments,
+                 destination: .scene(.photoLibrary),
                  symbolTint: .white),
 
         PhoneApp(id: "letters", name: "信件", symbol: "envelope.fill",

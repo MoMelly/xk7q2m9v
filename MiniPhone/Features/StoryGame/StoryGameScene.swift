@@ -119,7 +119,10 @@ struct StoryGameScene: View {
     }
 }
 
-/// 开局页：故事线、角色、标题。
+/// 开局页：故事线、标题、角色全是使用者自己定。
+///
+/// 之前有过一个「让 AI 起标题、挑角色」的按钮，她实测点名不要——
+/// 标题她自己起，角色她自己挑，AI 只负责把故事讲好。
 struct StorySetupPage: View {
     let settings: SettingsStore
     @Bindable var viewModel: StoryGameViewModel
@@ -134,7 +137,9 @@ struct StorySetupPage: View {
     private var roster: [Companion] { StoryGameViewModel.roster(context: modelContext) }
 
     private var canStart: Bool {
-        !premise.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !selected.isEmpty
+        !premise.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && !selected.isEmpty
     }
 
     var body: some View {
@@ -142,7 +147,6 @@ struct StorySetupPage: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: PhoneMetrics.Space.l) {
                     premiseBlock
-                    planBlock
                     titleBlock
                     rosterBlock
                 }
@@ -206,43 +210,14 @@ struct StorySetupPage: View {
         }
     }
 
-    // MARK: - 让模型挑角色
-
-    private var planBlock: some View {
-        Button {
-            Task {
-                await viewModel.planStory(premise: premise, roster: roster, settings: settings)
-                title = viewModel.suggestedTitle
-                selected = Set(viewModel.suggestedUIDs)
-            }
-        } label: {
-            HStack {
-                if viewModel.isPlanning {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(Theme.deepGreen)
-                    Text("正在挑角色…")
-                } else {
-                    Image(systemName: "sparkles")
-                    Text("让 AI 起标题、挑角色")
-                }
-            }
-            .font(.system(size: PhoneMetrics.FontSize.sub, weight: .medium))
-            .foregroundStyle(Theme.deepGreen)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, PhoneMetrics.Space.s)
-            .background(Capsule().fill(Theme.mint))
-        }
-        .buttonStyle(.plain)
-        .disabled(premise.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isPlanning)
-    }
+    // MARK: - 标题
 
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: PhoneMetrics.Space.xs) {
-            Text("标题（可改）")
+            Text("标题")
                 .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .semibold))
                 .foregroundStyle(AppSurface.light.secondaryLabel)
-            TextField("故事标题", text: $title)
+            TextField("给这个故事起个名", text: $title)
                 .font(.system(size: PhoneMetrics.FontSize.sub))
                 .foregroundStyle(AppSurface.light.label)
                 .padding(PhoneMetrics.Space.s)

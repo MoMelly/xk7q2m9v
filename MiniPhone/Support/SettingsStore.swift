@@ -19,6 +19,8 @@ final class SettingsStore {
         static let lockWallpaperPhoto = "shell.lockWallpaperPhoto"
         static let chatBackground = "chat.background.mode"
         static let chatBackgroundPhoto = "chat.background.photo"
+        static let chatBubble = "chat.bubble.style"
+        static let homeTextInk = "shell.homeTextInk"
         static let temperature = "llm.temperature"
         static let maxTokens = "llm.maxTokens"
         static let notifyReplies = "notify.replies"
@@ -48,6 +50,11 @@ final class SettingsStore {
     /// 相册图存进 `Documents/wallpapers`（和桌面壁纸同一个池子），
     /// 这里只记文件名。
     var chatBackgroundPhoto: String = ""
+    /// 用户气泡的样式档（薄荷/蓝/粉/紫/玻璃）。
+    var chatBubbleRaw: String = ChatBubbleStyle.mint.rawValue
+    /// 桌面/锁屏文字颜色档（自动/白/黑）。读取方（图标名、状态栏）直接读
+    /// UserDefaults（见 HomeTextInk），这里存档是为了设置页的选中态。
+    var homeTextInkRaw: String = HomeTextInk.auto.rawValue
     var temperature: Double = 0.9
     var maxTokens: Int = 900
     /// 回复到了但 App 不在前台时，发一条本地通知（不需要推送证书）。
@@ -87,6 +94,12 @@ final class SettingsStore {
             chatBackgroundRaw = storedChatBackground
         }
         chatBackgroundPhoto = defaults.string(forKey: DefaultsKey.chatBackgroundPhoto) ?? ""
+        if let storedBubble = defaults.string(forKey: DefaultsKey.chatBubble) {
+            chatBubbleRaw = storedBubble
+        }
+        if let storedInk = defaults.string(forKey: DefaultsKey.homeTextInk) {
+            homeTextInkRaw = storedInk
+        }
         if defaults.object(forKey: DefaultsKey.temperature) != nil {
             temperature = defaults.double(forKey: DefaultsKey.temperature)
         }
@@ -174,6 +187,24 @@ final class SettingsStore {
         persist()
     }
 
+    var chatBubbleStyle: ChatBubbleStyle {
+        ChatBubbleStyle(rawValue: chatBubbleRaw) ?? .mint
+    }
+
+    func setChatBubble(_ style: ChatBubbleStyle) {
+        chatBubbleRaw = style.rawValue
+        persist()
+    }
+
+    var homeTextInk: HomeTextInk {
+        HomeTextInk(rawValue: homeTextInkRaw) ?? .auto
+    }
+
+    func setHomeTextInk(_ ink: HomeTextInk) {
+        homeTextInkRaw = ink.rawValue
+        persist()
+    }
+
     var generationPlan: GenerationPlan {
         GenerationPlan(mode: billingMode)
     }
@@ -258,6 +289,8 @@ final class SettingsStore {
         defaults.set(lockWallpaperPhoto, forKey: DefaultsKey.lockWallpaperPhoto)
         defaults.set(chatBackgroundRaw, forKey: DefaultsKey.chatBackground)
         defaults.set(chatBackgroundPhoto, forKey: DefaultsKey.chatBackgroundPhoto)
+        defaults.set(chatBubbleRaw, forKey: DefaultsKey.chatBubble)
+        defaults.set(homeTextInkRaw, forKey: DefaultsKey.homeTextInk)
         defaults.set(temperature, forKey: DefaultsKey.temperature)
         defaults.set(maxTokens, forKey: DefaultsKey.maxTokens)
         defaults.set(notifyReplies, forKey: DefaultsKey.notifyReplies)

@@ -8,9 +8,11 @@ import SwiftData
 /// 不再垫白卡片——白卡片在这块深底上像贴了两张纸。
 struct MyProfilePage: View {
     @Bindable var profile: UserProfile
+    let settings: SettingsStore
 
     @Environment(\.modelContext) private var context
     @State private var showAvatarPicker = false
+    @State private var showChatLook = false
     /// 正在编辑的次级页。宿主没有导航栈，「信息」页自己拼的顶栏加 tabBar
     /// 也不适合被推入，所以次级菜单全走模态。
     @State private var activeEditor: ActiveEditor?
@@ -129,12 +131,53 @@ struct MyProfilePage: View {
                     }
                     .buttonStyle(.plain)
                 }
+
+                // 聊天背景和气泡颜色。她实测时在设置里找不到入口，
+                // 点名要放进「我的」——这里就是聊天外观的主入口。
+                GroupedSection(
+                    "外观",
+                    footer: "聊天页的背景和气泡颜色。相册图、动态背景都在这里换。",
+                    surface: .glass,
+                    glass: true
+                ) {
+                    Button {
+                        showChatLook = true
+                    } label: {
+                        GroupedRow(
+                            symbol: "paintbrush.fill",
+                            symbolTint: Theme.IconTint.indigo,
+                            title: "聊天背景与气泡",
+                            value: settings.chatBackgroundMode.displayName,
+                            showsChevron: true,
+                            surface: .glass
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.top, PhoneMetrics.Space.s)
             .padding(.bottom, PhoneMetrics.Space.xl)
         }
-        .background(Theme.backgroundGradient.ignoresSafeArea())
+        // 不再自己铺墨绿底：这页嵌在会话列表里，背后就是聊天背景
+        // （主题渐变/流动动效/相册图），玻璃分组透出去的才是同一片背景。
         .onDisappear(perform: save)
+        .sheet(isPresented: $showChatLook) {
+            NavigationStack {
+                ScrollView {
+                    ChatBackgroundSection(settings: settings)
+                        .padding(.top, PhoneMetrics.Space.s)
+                        .padding(.bottom, PhoneMetrics.Space.xl)
+                }
+                .background(AppSurface.light.background.ignoresSafeArea())
+                .navigationTitle("聊天背景与气泡")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完成") { showChatLook = false }
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showAvatarPicker) {
             AvatarPickerSheet(
                 fallbackNote: "不用照片时，显示首字或符号头像。",
@@ -272,7 +315,7 @@ struct ProfileFieldPage: View {
             }
             .padding(.top, PhoneMetrics.Space.s)
         }
-        .background(Theme.backgroundGradient.ignoresSafeArea())
+        .background(AppSurface.light.background)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { isFocused = true }
@@ -340,7 +383,7 @@ struct ProfileStatusPage: View {
             .padding(.top, PhoneMetrics.Space.s)
             .padding(.bottom, PhoneMetrics.Space.xl)
         }
-        .background(Theme.backgroundGradient.ignoresSafeArea())
+        .background(AppSurface.light.background)
         .navigationTitle("状态")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear(perform: save)
@@ -399,7 +442,7 @@ struct ProfileSymbolPage: View {
             }
             .padding(.top, PhoneMetrics.Space.s)
         }
-        .background(Theme.backgroundGradient.ignoresSafeArea())
+        .background(AppSurface.light.background)
         .navigationTitle("符号头像")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear(perform: save)
@@ -446,7 +489,7 @@ struct ProfileTintPage: View {
             }
             .padding(.top, PhoneMetrics.Space.s)
         }
-        .background(Theme.backgroundGradient.ignoresSafeArea())
+        .background(AppSurface.light.background)
         .navigationTitle("底色")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear(perform: save)

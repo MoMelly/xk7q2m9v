@@ -228,7 +228,8 @@ struct ChatView: View {
                             isUser: message.role == .user,
                             speaker: message.speaker,
                             isNarration: message.isNarration,
-                            imageSeed: message.imageSeed
+                            imageSeed: message.imageSeed,
+                            userStyle: settings.chatBubbleStyle
                         )
                         .padding(.top, gapBefore(index))
                         .id(message.uid)

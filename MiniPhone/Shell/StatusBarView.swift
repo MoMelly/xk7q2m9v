@@ -14,13 +14,16 @@ struct StatusBarView: View {
 
     private var resolvedTint: Color {
         if let tint { return tint }
+        if let explicit = HomeTextInk.current.explicitColor { return explicit }
         return ThemeStore.shared.isNight
             ? .white
             : Theme.IconSurface.statusDay
     }
 
     private var textShadow: Color {
-        ThemeStore.shared.isNight ? .black.opacity(0.28) : .white.opacity(0.7)
+        HomeTextInk.current.explicitColor != nil
+            ? .black.opacity(0.4)
+            : ThemeStore.shared.isNight ? .black.opacity(0.28) : .white.opacity(0.7)
     }
 
     var body: some View {

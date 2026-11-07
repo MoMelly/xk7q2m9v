@@ -14,6 +14,7 @@ struct AppearancePage: View {
     @State private var photoError: String?
     @State private var chatPickedPhoto: PhotosPickerItem?
     @State private var chatPhotoError: String?
+    @State private var pickedVideo: PhotosPickerItem?
     @State private var showVideoImporter = false
     @State private var alertText: String?
 
@@ -29,7 +30,8 @@ struct AppearancePage: View {
                 VStack(spacing: PhoneMetrics.Space.xl) {
                     scopeSection
                     wallpaperSection
-                    chatSection
+                    ChatBackgroundSection(settings: settings)
+                    desktopTextSection
                     videoSection
                 }
                 .padding(.top, PhoneMetrics.Space.s)
@@ -44,12 +46,9 @@ struct AppearancePage: View {
             guard let item else { return }
             Task { await importChatPhoto(item) }
         }
-        .fileImporter(
-            isPresented: $showVideoImporter,
-            allowedContentTypes: [.movie],
-            allowsMultipleSelection: false
-        ) { result in
-            handleVideoImport(result)
+        .onChange(of: pickedVideo) { _, item in
+            guard let item else { return }
+            Task { await importVideo(item) }
         }
         .alert("提示", isPresented: Binding(
             get: { alertText != nil },
@@ -228,32 +227,22 @@ struct AppearancePage: View {
 
     // MARK: - 视频
 
-    private var chatSection: some View {
-        GroupedSection(
-            "聊天背景",
-            footer: "信息 App 的聊天页和会话列表共用一份。相册图上面会压一层暗膜，保证气泡文字看得清。"
-        ) {
-            ForEach(Array(ChatBackgroundMode.allCases.enumerated()), id: \.offset) { index, mode in
+    /// 桌面/锁屏文字颜色：自动跟日夜，或手动白/黑。
+    /// 她用深色壁纸时日间黑字全看不见，这是手动救命档。
+    private var desktopTextSection: some View {
+        GroupedSection("桌面文字颜色", footer: "图标名字和顶部状态栏的颜色。深色壁纸选「白色」，浅色壁纸选「黑色」，不确定就选「自动」。") {
+            ForEach(Array(HomeTextInk.allCases.enumerated()), id: \.offset) { index, ink in
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        settings.setChatBackground(mode)
-                    }
+                    settings.setHomeTextInk(ink)
                 } label: {
                     HStack(spacing: PhoneMetrics.Space.s) {
-                        ChatBackgroundSwatch(
-                            mode: mode,
-                            photo: mode == .photo
-                                ? WallpaperPhoto.load(fileName: settings.chatBackgroundPhoto)
-                                : nil
-                        )
-
-                        Text(mode.displayName)
+                        Text(ink.displayName)
                             .font(.system(size: PhoneMetrics.FontSize.body))
                             .foregroundStyle(Theme.label)
 
                         Spacer(minLength: 0)
 
-                        if settings.chatBackgroundMode == mode {
+                        if settings.homeTextInk == ink {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(Theme.tint)
@@ -265,21 +254,28 @@ struct AppearancePage: View {
                 }
                 .buttonStyle(.plain)
 
-                if index < ChatBackgroundMode.allCases.count - 1 {
+                if index < HomeTextInk.allCases.count - 1 {
                     RowDivider()
                 }
             }
+        }
+    }
 
-            RowDivider()
+    // MARK: - 视频    // MARK: - 视频
 
-            PhotosPicker(selection: $chatPickedPhoto, matching: .images, photoLibrary: .shared()) {
+    private var videoSection: some View {
+        GroupedSection(
+            "视频壁纸",
+            footer: "从相册挑一段视频，锁屏和桌面共用一层，静音循环。视频随备份导出。"
+        ) {
+            PhotosPicker(selection: $pickedVideo, matching: .videos, photoLibrary: .shared()) {
                 HStack(spacing: PhoneMetrics.Space.s) {
-                    Image(systemName: "photo.badge.plus")
+                    Image(systemName: "film")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(Theme.tint)
                         .frame(width: 40, height: 40)
 
-                    Text(settings.chatBackgroundMode == .photo ? "换一张相册图" : "用相册里的图")
+                    Text(VideoWallpaperStore.exists ? "从相册换一段视频" : "从相册选视频")
                         .font(.system(size: PhoneMetrics.FontSize.body))
                         .foregroundStyle(Theme.label)
 
@@ -288,35 +284,6 @@ struct AppearancePage: View {
                 .padding(.horizontal, PhoneMetrics.Space.m)
                 .frame(minHeight: PhoneMetrics.Row.detailed)
                 .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if let message = chatPhotoError {
-                Text(message)
-                    .font(.system(size: PhoneMetrics.FontSize.footnote))
-                    .foregroundStyle(Theme.warning)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, PhoneMetrics.Space.m)
-                    .padding(.bottom, PhoneMetrics.Space.xs)
-            }
-        }
-    }
-
-    // MARK: - 视频
-
-    private var videoSection: some View {
-        GroupedSection(
-            "视频壁纸",
-            footer: "导入本地 mp4 / mov，锁屏和桌面共用一层，静音循环。视频随备份导出。"
-        ) {
-            Button {
-                showVideoImporter = true
-            } label: {
-                GroupedRow(
-                    symbol: "film",
-                    symbolTint: Theme.IconTint.indigo,
-                    title: VideoWallpaperStore.exists ? "重新导入视频" : "导入视频"
-                )
             }
             .buttonStyle(.plain)
 
@@ -395,20 +362,21 @@ struct AppearancePage: View {
         }
     }
 
-    private func handleVideoImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .failure(let error):
-            alertText = "选文件失败：\(error.localizedDescription)"
-        case .success(let urls):
-            guard let url = urls.first else { return }
-            do {
-                try VideoWallpaperStore.importFrom(url)
-                settings.videoWallpaperEnabled = true
-                settings.persist()
-                alertText = "视频壁纸已导入，退回锁屏就能看到。"
-            } catch {
-                alertText = "导入失败：\(error.localizedDescription)"
-            }
+    /// 视频壁纸的相册导入。`loadTransferable(Data.self)` 对视频同样成立，
+    /// 拿到字节落给 VideoWallpaperStore，不再绕「文件」App。
+    private func importVideo(_ item: PhotosPickerItem) async {
+        defer { pickedVideo = nil }
+        guard let data = try? await item.loadTransferable(type: Data.self) else {
+            alertText = "这段视频读不出来，换一段试试。"
+            return
+        }
+        do {
+            try VideoWallpaperStore.replace(with: data)
+            settings.videoWallpaperEnabled = true
+            settings.persist()
+            alertText = "视频壁纸已导入，退回锁屏就能看到。"
+        } catch {
+            alertText = "导入失败：\(error.localizedDescription)"
         }
     }
 }

@@ -40,14 +40,18 @@ struct AppIconTile: View {
         }
     }
 
-    /// 图标下的名字。日间浅壁纸要深字才看得清，夜间反过来。
-    /// 原来固定白字，浅粉壁纸上全靠一层黑阴影硬撑，远看是灰的。
+    /// 图标下的名字。自动档跟日夜走；她换深色壁纸时日间黑字全看不见，
+    /// 所以给了手动白/黑档（设置 → 外观与壁纸 → 桌面文字颜色）。
     private var labelColor: Color {
-        theme.isNight ? .white : Theme.IconSurface.labelDay
+        if let explicit = HomeTextInk.current.explicitColor { return explicit }
+        return theme.isNight ? .white : Theme.IconSurface.labelDay
     }
 
     private var labelShadow: Color {
-        theme.isNight ? .black.opacity(0.55) : .white.opacity(0.75)
+        if HomeTextInk.current.explicitColor != nil {
+            return .black.opacity(0.45)
+        }
+        return theme.isNight ? .black.opacity(0.55) : .white.opacity(0.75)
     }
 
     // MARK: - 图标本体

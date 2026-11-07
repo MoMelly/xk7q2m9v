@@ -3,8 +3,6 @@ import SwiftUI
 /// 只读场景页的种类。
 ///
 /// 每个 case 对应一个按系统 App 结构做的页面，不再是「一个容器 + 一排白卡」。
-/// 「相册」不在列表里：桌面上的「照片」图标指向动态墙，`SceneKind` 里留一个
-/// 打不开的相册页只会让人以为有两条入口。
 enum SceneKind: String, Hashable, CaseIterable, Identifiable {
     case calendar
     case notes
@@ -14,6 +12,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
     case feed
     case letters
     case storyGame
+    case photoLibrary
 
     var id: String { rawValue }
 
@@ -27,6 +26,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .feed: return "西瓜皮"
         case .letters: return "信件"
         case .storyGame: return "文游"
+        case .photoLibrary: return "照片"
         }
     }
 
@@ -40,6 +40,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .feed: return "book.closed.fill"
         case .letters: return "envelope.fill"
         case .storyGame: return "text.book.closed.fill"
+        case .photoLibrary: return "photo.fill"
         }
     }
 }
@@ -70,6 +71,8 @@ struct ScenePage: View {
                 LetterScene(world: world, settings: settings, onClose: onExit)
             case .storyGame:
                 StoryGameScene(settings: settings, onClose: onExit)
+            case .photoLibrary:
+                PhotoLibraryScene(onClose: onExit)
             }
         }
         .onAppear { world.seedSceneContentIfNeeded() }

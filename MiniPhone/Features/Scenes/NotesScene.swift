@@ -349,6 +349,9 @@ struct NoteEditorPage: View {
                 }
             }
             .environment(\.colorScheme, .light)
+            // 导航栏（工具栏按钮所在）不吃内容区的 colorScheme 环境，
+            // 真机浅色模式下按钮渲染成黑的看不清，这里单独压成浅色。
+            .toolbarColorScheme(.light, for: .navigationBar)
         }
         .onAppear {
             draftTitle = note?.title ?? ""

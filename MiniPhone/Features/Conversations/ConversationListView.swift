@@ -170,6 +170,8 @@ struct ConversationListView: View {
         .padding(.bottom, 8)
     }
 
+    /// 底部页签：iOS 26 那种悬浮圆角玻璃栏——四边留缝、胶囊圆角、
+    /// 半透明玻璃底，不再是通栏压在页底的深绿色块。
     private var tabBar: some View {
         HStack(spacing: 0) {
             ForEach(Tab.allCases) { item in
@@ -182,21 +184,18 @@ struct ConversationListView: View {
                         Text(item.rawValue)
                             .font(.system(size: 10))
                     }
-                    .foregroundStyle(tab == item ? Theme.mint : Theme.cream.opacity(0.42))
+                    .foregroundStyle(tab == item ? Theme.mint : Theme.cream.opacity(0.46))
                     .frame(maxWidth: .infinity)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 10)
         .padding(.bottom, 10)
-        .background(Theme.deepGreen.opacity(0.72))
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Theme.cream.opacity(0.10))
-                .frame(height: 0.5)
-        }
+        .glassSurface(cornerRadius: 26, tint: Color.white.opacity(ThemeStore.shared.isNight ? 0.12 : 0.42))
+        .padding(.horizontal, 14)
+        .padding(.bottom, 6)
     }
 
     // MARK: - 消息
@@ -310,7 +309,7 @@ struct ConversationListView: View {
     private var myProfile: some View {
         Group {
             if let profile = profiles.first(where: { $0.isDefault }) ?? profiles.first {
-                MyProfilePage(profile: profile)
+                MyProfilePage(profile: profile, settings: settings)
             } else {
                 VStack(spacing: 12) {
                     Image(systemName: "person.crop.circle")

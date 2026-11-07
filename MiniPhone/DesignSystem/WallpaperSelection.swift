@@ -25,7 +25,8 @@ struct WallpaperSelection: Equatable {
 /// 只是让备份慢、内存占得多。
 enum WallpaperPhoto {
     private static let folderName = "wallpapers"
-    private static let maxSide: CGFloat = 1600
+    /// 2K 屏全屏壁纸需要 2560：之前压到 1600，她实测高清图放上去发糊。
+    private static let maxSide: CGFloat = 2560
 
     private static let cache = NSCache<NSString, UIImage>()
 
@@ -40,7 +41,7 @@ enum WallpaperPhoto {
 
     static func save(image: UIImage) throws -> String {
         let resized = downscale(image, maxSide: maxSide)
-        guard let data = resized.jpegData(compressionQuality: 0.86) else {
+        guard let data = resized.jpegData(compressionQuality: 0.92) else {
             throw WallpaperError.encodeFailed
         }
         let fileName = "\(UUID().uuidString).jpg"

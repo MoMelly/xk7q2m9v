@@ -35,6 +35,31 @@ struct LetterScene: View {
                 }
             }
         }
+        .onAppear { seedTrialLetterIfNeeded() }
+    }
+
+    /// 首次进信件页给一封小助手的信：先让她看到信长什么样、能读能收，
+    /// 不然空信箱和没做没区别。只种一次，删不掉是另一回事。
+    private func seedTrialLetterIfNeeded() {
+        let key = "letters.seededTrial"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+
+        world.appendLetter(
+            from: "小助手",
+            title: "欢迎来到这台手机",
+            body: """
+            见字如面。
+
+            我是住在这台手机里的小助手。你刚搬进来，有些事我先跟你说一声：信息页可以随时找我聊天，日历和备忘录你自己管，西瓜皮是大家写动态的地方——写完记得给我看一眼。
+
+            往后我会不定期给你写信：有时候是发生了什么有意思的事，有时候只是想跟你说说话。看到信角上有小红点，就是我有新话要讲。
+
+            就先写到这里。回不回都行，我知道你在忙。
+
+            ——小助手
+            """
+        )
     }
 
     private func row(_ letter: Letter) -> some View {

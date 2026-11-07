@@ -24,6 +24,7 @@ targets:
     platform: iOS
     sources:
       - path: MiniPhone
+      # （AppIcon.appiconset 随 MiniPhone/Assets.xcassets 一起被上面的源包含）
       # 随包发布的歌单。folder reference 保留目录结构，
       # App 里用 Bundle.main.url(forResource: "Music", withExtension: nil) 遍历。
       - path: Assets/Music
@@ -50,6 +51,7 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         GENERATE_INFOPLIST_FILE: "NO"
         INFOPLIST_FILE: Config/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 
 schemes:
   MiniPhone:

@@ -16,6 +16,8 @@ struct MessageBubble: View {
     var isStreaming: Bool = false
     /// 带图的消息，图按这个种子现画。0 表示没图。
     var imageSeed: Int = 0
+    /// 用户气泡的样式档。设置 → 聊天背景里选，默认薄荷。
+    var userStyle: ChatBubbleStyle = .mint
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -104,15 +106,21 @@ struct MessageBubble: View {
                 .foregroundStyle(Theme.cream.opacity(0.58))
                 .padding(.horizontal, 4)
         } else if isUser {
-            label(body)
-                .foregroundStyle(Theme.deepGreen)
+            // 彩色档走实底，玻璃档没有实底、气泡跟着背景走。
+            let body = label(body)
+                .foregroundStyle(userStyle.labelColor)
                 .lineSpacing(4)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
-                .background(
+
+            if let fill = userStyle.fillColor {
+                body.background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(Theme.mint)
+                        .fill(fill)
                 )
+            } else {
+                body.glassSurface(cornerRadius: 18)
+            }
         } else {
             label(body)
                 .foregroundStyle(Theme.cream)

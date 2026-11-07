@@ -20,7 +20,8 @@ struct HomeScreenView: View {
             VStack(spacing: 0) {
                 StatusBarView()
 
-                Spacer(minLength: 0).frame(height: 10)
+                // 顶行图标离状态栏近了一贴上去，留够呼吸空间。
+                Spacer(minLength: 0).frame(height: 24)
 
                 iconGrid
 
