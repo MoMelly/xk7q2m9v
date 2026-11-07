@@ -21,6 +21,9 @@ final class ChatViewModel {
 
     // MARK: - 发送
 
+    /// 把一条消息落库。默认不触发回复——真人聊天是连发好几句才等对方开口，
+    /// 一句一答是机器人。要对方说话，走 `requestReply`；通话里除外，
+    /// 通话的每一句都是当场接的，`callMode` 传 true 保持一句一答。
     func send(
         _ raw: String,
         character: Companion,
@@ -33,13 +36,6 @@ final class ChatViewModel {
         // 发图可以一个字都不写，所以空文本在有图时也算一条消息。
         guard !text.isEmpty || imageSeed > 0, !isStreaming else { return }
 
-        guard settings.isConfigured else {
-            errorText = "还没填 API Key。点右上角齿轮填一个。"
-            return
-        }
-
-        errorText = nil
-
         let userMessage = StoredMessage(
             characterUID: character.uid,
             role: .user,
@@ -51,12 +47,39 @@ final class ChatViewModel {
         character.lastMessageAt = Date()
         save(context)
 
+        guard callMode else { return }
         await generateReply(
             for: character,
             context: context,
             settings: settings,
-            callMode: callMode
+            callMode: true
         )
+    }
+
+    /// 攒下的话等够了吗：最后一条是用户发的（或者还没聊过），就该对方接了。
+    /// 界面拿它点亮「回话」键；对方回过之后键就熄掉。
+    func hasPendingUserMessages(for character: Companion) -> Bool {
+        let last = character.messages
+            .filter { $0.channel == .chat }
+            .sorted { $0.createdAt < $1.createdAt }
+            .last
+        return last?.role != .assistant
+    }
+
+    /// 手动触发回复。攒了没发的几句由这里一起带出去，
+    /// 不需要再传一段文本——上下文取的就是消息流本身。
+    func requestReply(
+        character: Companion,
+        context: ModelContext,
+        settings: SettingsStore
+    ) async {
+        guard settings.isConfigured else {
+            errorText = "还没填 API Key。点右上角齿轮填一个。"
+            return
+        }
+        guard !isStreaming, hasPendingUserMessages(for: character) else { return }
+        errorText = nil
+        await generateReply(for: character, context: context, settings: settings, callMode: false)
     }
 
     /// 拨通之后让对方先开口。

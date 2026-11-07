@@ -35,6 +35,8 @@ struct HomeScreenView: View {
                 Spacer(minLength: 0).frame(height: 10)
             }
         }
+        // 同锁屏：真机顶部安全区会把假状态栏压下来，让它从物理最顶端画起。
+        .ignoresSafeArea(edges: .top)
     }
 
     // MARK: - 图标网格

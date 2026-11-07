@@ -128,7 +128,9 @@ struct AppIconTile: View {
         // 只认 id 会让两处同一个 App 画出两个不一样的图标。
         if app.destination == .scene(.feed) {
             WatermelonMark(
-                size: size * 0.84,
+                // 她实测反馈图形顶满图标显得肥大，收到七成出头，
+                // 底部留白跟其他 SF Symbol 图标的视觉占比对齐。
+                size: size * 0.72,
                 monochrome: style.isVector ? glyphColor : nil
             )
             .offset(y: size * 0.02)

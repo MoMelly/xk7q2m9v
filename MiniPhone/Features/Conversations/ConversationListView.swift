@@ -114,7 +114,10 @@ struct ConversationListView: View {
     private var listLayer: some View {
         VStack(spacing: 0) {
             header
-            searchBar
+            // 「我的」没有可搜的东西，搜索栏在这格是占地方的摆设。
+            if tab != .mine {
+                searchBar
+            }
 
             switch tab {
             case .messages: messagesList

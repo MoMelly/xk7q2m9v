@@ -158,26 +158,30 @@ struct FeedDetailPage: View {
     }
 
     private var shareButton: some View {
-        Button {
-            showSharePicker = true
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: PhoneMetrics.FontSize.sub))
-                Text("分享到私聊")
-                    .font(.system(size: PhoneMetrics.FontSize.sub, weight: .medium))
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10))
+        // 全宽一大条太抢戏，收成右端一枚小胶囊，只是个轻量入口。
+        HStack {
+            Spacer(minLength: 0)
+            Button {
+                showSharePicker = true
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 11, weight: .medium))
+                    Text("分享到私聊")
+                        .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
+                }
+                .foregroundStyle(Theme.brand)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule().fill(Theme.brand.opacity(0.09))
+                )
+                .overlay {
+                    Capsule().strokeBorder(Theme.brand.opacity(0.22), lineWidth: 0.6)
+                }
             }
-            .foregroundStyle(Theme.brand)
-            .padding(PhoneMetrics.Space.s)
-            .background(
-                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                    .fill(Theme.brand.opacity(0.08))
-            )
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
         .padding(.horizontal, PhoneMetrics.Space.m)
         .padding(.bottom, PhoneMetrics.Space.s)
     }

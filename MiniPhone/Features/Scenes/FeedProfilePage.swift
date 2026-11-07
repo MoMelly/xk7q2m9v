@@ -25,8 +25,8 @@ struct FeedProfilePage: View {
         GeometryReader { proxy in
             // 背景图占内容区上半；ScrollView 顶到安全区外，
             // 配合 AppScreen 的透明导航栏，整块屏幕上半都是这张图。
-            // 封面只要意思到位：约占屏高五分之一，再矮头图就糊成一窄条了。
-            let bannerHeight = max(150, proxy.size.height * 0.2)
+            // 0.20 她实测偏矮（11-07：「再拉下来一丢丢」），提到约四分之一屏。
+            let bannerHeight = max(170, proxy.size.height * 0.245)
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     banner(height: bannerHeight)

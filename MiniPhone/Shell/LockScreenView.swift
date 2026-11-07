@@ -45,6 +45,9 @@ struct LockScreenView: View {
         }
         .contentShape(Rectangle())
         .gesture(unlockGesture)
+        // 真机刘海屏的顶部安全区有 59pt，假状态栏会被压到刘海下面去。
+        // 状态栏必须从物理最顶端画起，跟系统原生锁屏对齐。
+        .ignoresSafeArea(edges: .top)
     }
 
     private var dateLine: some View {

@@ -42,6 +42,11 @@ struct ChatView: View {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.isStreaming
     }
 
+    /// 「回话」键亮不亮：攒了没被回的话、而且对方不在打字。
+    private var canRequestReply: Bool {
+        !viewModel.isStreaming && viewModel.hasPendingUserMessages(for: character)
+    }
+
     private func isAsleep(at date: Date) -> Bool {
         CharacterClock.isAsleep(character, at: date)
     }
@@ -54,10 +59,10 @@ struct ChatView: View {
                 header
                 transcript
                 if showStickers {
-                    stickerPanel
+                    ChatStickerPanel(character: character) { sendSticker($0) }
                 }
                 if showPhotos {
-                    photoPanel
+                    ChatPhotoPanel { sendPhoto($0) }
                 }
                 composer
             }
@@ -86,6 +91,7 @@ struct ChatView: View {
         .onChange(of: showStickers) { _, _ in settleComposerIfNeeded() }
         .onChange(of: showPhotos) { _, _ in settleComposerIfNeeded() }
         .onChange(of: draft) { _, _ in settleComposerIfNeeded() }
+        .onChange(of: viewModel.isStreaming) { _, _ in settleComposerIfNeeded() }
         .sheet(isPresented: $showDetail) {
             CharacterDetailPage(
                 character: character,
@@ -400,9 +406,9 @@ struct ChatView: View {
                 .tint(Theme.mint)
                 .lineLimit(1...4)
                 .focused($isInputFocused)
-                .submitLabel(.send)
-                .onSubmit(submit)
 
+            // 竖排输入框里回车就是换行，键盘不再挂发送——发不触发回复，
+            // 回车职责只剩排版。发送键只落库，AI 由最右边那颗「回话」键请出来。
             Button(action: submit) {
                 ZStack {
                     Circle()
@@ -423,6 +429,28 @@ struct ChatView: View {
             }
             .buttonStyle(.plain)
             .disabled(!canSend)
+
+            Button {
+                Task {
+                    await viewModel.requestReply(
+                        character: character,
+                        context: context,
+                        settings: settings
+                    )
+                }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(canRequestReply ? Theme.mint : Theme.mint.opacity(0.22))
+                        .frame(width: 34, height: 34)
+
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(Theme.deepGreen)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(!canRequestReply)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
@@ -451,38 +479,6 @@ struct ChatView: View {
 
     // MARK: - 表情面板
 
-    private var stickerPanel: some View {
-        let items = StickerLibrary.shared.available(for: character)
-
-        return Group {
-            if items.isEmpty {
-                Text("还没有表情。去设置 → 表情里加一些。")
-                    .font(.system(size: 12))
-                    .foregroundStyle(Theme.cream.opacity(0.5))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 14)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(items) { item in
-                            Button {
-                                sendSticker(item)
-                            } label: {
-                                StickerView(item: item, size: 54)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                }
-            }
-        }
-        .frame(height: 78)
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
-    }
-
     /// 表情也是消息：落成一条 `[表情:名字]`，跟打字发出去走同一条链路，
     /// 这样记忆、重试、导出都不用为它单独开一条路。
     private func sendSticker(_ item: StickerItem) {
@@ -499,47 +495,6 @@ struct ChatView: View {
     }
 
     // MARK: - 发图面板
-
-    /// 八种现画的图。这里不接相册：能发的是「场景」不是真拍的照片，
-    /// 从一排缩略图里挑比翻相册快得多，也不会把手机里的照片带进对话。
-    private var photoPanel: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
-                ForEach(MockPhotoSubject.allCases, id: \.rawValue) { subject in
-                    Button {
-                        sendPhoto(subject)
-                    } label: {
-                        VStack(spacing: 5) {
-                            MockPhoto(seed: subject.seed)
-                                .frame(width: 66, height: 50)
-                                .clipShape(
-                                    RoundedRectangle(
-                                        cornerRadius: PhoneMetrics.Radius.cover,
-                                        style: .continuous
-                                    )
-                                )
-                                .overlay {
-                                    RoundedRectangle(
-                                        cornerRadius: PhoneMetrics.Radius.cover,
-                                        style: .continuous
-                                    )
-                                    .strokeBorder(Theme.cream.opacity(0.12), lineWidth: 1)
-                                }
-
-                            Text(subject.title)
-                                .font(.system(size: 10))
-                                .foregroundStyle(Theme.cream.opacity(0.6))
-                        }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-        }
-        .frame(height: 86)
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
-    }
 
     private func sendPhoto(_ subject: MockPhotoSubject) {
         guard !viewModel.isStreaming else { return }

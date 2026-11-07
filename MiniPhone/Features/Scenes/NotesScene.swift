@@ -120,12 +120,27 @@ struct NotesScene: View {
                     .padding(PhoneMetrics.Space.m)
             } else {
                 ForEach(notes) { note in
-                    Button {
-                        editing = note
-                    } label: {
-                        noteRow(note)
+                    SwipeToDeleteRow(onDelete: { delete(note) }) {
+                        Button {
+                            editing = note
+                        } label: {
+                            noteRow(note)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button {
+                            note.isPinned.toggle()
+                            try? context.save()
+                        } label: {
+                            Label(note.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
+                        }
+                        Button(role: .destructive) {
+                            delete(note)
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                    }
 
                     if note.id != notes.last?.id {
                         RowDivider()
@@ -133,6 +148,11 @@ struct NotesScene: View {
                 }
             }
         }
+    }
+
+    private func delete(_ note: NoteItem) {
+        context.delete(note)
+        try? context.save()
     }
 
     private func noteRow(_ note: NoteItem) -> some View {
@@ -194,6 +214,57 @@ struct NotesScene: View {
     }
 }
 
+/// 左滑露出删除钮的一行。
+///
+/// List 自带 swipeActions 但这里不是 List（整页是 ScrollView + GroupedSection），
+/// 自己拿 DragGesture 撑一段位移就够：向左拖过一半吸附到全开，松手回弹或停留。
+/// 前景垫一层行底色，滑动时才不会透出背后的红。
+struct SwipeToDeleteRow<Content: View>: View {
+    let onDelete: () -> Void
+    @ViewBuilder var content: Content
+
+    @State private var offsetX: CGFloat = 0
+    @State private var isRevealed = false
+
+    private let revealWidth: CGFloat = 76
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            Button(action: onDelete) {
+                Image(systemName: "trash.fill")
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(.white)
+                    .frame(width: revealWidth)
+                    .frame(maxHeight: .infinity)
+                    .background(Theme.warning)
+            }
+            .buttonStyle(.plain)
+
+            content
+                .background(Theme.rowSurface)
+                .offset(x: offsetX)
+                .simultaneousGesture(drag)
+        }
+        .clipped()
+    }
+
+    private var drag: some Gesture {
+        DragGesture(minimumDistance: 14)
+            .onChanged { value in
+                let base: CGFloat = isRevealed ? -revealWidth : 0
+                offsetX = min(0, max(-revealWidth - 24, base + value.translation.width))
+            }
+            .onEnded { value in
+                let base: CGFloat = isRevealed ? -revealWidth : 0
+                let final = base + value.translation.width
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
+                    isRevealed = final < -revealWidth / 2
+                    offsetX = isRevealed ? -revealWidth : 0
+                }
+            }
+    }
+}
+
 /// 新建或编辑一条备忘录。
 ///
 /// 用 sheet 而不是 push：系统备忘录也是从下往上滑出来的编辑页，
@@ -246,6 +317,30 @@ struct NoteEditorPage: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
+                }
+
+                // 编辑已有笔记时给全工具：置顶和删除都从这里够得着，
+                // 不用退回列表再长按一遍。
+                if let note {
+                    ToolbarItem(placement: .navigation) {
+                        Button {
+                            note.isPinned.toggle()
+                            try? context.save()
+                        } label: {
+                            Image(systemName: note.isPinned ? "pin.fill" : "pin")
+                        }
+                    }
+
+                    ToolbarItem(placement: .navigation) {
+                        Button(role: .destructive) {
+                            context.delete(note)
+                            try? context.save()
+                            dismiss()
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(Theme.warning)
+                        }
+                    }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
