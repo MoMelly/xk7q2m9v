@@ -133,7 +133,9 @@ final class ChatViewModel {
                     name: profile.name,
                     signature: profile.signature,
                     bio: profile.bio,
-                    tags: profile.tags
+                    tags: profile.tags,
+                    statusText: profile.statusText,
+                    statusStickerName: profile.statusStickerName
                 )
             }
 
