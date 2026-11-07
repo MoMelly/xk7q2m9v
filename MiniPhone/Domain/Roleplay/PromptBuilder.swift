@@ -48,6 +48,18 @@ enum PromptBuilder {
             if !userIdentity.tags.isEmpty {
                 lines.append("标签：" + userIdentity.tags.joined(separator: "、"))
             }
+            // 状态是「现在」的事，和签名那种常设的话分开交代。
+            // 提醒一句分寸：可以顺着聊，不能逼着回应。
+            let statusText = userIdentity.statusText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !statusText.isEmpty {
+                var status = "他现在的状态："
+                if !userIdentity.statusStickerName.isEmpty {
+                    status += "[表情:\(userIdentity.statusStickerName)] "
+                }
+                status += statusText
+                lines.append(status)
+                lines.append("状态是他自己刚设的，想聊就顺着提一两句，别当成他必须解释的事。")
+            }
             if userIdentity.isBlank {
                 lines.append("你没见过他别的资料。不知道的事就问，不要替他补设定。")
             }

@@ -224,6 +224,11 @@ final class UserProfile {
     var name: String = "我"
     /// 一句话签名，角色在提示词里能看到。
     var signature: String = ""
+    /// 现在的状态，一句话。比签名更「当下」，角色可以顺着提起。
+    var statusText: String = ""
+    /// 状态上挂的表情备注名。空串表示没挂表情。
+    /// 存名字而不是 uid：换设备、重导表情库后名字还能对上。
+    var statusStickerName: String = ""
     /// 自我介绍，可以写年龄、职业、跟这个角色什么关系。
     var bio: String = ""
     var tagsRaw: String = ""
