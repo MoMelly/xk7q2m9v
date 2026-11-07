@@ -38,7 +38,7 @@ struct PhoneShellView: View {
     /// 单列一份是因为后面还有弹层要判断同一组名字，散在多处容易漏。
     private static var opensChatDirectly: Bool {
         switch previewState {
-        case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call":
+        case "chatDetail", "chatStickers", "chatPhoto", "chatDynamic", "charDetail", "call":
             return true
         default:
             return false
