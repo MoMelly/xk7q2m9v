@@ -23,7 +23,8 @@ struct FeedScene: View {
         default: return .home
         }
     }()
-    @State private var feedTab: FeedTab = .discover
+    @State private var feedTab: FeedTab =
+        UserDefaults.standard.string(forKey: "previewState") == "feedLive" ? .live : .discover
     @State private var isComposing = false
     /// 直接取单例而不是存进 @State：@State 的初始化不在 body 里，
     /// 拿 @MainActor 的 shared 会踩隔离检查。在 body 里读一次，观察照样成立。
@@ -60,6 +61,7 @@ struct FeedScene: View {
     enum FeedTab: String, CaseIterable, Identifiable {
         case discover = "发现"
         case following = "关注"
+        case live = "直播"
 
         var id: String { rawValue }
     }
@@ -69,6 +71,7 @@ struct FeedScene: View {
         switch feedTab {
         case .discover: return all
         case .following: return all.filter { $0.authorUID != nil }
+        case .live: return []
         }
     }
 
@@ -226,7 +229,9 @@ struct FeedScene: View {
     // MARK: - 瀑布流
     @ViewBuilder
     private var content: some View {
-        if notes.isEmpty {
+        if feedTab == .live {
+            LiveListPage(companions: companions.filter { !$0.isFeedOnly }, settings: settings)
+        } else if notes.isEmpty {
             emptyState
         } else {
             GeometryReader { proxy in

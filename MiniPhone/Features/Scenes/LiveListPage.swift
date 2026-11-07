@@ -26,8 +26,8 @@ enum LiveCatalog {
 
     private static let titles = [
         "深夜聊天室", "一起听歌写作业", "开麦点歌", "画一只你家猫",
-        "吃播·今晚吃面", "游戏上分中", "手账拼贴实况", " reads with me",
-        "宿舍开麦闲聊", "考完relax一下"
+        "吃播·今晚吃面", "游戏上分中", "手账拼贴实况", "白噪音陪伴",
+        "宿舍开麦闲聊", "考完放松一下"
     ]
 
     /// 当前整点块。房间构成按它稳定，整点切换。
@@ -98,6 +98,7 @@ enum LiveCatalog {
 /// 直播列表页：角色开播一节 + 路人在播一节。
 struct LiveListPage: View {
     let companions: [Companion]
+    let settings: SettingsStore
 
     private var rooms: [LiveRoom] { LiveCatalog.rooms(companions: companions) }
 
@@ -111,7 +112,7 @@ struct LiveListPage: View {
                     sectionHeader("关注在播")
                     ForEach(characterRooms) { room in
                         NavigationLink {
-                            LiveRoomPage(room: room, companions: companions)
+                            LiveRoomPage(room: room, companions: companions, settings: settings)
                         } label: {
                             row(room, highlighted: true)
                         }
@@ -122,7 +123,7 @@ struct LiveListPage: View {
                 sectionHeader("路人在播")
                 ForEach(passerbyRooms) { room in
                     NavigationLink {
-                        LiveRoomPage(room: room, companions: companions)
+                        LiveRoomPage(room: room, companions: companions, settings: settings)
                     } label: {
                         row(room, highlighted: false)
                     }

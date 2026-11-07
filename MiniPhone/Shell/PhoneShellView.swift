@@ -55,7 +55,7 @@ struct PhoneShellView: View {
         case "notes": destination = .scene(.notes)
         case "music": destination = .scene(.music)
         case "health": destination = .scene(.health)
-        case "market", "feedInbox", "feedChat", "feedShare", "feedCard": destination = .scene(.feed)
+        case "market", "feedInbox", "feedChat", "feedShare", "feedCard", "feedLive": destination = .scene(.feed)
         case "feed": destination = .scene(.feed)
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
