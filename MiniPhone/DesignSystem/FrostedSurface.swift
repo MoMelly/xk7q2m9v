@@ -36,33 +36,36 @@ struct FrostedSurface: ViewModifier {
 }
 
 extension View {
-    /// 卡片用的磨砂：垫白厚一点，读起来干净。
+    /// 卡片用的磨砂。
+    ///
+    /// 白垫得越厚，材质那层灰越明显 —— 材质本身会去饱和，压在白卡片底下就成了灰板。
+    /// 所以这里白只垫到能读字为止（0.34），边缘靠一道亮边立住，不靠阴影。
     func frostedCard(
         cornerRadius: CGFloat = PhoneMetrics.Radius.card,
-        shadow: Theme.ShadowStyle = .soft
+        shadow: Theme.ShadowStyle = .none
     ) -> some View {
         let night = ThemeStore.shared.isNight
         return modifier(
             FrostedSurface(
                 cornerRadius: cornerRadius,
-                tint: Color.white.opacity(night ? 0.16 : 0.55),
-                borderColor: Color.white.opacity(night ? 0.14 : 0.66),
+                tint: Color.white.opacity(night ? 0.12 : 0.34),
+                borderColor: Color.white.opacity(night ? 0.16 : 0.62),
                 shadow: shadow
             )
         )
     }
 
-    /// 栏位用的磨砂（Dock、悬浮底栏、输入条）：要透出底下的东西，白不能垫满。
+    /// 栏位用的磨砂（Dock、悬浮底栏、输入条）：要透出底下的东西，白再少一点。
     func frostedBar(
         cornerRadius: CGFloat = 26,
-        shadow: Theme.ShadowStyle = .soft
+        shadow: Theme.ShadowStyle = .none
     ) -> some View {
         let night = ThemeStore.shared.isNight
         return modifier(
             FrostedSurface(
                 cornerRadius: cornerRadius,
-                tint: Color.white.opacity(night ? 0.10 : 0.28),
-                borderColor: Color.white.opacity(night ? 0.12 : 0.58),
+                tint: Color.white.opacity(night ? 0.08 : 0.20),
+                borderColor: Color.white.opacity(night ? 0.14 : 0.54),
                 shadow: shadow
             )
         )
