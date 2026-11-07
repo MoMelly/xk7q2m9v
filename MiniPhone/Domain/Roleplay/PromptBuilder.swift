@@ -81,6 +81,15 @@ enum PromptBuilder {
             """)
         }
 
+        // 图。只给类型不给图本身：画面是按种子现画的，模型看不到，
+        // 所以让它用一句说明来点名要哪一种。
+        blocks.append("""
+        【图】
+        你可以发图，能发的只有这八种：黄昏、雨窗、夜空、咖啡、猫、海、云、灯串。
+        想发就单独占一行写 [图:说明]，说明里带上其中一种，比如 [图:窗外的雨] 或 [图:楼下的猫]。
+        一次最多一张，别连着发；没什么可说的时候不用硬发。
+        """)
+
         // 群聊
         if character.isGroup {
             let members = character.membersNote.trimmingCharacters(in: .whitespacesAndNewlines)

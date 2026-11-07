@@ -20,6 +20,8 @@ struct ChatView: View {
     @State private var callKind: CallKind?
     /// 表情面板展开状态。输入栏那颗按钮切换它，不抢键盘。
     @State private var showStickers = false
+    /// 发图面板。和表情面板互斥，同时开两个会把输入栏顶到看不见。
+    @State private var showPhotos = false
     @FocusState private var isInputFocused: Bool
 
     init(character: Companion, settings: SettingsStore, onExit: @escaping () -> Void) {
@@ -51,6 +53,9 @@ struct ChatView: View {
                 if showStickers {
                     stickerPanel
                 }
+                if showPhotos {
+                    photoPanel
+                }
                 composer
             }
         }
@@ -61,6 +66,8 @@ struct ChatView: View {
             switch UserDefaults.standard.string(forKey: "previewState") {
             case "chatStickers":
                 showStickers = true
+            case "chatPhoto":
+                showPhotos = true
             case "charDetail":
                 showDetail = true
             case "call":
@@ -146,6 +153,15 @@ struct ChatView: View {
     @ViewBuilder
     private var callMenuItems: some View {
         Button {
+            showStickers = false
+            showPhotos = true
+        } label: {
+            Label("发一张图", systemImage: "photo.on.rectangle")
+        }
+
+        Divider()
+
+        Button {
             callKind = .voice
         } label: {
             Label("语音通话", systemImage: "phone.fill")
@@ -192,7 +208,8 @@ struct ChatView: View {
                             text: message.text,
                             isUser: message.role == .user,
                             speaker: message.speaker,
-                            isNarration: message.isNarration
+                            isNarration: message.isNarration,
+                            imageSeed: message.imageSeed
                         )
                         .padding(.top, gapBefore(index))
                         .id(message.uid)
@@ -326,6 +343,7 @@ struct ChatView: View {
             Button {
                 withAnimation(.easeInOut(duration: 0.18)) {
                     showStickers.toggle()
+                    showPhotos = false
                 }
                 isInputFocused = false
             } label: {
@@ -420,6 +438,64 @@ struct ChatView: View {
                 character: character,
                 context: context,
                 settings: settings
+            )
+        }
+    }
+
+    // MARK: - 发图面板
+
+    /// 八种现画的图。这里不接相册：能发的是「场景」不是真拍的照片，
+    /// 从一排缩略图里挑比翻相册快得多，也不会把手机里的照片带进对话。
+    private var photoPanel: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(MockPhotoSubject.allCases, id: \.rawValue) { subject in
+                    Button {
+                        sendPhoto(subject)
+                    } label: {
+                        VStack(spacing: 5) {
+                            MockPhoto(seed: subject.seed)
+                                .frame(width: 66, height: 50)
+                                .clipShape(
+                                    RoundedRectangle(
+                                        cornerRadius: PhoneMetrics.Radius.cover,
+                                        style: .continuous
+                                    )
+                                )
+                                .overlay {
+                                    RoundedRectangle(
+                                        cornerRadius: PhoneMetrics.Radius.cover,
+                                        style: .continuous
+                                    )
+                                    .strokeBorder(Theme.cream.opacity(0.12), lineWidth: 1)
+                                }
+
+                            Text(subject.title)
+                                .font(.system(size: 10))
+                                .foregroundStyle(Theme.cream.opacity(0.6))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .frame(height: 86)
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
+    }
+
+    private func sendPhoto(_ subject: MockPhotoSubject) {
+        guard !viewModel.isStreaming else { return }
+        showPhotos = false
+        isInputFocused = false
+        Task {
+            await viewModel.send(
+                subject.title,
+                character: character,
+                context: context,
+                settings: settings,
+                imageSeed: subject.seed
             )
         }
     }

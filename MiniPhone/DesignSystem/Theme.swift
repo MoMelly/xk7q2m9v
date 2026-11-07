@@ -136,6 +136,59 @@ enum Theme {
         static let moonGlyph = Color(red: 0.72, green: 0.76, blue: 0.95)
     }
 
+    /// 模拟照片的配色。
+    ///
+    /// 私聊里能发的那几张「图」不读图片文件，全按 seed 现画，
+    /// 八种场景各有一套固定色，写在这里是因为视图层不碰字面色值。
+    enum PhotoSurface {
+        // 黄昏：天光往下压，山分远近两层
+        static let duskSkyTop = Color(red: 0.99, green: 0.76, blue: 0.50)
+        static let duskSkyMid = Color(red: 0.96, green: 0.56, blue: 0.56)
+        static let duskSkyLow = Color(red: 0.58, green: 0.40, blue: 0.62)
+        static let duskSun = Color(red: 1.0, green: 0.94, blue: 0.80)
+        static let duskHillFar = Color(red: 0.44, green: 0.31, blue: 0.50)
+        static let duskHillNear = Color(red: 0.21, green: 0.16, blue: 0.29)
+
+        // 雨窗：冷灰蓝，玻璃上有一层雾
+        static let rainTop = Color(red: 0.38, green: 0.45, blue: 0.53)
+        static let rainBottom = Color(red: 0.22, green: 0.28, blue: 0.35)
+        static let rainDrop = Color(red: 0.83, green: 0.89, blue: 0.94)
+        static let rainSill = Color(red: 0.16, green: 0.20, blue: 0.26)
+
+        // 夜空：深蓝到近黑，月亮带一圈晕
+        static let nightTop = Color(red: 0.09, green: 0.11, blue: 0.22)
+        static let nightBottom = Color(red: 0.20, green: 0.24, blue: 0.40)
+        static let nightMoon = Color(red: 0.96, green: 0.95, blue: 0.86)
+
+        // 咖啡：木色桌面 + 深褐液面
+        static let coffeeTable = Color(red: 0.87, green: 0.78, blue: 0.66)
+        static let coffeeTableEdge = Color(red: 0.75, green: 0.63, blue: 0.50)
+        static let coffeeCup = Color(red: 0.98, green: 0.97, blue: 0.94)
+        static let coffeeLiquid = Color(red: 0.42, green: 0.27, blue: 0.18)
+        static let coffeeCrema = Color(red: 0.62, green: 0.45, blue: 0.32)
+
+        // 猫：米色底，一只坐着的剪影
+        static let catWall = Color(red: 0.93, green: 0.87, blue: 0.80)
+        static let catFloor = Color(red: 0.82, green: 0.73, blue: 0.64)
+        static let catBody = Color(red: 0.36, green: 0.30, blue: 0.27)
+
+        // 海：天空比水浅一档，中间一条硬地平线
+        static let seaSkyTop = Color(red: 0.72, green: 0.86, blue: 0.91)
+        static let seaSkyLow = Color(red: 0.93, green: 0.90, blue: 0.85)
+        static let seaWater = Color(red: 0.29, green: 0.55, blue: 0.62)
+        static let seaWaterDeep = Color(red: 0.19, green: 0.40, blue: 0.48)
+
+        // 云：淡蓝底，云团偏白
+        static let cloudSkyTop = Color(red: 0.62, green: 0.80, blue: 0.92)
+        static let cloudSkyLow = Color(red: 0.87, green: 0.93, blue: 0.96)
+        static let cloudPuff = Color(red: 1.0, green: 1.0, blue: 1.0)
+
+        // 灯串：夜色里一串暖点
+        static let lampNightTop = Color(red: 0.11, green: 0.12, blue: 0.20)
+        static let lampNightBottom = Color(red: 0.27, green: 0.22, blue: 0.28)
+        static let lampGlow = Color(red: 1.0, green: 0.85, blue: 0.58)
+    }
+
     /// 阴影只有三档。
     /// 浅色分组列表默认不用——给每行都加阴影，浅底上会叠出一圈灰边。
     enum ShadowStyle {

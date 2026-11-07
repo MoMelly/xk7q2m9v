@@ -38,7 +38,7 @@ struct PhoneShellView: View {
     /// 单列一份是因为后面还有弹层要判断同一组名字，散在多处容易漏。
     private static var opensChatDirectly: Bool {
         switch previewState {
-        case "chatDetail", "chatStickers", "charDetail", "call":
+        case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call":
             return true
         default:
             return false
@@ -59,7 +59,7 @@ struct PhoneShellView: View {
         case "feed": destination = .scene(.feed)
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
-        case "chatDetail", "chatMine", "chatEditor", "chatStickers", "avatarPicker",
+        case "chatDetail", "chatMine", "chatEditor", "chatStickers", "chatPhoto", "avatarPicker",
              "charDetail", "call": destination = .chat
         case "chatNight": destination = .chat
         default: destination = nil
@@ -260,7 +260,7 @@ struct PhoneShellView: View {
     @MainActor
     private func seedPreviewContentIfNeeded() {
         switch Self.previewState {
-        case "chatDetail", "chatStickers", "charDetail", "call":
+        case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call":
             guard companions.isEmpty else { return }
             let character = Companion(
                 name: "小满",
@@ -272,16 +272,19 @@ struct PhoneShellView: View {
             character.avatarImageKey = "avatar_a03"
             context.insert(character)
 
-            let lines: [(ChatMessage.Role, String)] = [
-                (.assistant, "回来啦？今天楼下那家关得早。"),
-                (.user, "啊，那我明天早点去。"),
-                (.assistant, "嗯，我给你留了张便签在门上。")
+            let lines: [(ChatMessage.Role, String, Int)] = [
+                (.assistant, "回来啦？今天楼下那家关得早。", 0),
+                (.user, "啊，那我明天早点去。", 0),
+                (.assistant, "嗯，我给你留了张便签在门上。", 0),
+                // 带图的一条：截图里要能看到气泡里的图，不然不知道发图长什么样。
+                (.assistant, "楼下那只又蹲在车底下了。", MockPhotoSubject.cat.seed)
             ]
             for (index, line) in lines.enumerated() {
                 let message = StoredMessage(
                     characterUID: character.uid,
                     role: line.0,
                     text: line.1,
+                    imageSeed: line.2,
                     createdAt: Date().addingTimeInterval(Double(index) * 60 - 180)
                 )
                 message.character = character

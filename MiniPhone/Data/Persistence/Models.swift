@@ -161,6 +161,9 @@ final class StoredMessage {
     var channelRaw: String = "chat"
     /// 同一角色可以有多段私信 / 多个转帖，用 threadID 把对话分开。
     var threadRaw: String = ""
+    /// 模拟图片的种子，0 表示这条消息没带图。
+    /// 图不落文件，靠这个数现画，所以备份里也只是一行整数。
+    var imageSeed: Int = 0
     var createdAt: Date = Date()
 
     var character: Companion?
@@ -173,6 +176,7 @@ final class StoredMessage {
         isNarration: Bool = false,
         channel: MessageChannel = .chat,
         threadID: UUID? = nil,
+        imageSeed: Int = 0,
         createdAt: Date = Date()
     ) {
         self.uid = UUID()
@@ -183,6 +187,7 @@ final class StoredMessage {
         self.isNarration = isNarration
         self.channelRaw = channel.rawValue
         self.threadRaw = threadID?.uuidString ?? ""
+        self.imageSeed = imageSeed
         self.createdAt = createdAt
     }
 
@@ -196,7 +201,15 @@ final class StoredMessage {
     }
 
     var asChatMessage: ChatMessage {
-        ChatMessage(id: uid, role: role, text: text, createdAt: createdAt)
+        // 带图的消息在历史里得说清楚，不然模型会看到一条只有半句话、
+        // 或者干脆空白的内容，接不上刚才聊到哪儿。
+        let body: String
+        if imageSeed > 0 {
+            body = text.isEmpty ? "[发了一张图]" : "\(text)（附图）"
+        } else {
+            body = text
+        }
+        return ChatMessage(id: uid, role: role, text: body, createdAt: createdAt)
     }
 }
 

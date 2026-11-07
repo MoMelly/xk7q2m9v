@@ -14,6 +14,8 @@ struct MessageBubble: View {
     var isNarration: Bool = false
     /// 流式中：末尾加一根跳动的竖线，表示还在往外吐字。
     var isStreaming: Bool = false
+    /// 带图的消息，图按这个种子现画。0 表示没图。
+    var imageSeed: Int = 0
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -44,6 +46,10 @@ struct MessageBubble: View {
 
     private var stickerStack: some View {
         VStack(alignment: isUser ? .trailing : .leading, spacing: 6) {
+            if imageSeed > 0 {
+                photoBubble
+            }
+
             if !parsed.body.isEmpty {
                 textBubble
             }
@@ -67,6 +73,18 @@ struct MessageBubble: View {
         bubble(parsed.body)
     }
 
+    /// 图不套气泡：给图再垫一层色只会显得脏，直接圆角裁一刀，
+    /// 描一圈极淡的边把它从深色背景里分出来。
+    private var photoBubble: some View {
+        MockPhoto(seed: imageSeed)
+            .frame(width: 188, height: 141)
+            .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .strokeBorder(Theme.cream.opacity(0.12), lineWidth: 1)
+            }
+    }
+
     @ViewBuilder
     private func bubble(_ body: String) -> some View {
         if isNarration {
@@ -78,6 +96,13 @@ struct MessageBubble: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 2)
+        } else if imageSeed > 0 {
+            // 图说跟图是一个整体，再套一层气泡会把两件事拆开看。
+            // 小一号、压淡，读的时候先看图再顺带看到字。
+            label(body)
+                .font(.system(size: 12))
+                .foregroundStyle(Theme.cream.opacity(0.58))
+                .padding(.horizontal, 4)
         } else if isUser {
             label(body)
                 .foregroundStyle(Theme.deepGreen)

@@ -26,10 +26,12 @@ final class ChatViewModel {
         character: Companion,
         context: ModelContext,
         settings: SettingsStore,
-        callMode: Bool = false
+        callMode: Bool = false,
+        imageSeed: Int = 0
     ) async {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isStreaming else { return }
+        // 发图可以一个字都不写，所以空文本在有图时也算一条消息。
+        guard !text.isEmpty || imageSeed > 0, !isStreaming else { return }
 
         guard settings.isConfigured else {
             errorText = "还没填 API Key。点右上角齿轮填一个。"
@@ -38,7 +40,12 @@ final class ChatViewModel {
 
         errorText = nil
 
-        let userMessage = StoredMessage(characterUID: character.uid, role: .user, text: text)
+        let userMessage = StoredMessage(
+            characterUID: character.uid,
+            role: .user,
+            text: text,
+            imageSeed: imageSeed
+        )
         userMessage.character = character
         context.insert(userMessage)
         character.lastMessageAt = Date()
@@ -232,18 +239,42 @@ final class ChatViewModel {
             : ReplyParser.parseSingle(reply)
 
         var lastText = reply
-        for (index, line) in lines.enumerated() {
-            let message = StoredMessage(
-                characterUID: character.uid,
-                role: .assistant,
-                text: line.text,
-                speaker: line.speaker,
-                isNarration: line.isNarration,
-                createdAt: Date().addingTimeInterval(Double(index) * 0.001)
-            )
-            message.character = character
-            context.insert(message)
-            lastText = line.text
+        var offset = 0
+        for line in lines {
+            // 一句话里可能挂着图：文字留给第一张，后面每张单独起一条，
+            // 这样一张图一个气泡，不会挤成一条又长又乱的消息。
+            let parsed = PhotoTextParser.parse(line.text)
+            let bodies: [(text: String, seed: Int)]
+
+            if parsed.notes.isEmpty {
+                bodies = [(text: parsed.body, seed: 0)]
+            } else {
+                bodies = parsed.notes.enumerated().map { index, note in
+                    // 说明里点名了哪张图就用哪张（「雨窗」「猫」），
+                    // 没点名才按文字哈希随便落一张。
+                    let seed = MockPhotoSubject.matching(note)?.seed
+                        ?? PhotoTextParser.seed(for: note)
+                    return (text: index == 0 ? parsed.body : note, seed: seed)
+                }
+            }
+
+            for body in bodies {
+                guard !body.text.isEmpty || body.seed > 0 else { continue }
+
+                let message = StoredMessage(
+                    characterUID: character.uid,
+                    role: .assistant,
+                    text: body.text,
+                    speaker: line.speaker,
+                    isNarration: line.isNarration,
+                    imageSeed: body.seed,
+                    createdAt: Date().addingTimeInterval(Double(offset) * 0.001)
+                )
+                message.character = character
+                context.insert(message)
+                lastText = body.text.isEmpty ? "发了一张图" : body.text
+                offset += 1
+            }
         }
 
         character.totalReplies += 1
