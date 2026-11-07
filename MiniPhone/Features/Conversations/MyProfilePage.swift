@@ -287,8 +287,8 @@ struct ProfileStatusPage: View {
                     TextField(
                         "在干嘛，一句话",
                         text: $profile.statusText,
-                        axis: .vertical,
-                        prompt: Text("在干嘛，一句话").foregroundStyle(AppSurface.light.secondaryLabel)
+                        prompt: Text("在干嘛，一句话").foregroundStyle(AppSurface.light.secondaryLabel),
+                        axis: .vertical
                     )
                     .textFieldStyle(.plain)
                     .font(.system(size: PhoneMetrics.FontSize.body))
