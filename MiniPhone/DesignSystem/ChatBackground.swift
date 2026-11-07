@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 /// 用户气泡的样式档。
 ///
