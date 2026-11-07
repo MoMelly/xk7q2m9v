@@ -63,21 +63,6 @@
 
 **音乐**：她说了最后做，继续押后。
 
-## 3. 之前做完、有据可查的
-
-| 需求 | 落点 |
-|---|---|
-| 表情进提示词、输入栏固定按钮、气泡渲染表情图 | `PromptBuilder` / `ChatView` / `MessageBubble` |
-| 角色维度「能用哪些表情」开关 | `CharacterStickerPage`，行入口在 `CharacterDetailPage` |
-| 头像自己上传（我和角色） | `AvatarPickerSheet`（相册 + 内置 + 不用照片） |
-| 发图片（模拟图片，不走真相册） | `MockPhoto` 八场景现画，`StoredMessage.imageSeed` |
-| 我的状态（一句话 + 表情，进提示词） | `UserProfile.statusText`，`UserIdentity` 搬运，`ProfileStatusPage` 编辑 |
-| 桌面 / 锁屏壁纸分开设，可挑相册照片 | `WallpaperSelection` / `AppearancePage` |
-| 通话页表情入口 | `CallOverlay` 输入栏表情按钮 |
-| 分享帖子改小红书式弹层 | `FeedSharePicker` 半屏九宫格 |
-| 莓果红换掉 | `#D93A3F`（原 `#E83A56` 发品红） |
-| 二次元、泰迪头像保留 | 11-07 明确：插画不算真人，留着 |
-
 ## 4. 还没做的
 
 | 需求 | 说明 |
@@ -120,3 +105,40 @@
 | 健康页照片动态删掉 | 上轮就该删的卡片，定位到具体视图后删 |
 | 锁屏玻璃时间再加强 | GlassClock 已是字形玻璃，真机上观感偏平，下一轮提对比度 |
 | 信息里剩余绿色元素 | 抽屉/按钮等零散 mint 色逐个过，统一玻璃化 |
+
+---
+
+## 7. 第三轮真机实测（11-07 晚）
+
+她这轮的诉求分两半：先把**所有提过的需求**整理成文档，再按文档改。
+
+**文档**：新增 `docs/REQUIREMENTS.md`，把 PLAN / ROADMAP / DESIGN / 这份台账里的需求
+按模块编号（S 外壳、C 信息、M 角色记忆、P 场景、F 西瓜皮、G 玩法、T 设置、A 动效），
+逐条标 ✅ 做了 / 🟡 半成品 / ⬜ 没做 / ⛔ 不做。历史聊天只回溯到 10-31，更早的以台账为准。
+
+**本轮已改**：
+
+| 需求 | 落点 |
+|---|---|
+| 玻璃气泡要区分角色和自己，角色深一点、自己淡一点 | `MessageBubble.bubbleStack` 两侧不同底座（黑 26% / 白 14%）+ 描边，数值进 `Theme.Glass` |
+| 桌面 Dock 玻璃太深，要接近信息页对话框的观感 | `HomeScreenView.dock` 改按浅色方案渲染玻璃 + 白膜降档 + 顶沿高光；信息底栏同步 |
+| 消息长按：复制 / 引用 / 编辑 / 撤回 / 删除，两侧都能出 | 新增 `Features/Chat/ChatMessageMenu.swift`；`StoredMessage` 加 `isRecalled` / `quoteSpeaker` / `quoteText` / `editedAt`，备份同步 |
+| 点进 App 先卡、上下先流出一道痕 | `PhoneShellView` 换掉整层缩放淡入，改成从图标位置长出来的裁剪 + 下一帧再动 |
+| 信件要分类、要收藏 | `LetterScene` 三段（全部 / 未读 / 收藏）+ 行尾星标 + 读信页星标；`Letter.isFavorite` 容忍老存档缺字段 |
+
+**这轮没做，已排下一批**：音乐悬浮球 + 悬浮歌词（她点名「听歌那些应该都没做」，确实只有资料库和播放）。
+
+
+
+| 需求 | 落点 |
+|---|---|
+| 表情进提示词、输入栏固定按钮、气泡渲染表情图 | `PromptBuilder` / `ChatView` / `MessageBubble` |
+| 角色维度「能用哪些表情」开关 | `CharacterStickerPage`，行入口在 `CharacterDetailPage` |
+| 头像自己上传（我和角色） | `AvatarPickerSheet`（相册 + 内置 + 不用照片） |
+| 发图片（模拟图片，不走真相册） | `MockPhoto` 八场景现画，`StoredMessage.imageSeed` |
+| 我的状态（一句话 + 表情，进提示词） | `UserProfile.statusText`，`UserIdentity` 搬运，`ProfileStatusPage` 编辑 |
+| 桌面 / 锁屏壁纸分开设，可挑相册照片 | `WallpaperSelection` / `AppearancePage` |
+| 通话页表情入口 | `CallOverlay` 输入栏表情按钮 |
+| 分享帖子改小红书式弹层 | `FeedSharePicker` 半屏九宫格 |
+| 莓果红换掉 | `#D93A3F`（原 `#E83A56` 发品红） |
+| 二次元、泰迪头像保留 | 11-07 明确：插画不算真人，留着 |

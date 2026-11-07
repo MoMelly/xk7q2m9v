@@ -99,6 +99,9 @@ struct ChatView: View {
             case "chatDynamic":
                 // 截图流水线拍动效背景这一档；正常启动读不到这个键。
                 settings.chatBackgroundRaw = ChatBackgroundMode.dynamic.rawValue
+            case "chatGlass":
+                // 拍玻璃气泡两档深浅的对比，截图要能看出两侧不一样。
+                settings.setChatBubble(.glass)
             case "chatPhoto":
                 showPhotos = true
                 isComposerActive = true

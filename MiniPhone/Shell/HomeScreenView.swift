@@ -91,13 +91,13 @@ struct HomeScreenView: View {
         .frame(height: PhoneMetrics.dockHeight)
         // 玻璃的底色由 tint 决定，但材质本身的明暗跟「配色方案」走：
         // 外壳锁的是深色，于是这块玻璃总按深色材质渲染，外面垫多少白都只是灰。
-        // 所以先把这一段按浅色渲染，再垫一层薄白——出来才是透亮的玻璃，
-        // 和聊天里那几颗玻璃气泡同一个档。
+        // 日间把这一段按浅色渲染再垫一层薄白，出来才是透亮的玻璃；
+        // 夜间反过来按深色渲染，只留一点点白——夜里一块白板比灰更假。
         .glassSurface(
             cornerRadius: 34,
             tint: ThemeStore.shared.isNight ? Theme.Glass.dockNight : Theme.Glass.dockDay
         )
-        .environment(\.colorScheme, .light)
+        .environment(\.colorScheme, ThemeStore.shared.isNight ? .dark : .light)
         .overlay {
             RoundedRectangle(cornerRadius: 34, style: .continuous)
                 .strokeBorder(Theme.Glass.dockRim, lineWidth: 0.6)

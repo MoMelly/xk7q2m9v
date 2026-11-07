@@ -44,7 +44,7 @@ struct PhoneShellView: View {
     /// 单列一份是因为后面还有弹层要判断同一组名字，散在多处容易漏。
     private static var opensChatDirectly: Bool {
         switch previewState {
-        case "chatDetail", "chatStickers", "chatPhoto", "chatDynamic", "charDetail", "call":
+        case "chatDetail", "chatStickers", "chatPhoto", "chatDynamic", "chatGlass", "charDetail", "call":
             return true
         default:
             return false
@@ -66,7 +66,7 @@ struct PhoneShellView: View {
         case "feedProfile": destination = .scene(.feed)
         case "letters": destination = .scene(.letters)
         case "storyGame": destination = .scene(.storyGame)
-        case "chatDetail", "chatMine", "chatEditor", "chatStickers", "chatPhoto", "chatDynamic", "avatarPicker",
+        case "chatDetail", "chatMine", "chatEditor", "chatStickers", "chatPhoto", "chatDynamic", "chatGlass", "avatarPicker",
              "charDetail", "call": destination = .chat
         case "chatNight": destination = .chat
         default: destination = nil
@@ -126,7 +126,9 @@ struct PhoneShellView: View {
 
             if let app = openedApp {
                 appLayer(app)
-                    .mask { launchMask }
+                    // 遮罩要铺到整屏：App 页的背景自己会往安全区外延伸，
+                    // 遮罩只按安全区算的话，上下会各裁掉一条、露出壁纸。
+                    .mask { launchMask.ignoresSafeArea() }
                     .zIndex(2)
             }
 

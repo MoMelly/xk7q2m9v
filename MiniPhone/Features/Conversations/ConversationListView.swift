@@ -193,15 +193,7 @@ struct ConversationListView: View {
         }
         .padding(.top, 10)
         .padding(.bottom, 10)
-        .glassSurface(
-            cornerRadius: 26,
-            tint: ThemeStore.shared.isNight ? Theme.Glass.dockNight : Theme.Glass.dockDay
-        )
-        .environment(\.colorScheme, .light)
-        .overlay {
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .strokeBorder(Theme.Glass.dockRim, lineWidth: 0.6)
-        }
+        .glassSurface(cornerRadius: 26, tint: Color.white.opacity(ThemeStore.shared.isNight ? 0.12 : 0.42))
         .padding(.horizontal, 14)
         .padding(.bottom, 6)
     }

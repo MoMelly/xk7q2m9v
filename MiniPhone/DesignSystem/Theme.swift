@@ -236,10 +236,10 @@ enum Theme {
         static let bubbleRimCharacter = Color.white.opacity(0.12)
         static let bubbleRimUser = Color.white.opacity(0.22)
 
-        /// 主屏 Dock 与信息底栏。数值偏低是有意的：整块要透出壁纸，
+        /// 主屏 Dock。数值偏低是有意的：整块要透出壁纸，
         /// 太满就成了白塑料板，和系统那种玻璃不是一回事。
-        static let dockDay = Color.white.opacity(0.34)
-        static let dockNight = Color.white.opacity(0.16)
+        static let dockDay = Color.white.opacity(0.26)
+        static let dockNight = Color.white.opacity(0.10)
         /// Dock 顶沿的高光，一道就行。
         static let dockRim = Color.white.opacity(0.5)
     }
