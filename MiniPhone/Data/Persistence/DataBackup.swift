@@ -6,7 +6,9 @@ import SwiftData
 /// 自签 App 的数据随时可能因为重签而消失，所以「能导出」不是备份功能，
 /// 是基本盘。格式用明文 JSON：换手机、改代码、甚至拿去喂给别的工具都能用。
 enum DataBackup {
-    static let currentVersion = 2
+    /// v3：消息补 imageSeed（模拟图），角色补上传头像，新增「我的」身份列表，
+    /// 备份目录里带上用户上传的头像照片文件。重装前导出才真正是一份全量。
+    static let currentVersion = 3
 
     enum BackupError: LocalizedError {
         case unsupportedVersion(Int)
@@ -26,6 +28,8 @@ enum DataBackup {
             var speaker: String?
             var isNarration: Bool
             var createdAt: Date
+            /// v3 新增。模拟图片的画图种子，0 或缺省 = 纯文字。
+            var imageSeed: Int?
         }
 
         struct Char: Codable {
@@ -52,6 +56,26 @@ enum DataBackup {
             var tagsRaw: String?
             var canReadCalendar: Bool?
             var isNPC: Bool?
+            /// v3 新增。内置头像键与上传头像文件名。
+            var avatarImageKey: String?
+            var avatarFileName: String?
+        }
+
+        /// 「我的」里的一个身份。v3 新增，老备份没有整段。
+        struct User: Codable {
+            var uid: UUID
+            var name: String
+            var signature: String
+            var bio: String
+            var tagsRaw: String
+            var statusText: String
+            var statusStickerName: String
+            var avatarTintRaw: String
+            var avatarSymbol: String
+            var avatarImageKey: String
+            var avatarFileName: String
+            var isDefault: Bool
+            var createdAt: Date
         }
 
         /// 我自己的备忘录。角色记忆在世界状态里，不走这里。
@@ -87,6 +111,8 @@ enum DataBackup {
         var world: [World]
         /// v2 新增。可选，否则 v1 的备份会整份解不开。
         var notes: [Note]?
+        /// v3 新增。「我的」里的全部身份。
+        var users: [User]?
     }
 
     // MARK: - 导出
@@ -97,6 +123,7 @@ enum DataBackup {
         let moments = (try? context.fetch(FetchDescriptor<MomentPost>())) ?? []
         let world = (try? context.fetch(FetchDescriptor<WorldEntry>())) ?? []
         let notes = (try? context.fetch(FetchDescriptor<NoteItem>())) ?? []
+        let users = (try? context.fetch(FetchDescriptor<UserProfile>())) ?? []
 
         let payload = Payload(
             version: currentVersion,
@@ -130,13 +157,16 @@ enum DataBackup {
                                     text: $0.text,
                                     speaker: $0.speaker,
                                     isNarration: $0.isNarration,
-                                    createdAt: $0.createdAt
+                                    createdAt: $0.createdAt,
+                                    imageSeed: $0.imageSeed == 0 ? nil : $0.imageSeed
                                 )
                             },
                         signature: character.signature,
                         tagsRaw: character.tagsRaw,
                         canReadCalendar: character.canReadCalendar,
-                        isNPC: character.isNPC
+                        isNPC: character.isNPC,
+                        avatarImageKey: character.avatarImageKey,
+                        avatarFileName: character.avatarFileName
                     )
                 },
             moments: moments
@@ -170,6 +200,25 @@ enum DataBackup {
                         createdAt: $0.createdAt,
                         updatedAt: $0.updatedAt
                     )
+                },
+            users: users
+                .sorted { $0.createdAt < $1.createdAt }
+                .map {
+                    Payload.User(
+                        uid: $0.uid,
+                        name: $0.name,
+                        signature: $0.signature,
+                        bio: $0.bio,
+                        tagsRaw: $0.tagsRaw,
+                        statusText: $0.statusText,
+                        statusStickerName: $0.statusStickerName,
+                        avatarTintRaw: $0.avatarTintRaw,
+                        avatarSymbol: $0.avatarSymbol,
+                        avatarImageKey: $0.avatarImageKey,
+                        avatarFileName: $0.avatarFileName,
+                        isDefault: $0.isDefault,
+                        createdAt: $0.createdAt
+                    )
                 }
         )
 
@@ -199,6 +248,21 @@ enum DataBackup {
                 to: folder.appendingPathComponent("world-state.json"),
                 options: .atomic
             )
+        }
+
+        // 用户从相册传的头像是 Documents/avatars 下的 UUID 文件，
+        // 内置头像（avatar_ 前缀）随包发布不用搬。逐个文件拷进备份目录。
+        let avatarFiles = (try? FileManager.default.contentsOfDirectory(
+            at: AvatarPhoto.directory,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        for file in avatarFiles where file.lastPathComponent.hasSuffix(".jpg")
+            && !file.lastPathComponent.hasPrefix("avatar_") {
+            let destination = folder.appendingPathComponent("avatars", isDirectory: true)
+            if !FileManager.default.fileExists(atPath: destination.path) {
+                try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            }
+            try? FileManager.default.copyItem(at: file, to: destination.appendingPathComponent(file.lastPathComponent))
         }
         return folder
     }
@@ -274,6 +338,8 @@ enum DataBackup {
             character.tagsRaw = item.tagsRaw ?? ""
             character.canReadCalendar = item.canReadCalendar ?? false
             character.isNPC = item.isNPC ?? false
+            character.avatarImageKey = item.avatarImageKey ?? ""
+            character.avatarFileName = item.avatarFileName ?? ""
             context.insert(character)
 
             for message in item.messages {
@@ -285,6 +351,7 @@ enum DataBackup {
                     isNarration: message.isNarration,
                     createdAt: message.createdAt
                 )
+                stored.imageSeed = message.imageSeed ?? 0
                 stored.character = character
                 context.insert(stored)
                 messageCount += 1
@@ -321,6 +388,32 @@ enum DataBackup {
             context.insert(note)
         }
 
+        // 身份是整段替换：v3 备份里存的是导出那一刻的全部身份。
+        // 老备份没有这段就跳过，保留启动时建好的默认身份。
+        if let users = payload.users {
+            for item in (try? context.fetch(FetchDescriptor<UserProfile>())) ?? [] {
+                context.delete(item)
+            }
+            for item in users {
+                let profile = UserProfile(
+                    name: item.name,
+                    signature: item.signature,
+                    bio: item.bio,
+                    tagsRaw: item.tagsRaw,
+                    avatarTintRaw: item.avatarTintRaw,
+                    isDefault: item.isDefault
+                )
+                profile.uid = item.uid
+                profile.statusText = item.statusText
+                profile.statusStickerName = item.statusStickerName
+                profile.avatarSymbol = item.avatarSymbol
+                profile.avatarImageKey = item.avatarImageKey
+                profile.avatarFileName = item.avatarFileName
+                profile.createdAt = item.createdAt
+                context.insert(profile)
+            }
+        }
+
         try context.save()
 
         var extras: [String] = []
@@ -333,6 +426,24 @@ enum DataBackup {
         if let snapshot = try? Data(contentsOf: worldSource) {
             try? snapshot.write(to: WorldStateFile.url, options: .atomic)
             extras.append("世界状态")
+        }
+
+        // 上传的头像照片文件搬回 Documents/avatars，内置的随包不用动。
+        let backupAvatars = folder.appendingPathComponent("avatars", isDirectory: true)
+        if let files = try? FileManager.default.contentsOfDirectory(
+            at: backupAvatars,
+            includingPropertiesForKeys: nil
+        ), !files.isEmpty {
+            for file in files {
+                try? FileManager.default.copyItem(
+                    at: file,
+                    to: AvatarPhoto.directory.appendingPathComponent(file.lastPathComponent)
+                )
+            }
+            extras.append("头像照片 \(files.count) 张")
+        }
+        if payload.users != nil {
+            extras.append("我的身份")
         }
 
         let suffix = extras.isEmpty ? "" : "，以及" + extras.joined(separator: "、")
