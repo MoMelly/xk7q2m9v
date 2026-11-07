@@ -89,19 +89,10 @@ struct HomeScreenView: View {
         }
         .padding(.horizontal, PhoneMetrics.dockHorizontalPadding)
         .frame(height: PhoneMetrics.dockHeight)
-        // 玻璃的底色由 tint 决定，但材质本身的明暗跟「配色方案」走：
-        // 外壳锁的是深色，于是这块玻璃总按深色材质渲染，外面垫多少白都只是灰。
-        // 日间把这一段按浅色渲染再垫一层薄白，出来才是透亮的玻璃；
-        // 夜间反过来按深色渲染，只留一点点白——夜里一块白板比灰更假。
-        .glassSurface(
-            cornerRadius: 34,
-            tint: ThemeStore.shared.isNight ? Theme.Glass.dockNight : Theme.Glass.dockDay
-        )
-        .environment(\.colorScheme, ThemeStore.shared.isNight ? .dark : .light)
-        .overlay {
-            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                .strokeBorder(Theme.Glass.dockRim, lineWidth: 0.6)
-        }
+        // 磨砂而不是玻璃：`glassEffect` 在外壳的深色方案里总按深色材质渲染，
+        // 垫多少白都是一块发灰的板子。磨砂走材质 + 薄白，壁纸颜色能透上来，
+        // 边缘只剩一圈细高光——这才是参考图里那种毛玻璃。
+        .frostedBar(cornerRadius: 34)
         .padding(.horizontal, 12)
     }
 }

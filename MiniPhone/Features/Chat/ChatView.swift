@@ -13,6 +13,8 @@ struct ChatView: View {
 
     @Environment(\.modelContext) private var context
     @Query private var messages: [StoredMessage]
+    /// 拍一拍要用名字：「小绿 拍了拍 陆沉 的脑门」。
+    @Query(sort: \UserProfile.createdAt, order: .forward) private var profiles: [UserProfile]
 
     @State private var viewModel = ChatViewModel()
     @State private var draft = ""
@@ -151,33 +153,32 @@ struct ChatView: View {
         HStack(spacing: 10) {
             GlassIconButton(symbol: "chevron.left", action: onExit)
 
-            Button {
-                showDetail = true
-            } label: {
-                HStack(spacing: 9) {
-                    AvatarBubble(character: character, size: 30)
+            HStack(spacing: 9) {
+                // 双击头像 = 拍一拍。头像只认双击：外层那块单击是「打开详情」，
+                // 两个手势叠在同一处会互相抢，单击第一下就把详情推出来了。
+                AvatarBubble(character: character, size: 30)
+                    .onTapGesture(count: 2) { pat() }
 
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(character.name)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(Theme.cream)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(character.name)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.cream)
+                        .lineLimit(1)
+
+                    TimelineView(.everyMinute) { context in
+                        Text(subtitle(at: context.date))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(
+                                isAsleep(at: context.date)
+                                    ? Theme.cream.opacity(0.4)
+                                    : Theme.mint.opacity(0.72)
+                            )
                             .lineLimit(1)
-
-                        TimelineView(.everyMinute) { context in
-                            Text(subtitle(at: context.date))
-                                .font(.system(size: 10, weight: .medium))
-                                .foregroundStyle(
-                                    isAsleep(at: context.date)
-                                        ? Theme.cream.opacity(0.4)
-                                        : Theme.mint.opacity(0.72)
-                                )
-                                .lineLimit(1)
-                        }
                     }
                 }
                 .contentShape(Rectangle())
+                .onTapGesture { showDetail = true }
             }
-            .buttonStyle(.plain)
 
             Spacer(minLength: 0)
 
@@ -239,17 +240,22 @@ struct ChatView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 6) {
                     if messages.isEmpty && viewModel.displayedStreamingText.isEmpty {
-                        emptyState
+                        ChatEmptyState(isConfigured: settings.isConfigured)
                     }
 
                     ForEach(Array(messages.enumerated()), id: \.element.uid) { index, message in
                         if shouldShowTime(at: index) {
-                            timeSeparator(message.createdAt)
+                            ChatTimeSeparator(date: message.createdAt)
                         }
 
-                        bubble(for: message)
-                            .padding(.top, gapBefore(index))
-                            .id(message.uid)
+                        if message.isPat {
+                            ChatPatNotice(text: message.text)
+                                .id(message.uid)
+                        } else {
+                            bubble(for: message)
+                                .padding(.top, gapBefore(index))
+                                .id(message.uid)
+                        }
                     }
 
                     if viewModel.isStreaming {
@@ -338,6 +344,16 @@ struct ChatView: View {
         )
     }
 
+    /// 双击头像拍的这一下。抖动一下再把那条事件落库，
+    /// 手感是「拍到了」，而不是「界面闪了一下」。
+    private func pat() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let myName = profiles.first(where: { $0.isDefault })?.name
+            ?? profiles.first?.name
+            ?? "我"
+        viewModel.sendPat(character: character, myName: myName, context: context)
+    }
+
     private func beginQuote(_ message: StoredMessage) {
         editingTarget = nil
         quoting = message
@@ -365,14 +381,6 @@ struct ChatView: View {
     private func delete(_ message: StoredMessage) {
         context.delete(message)
         try? context.save()
-    }
-
-    private var emptyState: some View {
-        ChatEmptyState(isConfigured: settings.isConfigured)
-    }
-
-    private func timeSeparator(_ date: Date) -> some View {
-        ChatTimeSeparator(date: date)
     }
 
     // MARK: - 输入条

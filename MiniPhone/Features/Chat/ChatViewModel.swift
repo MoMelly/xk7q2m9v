@@ -60,6 +60,22 @@ final class ChatViewModel {
         )
     }
 
+    /// 我拍了一下对方。
+    ///
+    /// 拍一拍是事件，不是一句「话」：落成一条 `isPat` 消息，界面上居中显示一行小字，
+    /// 气泡那套样式一概不套。它照常留在历史里，所以模型也知道刚才被拍了一下。
+    func sendPat(character: Companion, myName: String, context: ModelContext) {
+        let suffix = character.patSuffix.isEmpty ? "的肩膀" : character.patSuffix
+        let line = "\(myName) 拍了拍 \(character.name)\(suffix)"
+
+        let message = StoredMessage(characterUID: character.uid, role: .user, text: line)
+        message.isPat = true
+        message.character = character
+        context.insert(message)
+        character.lastMessageAt = Date()
+        save(context)
+    }
+
     /// 攒下的话等够了吗：最后一条是用户发的（或者还没聊过），就该对方接了。
     /// 界面拿它点亮「回话」键；对方回过之后键就熄掉。
     func hasPendingUserMessages(for character: Companion) -> Bool {

@@ -20,6 +20,9 @@ struct CharacterDetailPage: View {
     @State private var calendarDenied = false
     private var letterService: LetterService { .shared }
     @State private var letterMessage: String?
+    /// 拍一拍后缀的编辑框。
+    @State private var showPatEditor = false
+    @State private var patDraft = ""
 
     private var person: PersonMemory? {
         world.state.people.first { $0.name == character.name }
@@ -155,6 +158,23 @@ struct CharacterDetailPage: View {
                             )
                         }
                         .buttonStyle(.plain)
+
+                        RowDivider()
+
+                        // 拍一拍后缀。角色这边单独一条：双击 TA 的头像时用。
+                        Button {
+                            patDraft = character.patSuffix
+                            showPatEditor = true
+                        } label: {
+                            GroupedRow(
+                                symbol: "hand.tap.fill",
+                                symbolTint: Theme.IconTint.orange,
+                                title: "拍一拍后缀",
+                                value: character.patSuffix.isEmpty ? "的肩膀" : character.patSuffix,
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     GroupedSection("信件", footer: letterMessage) {
@@ -199,6 +219,15 @@ struct CharacterDetailPage: View {
                 .padding(.top, PhoneMetrics.Space.s)
                 .padding(.bottom, PhoneMetrics.Space.xl)
             }
+        }
+        .alert("拍一拍后缀", isPresented: $showPatEditor) {
+            TextField("比如：的后颈", text: $patDraft)
+            Button("取消", role: .cancel) {}
+            Button("保存") {
+                character.patSuffix = patDraft.trimmingCharacters(in: .whitespaces)
+            }
+        } message: {
+            Text("双击 TA 的头像时，会显示成「\(character.name)\(patDraft.trimmingCharacters(in: .whitespaces).isEmpty ? "的肩膀" : patDraft)」。")
         }
         .sheet(isPresented: $showEditor) {
             CharacterEditorView(character: character, onFinish: { showEditor = false })

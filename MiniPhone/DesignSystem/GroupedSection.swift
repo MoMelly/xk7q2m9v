@@ -47,8 +47,13 @@ struct GroupedSection<Content: View>: View {
                     VStack(spacing: 0) { content }
                         .glassSurface(cornerRadius: PhoneMetrics.Radius.grouped)
                 } else {
+                    // 磨砂而不是实白：参考图那种质感靠的是材质透出底色，
+                    // 铺一块 #FFFFFF 上去就是一张纸。
                     VStack(spacing: 0) { content }
-                        .background(shape.fill(surface.rowSurface))
+                        .frostedCard(
+                            cornerRadius: PhoneMetrics.Radius.grouped,
+                            shadow: .none
+                        )
                 }
             }
             .clipShape(shape)

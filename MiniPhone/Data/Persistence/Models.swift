@@ -67,6 +67,10 @@ final class Companion {
     /// 被单独关掉的某个表情的备注名，逗号分隔。
     var blockedStickerNamesRaw: String = ""
 
+    /// 被拍一拍时跟在自己名字后面的那句后缀，比如「的脑门」。
+    /// 空串表示用默认的「的肩膀」。
+    var patSuffix: String = ""
+
     var wakeHour: Int = 7
     var sleepHour: Int = 23
 
@@ -176,6 +180,9 @@ final class StoredMessage {
     /// 改过的时间。空表示没编辑过。
     var editedAt: Date?
 
+    /// 拍一拍事件。这类行不套气泡，在对话里居中显示一行小字。
+    var isPat: Bool = false
+
     var createdAt: Date = Date()
 
     var character: Companion?
@@ -260,6 +267,8 @@ final class UserProfile {
     var avatarImageKey: String = ""
     /// 从相册传的头像文件名。优先于内置照片。
     var avatarFileName: String = ""
+    /// 我被人拍的时候，名字后面那句后缀。空串 = 默认的「的头像」。
+    var patSuffix: String = ""
     /// 新会话默认用哪个。
     var isDefault: Bool = false
     var createdAt: Date = Date()

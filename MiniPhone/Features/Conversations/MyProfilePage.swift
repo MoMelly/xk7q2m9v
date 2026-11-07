@@ -16,6 +16,9 @@ struct MyProfilePage: View {
     /// 正在编辑的次级页。宿主没有导航栈，「信息」页自己拼的顶栏加 tabBar
     /// 也不适合被推入，所以次级菜单全走模态。
     @State private var activeEditor: ActiveEditor?
+    /// 拍一拍后缀的编辑框。用 alert 带一个输入框，够用，不再单开一页。
+    @State private var showPatEditor = false
+    @State private var patDraft = ""
 
     enum ActiveEditor: String, Identifiable {
         case name, signature, status, symbol, tint
@@ -154,6 +157,29 @@ struct MyProfilePage: View {
                     }
                     .buttonStyle(.plain)
                 }
+
+                // 拍一拍。QQ 那套：别人双击你的头像，名字后面跟一句自己的后缀。
+                GroupedSection(
+                    "互动",
+                    footer: "别人双击你头像时，名字后面跟的这句。留空就是「的头像」。",
+                    surface: .glass,
+                    glass: true
+                ) {
+                    Button {
+                        patDraft = profile.patSuffix
+                        showPatEditor = true
+                    } label: {
+                        GroupedRow(
+                            symbol: "hand.tap.fill",
+                            symbolTint: Theme.IconTint.orange,
+                            title: "拍一拍后缀",
+                            value: profile.patSuffix.isEmpty ? "的头像" : profile.patSuffix,
+                            showsChevron: true,
+                            surface: .glass
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.top, PhoneMetrics.Space.s)
             .padding(.bottom, PhoneMetrics.Space.xl)
@@ -161,6 +187,16 @@ struct MyProfilePage: View {
         // 不再自己铺墨绿底：这页嵌在会话列表里，背后就是聊天背景
         // （主题渐变/流动动效/相册图），玻璃分组透出去的才是同一片背景。
         .onDisappear(perform: save)
+        .alert("拍一拍后缀", isPresented: $showPatEditor) {
+            TextField("比如：的脑门", text: $patDraft)
+            Button("取消", role: .cancel) {}
+            Button("保存") {
+                profile.patSuffix = patDraft.trimmingCharacters(in: .whitespaces)
+                save()
+            }
+        } message: {
+            Text("会显示成「\(profile.name)\(patDraft.trimmingCharacters(in: .whitespaces).isEmpty ? "的头像" : patDraft)」。")
+        }
         .sheet(isPresented: $showChatLook) {
             NavigationStack {
                 ScrollView {

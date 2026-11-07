@@ -146,6 +146,19 @@ struct ChatErrorCard: View {
     }
 }
 
+/// 拍一拍那一行。居中的一行小字，不套气泡、不带时间。
+struct ChatPatNotice: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(Theme.cream.opacity(0.44))
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical, 2)
+    }
+}
+
 /// 输入栏上方那条提示：正在引用谁，或者正在改哪一句。
 ///
 /// 和输入栏同一套玻璃，贴在它上面不显得是另一层界面。
