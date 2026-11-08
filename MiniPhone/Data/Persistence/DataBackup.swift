@@ -111,6 +111,8 @@ enum DataBackup {
             var content: String
             var enabled: Bool
             var createdAt: Date
+            /// v9 新增：常驻条目。旧备份没有这个键，读出来当关键词条目。
+            var alwaysOn: Bool?
         }
 
         var version: Int
@@ -200,7 +202,8 @@ enum DataBackup {
                     keywords: $0.keywords,
                     content: $0.content,
                     enabled: $0.enabled,
-                    createdAt: $0.createdAt
+                    createdAt: $0.createdAt,
+                    alwaysOn: $0.alwaysOn ? true : nil
                 )
             },
             notes: notes
@@ -392,7 +395,8 @@ enum DataBackup {
             let entry = WorldEntry(
                 characterUID: item.characterUID,
                 keywords: item.keywords,
-                content: item.content
+                content: item.content,
+                alwaysOn: item.alwaysOn ?? false
             )
             entry.enabled = item.enabled
             entry.createdAt = item.createdAt

@@ -97,6 +97,8 @@ enum Theme {
         static let indigo = Color(red: 0.55, green: 0.42, blue: 0.78)
         static let teal = Color(red: 0.20, green: 0.62, blue: 0.66)
         static let yellow = Color(red: 0.93, green: 0.72, blue: 0.18)
+        /// 情侣空间的玫瑰色。比 `pink` 淡一档，那个番茄红压在大面积卡片上太吵。
+        static let rose = Color(red: 0.90, green: 0.42, blue: 0.58)
     }
 
     /// 「西瓜皮」自己的那套色。

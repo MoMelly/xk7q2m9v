@@ -2,9 +2,8 @@ import SwiftUI
 
 /// 主屏。
 ///
-/// 从上到下三块：小组件、图标网格、Dock。图标现在 12 个（4×3），
-/// 上面留给三块组件——今日日程、心情、在听。之前只有图标，
-/// 底下空一大片，看着不像一台被用过的手机。
+/// 从上到下三块：小组件、图标网格、Dock。图标现在 9 个（4+4+1），
+/// 上面留给三块组件——今日日程、心情、在听。
 ///
 /// 不做左右翻页：图标还没多到需要第二页，伪造一页空的反而更假。
 struct HomeScreenView: View {
@@ -26,11 +25,13 @@ struct HomeScreenView: View {
             VStack(spacing: 0) {
                 StatusBarView()
 
-                Spacer(minLength: 0).frame(height: 14)
+                // 灵动岛到组件之间要留出一条空：14 的时候第一块组件顶在岛边上，
+                // 看着像被岛压住了。26 是文字基线下面还有一层留白的高度。
+                Spacer(minLength: 0).frame(height: 26)
 
                 widgetStack
 
-                Spacer(minLength: 0).frame(height: 22)
+                Spacer(minLength: 0).frame(height: 24)
 
                 iconGrid
 
@@ -70,8 +71,11 @@ struct HomeScreenView: View {
     }
 
     /// 组件点开对应的 App。找不到就当没点——主屏不该因为一个 id 崩掉。
+    ///
+    /// 桌面和 Dock 一起找：心情组件点开的是「信息」，它现在只在 Dock 里，
+    /// 只翻桌面那张表会静默失灵。
     private func openApp(_ id: String) {
-        guard let app = AppCatalog.home.first(where: { $0.id == id }) else { return }
+        guard let app = (AppCatalog.home + AppCatalog.dock).first(where: { $0.id == id }) else { return }
         onOpen(app)
     }
 

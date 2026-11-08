@@ -47,13 +47,10 @@ enum AppCatalog {
     /// 其中一半是点了只弹一句「还没做」的占位——用户不会因为桌面像 iPhone 就高兴，
     /// 只会去点，然后发现是空的。电话、FaceTime、计算器这类功能没必要单独占一格：
     /// 通话已经进聊天，计算器没有任何场景。
+    ///
+    /// 和 Dock 严格不重叠：同一个 App 在桌面和底栏各出现一次，看起来像重复安装。
+    /// 信息、西瓜皮、TA 的手机这几个每天都要点的放进 Dock，桌面只留内容类的。
     static let home: [PhoneApp] = [
-        PhoneApp(id: "messages", name: "信息", symbol: "message.fill",
-                 colors: [Color(red: 0.42, green: 0.96, blue: 0.54), Color(red: 0.16, green: 0.82, blue: 0.38)],
-                 destination: .chat),
-        PhoneApp(id: "feed", name: "西瓜皮", symbol: "book.closed.fill",
-                 colors: [Color(red: 1.0, green: 0.42, blue: 0.40), Color(red: 0.90, green: 0.14, blue: 0.22)],
-                 destination: .scene(.feed)),
         PhoneApp(id: "music", name: "音乐", symbol: "music.note",
                  colors: [Color(red: 1.0, green: 0.46, blue: 0.52), Color(red: 0.97, green: 0.24, blue: 0.48)],
                  destination: .scene(.music)),
@@ -79,7 +76,7 @@ enum AppCatalog {
                  colors: [Color(red: 0.38, green: 0.78, blue: 1.0), Color(red: 0.14, green: 0.52, blue: 0.96)],
                  destination: .scene(.letters)),
         PhoneApp(id: "couple", name: "情侣空间", symbol: "flame.fill",
-                 colors: [Color(red: 1.0, green: 0.55, blue: 0.34), Color(red: 0.95, green: 0.26, blue: 0.42)],
+                 colors: [Color(red: 1.0, green: 0.62, blue: 0.70), Color(red: 0.90, green: 0.36, blue: 0.55)],
                  destination: .scene(.couple)),
         PhoneApp(id: "storygame", name: "文游", symbol: "text.book.closed.fill",
                  colors: [Color(red: 0.64, green: 0.56, blue: 0.98), Color(red: 0.42, green: 0.33, blue: 0.84)],
@@ -87,13 +84,10 @@ enum AppCatalog {
         PhoneApp(id: "reading", name: "阅读", symbol: "books.vertical.fill",
                  colors: [Color(red: 1.0, green: 0.93, blue: 0.80), Color(red: 0.96, green: 0.80, blue: 0.58)],
                  destination: .scene(.reading),
-                 symbolTint: Color(red: 0.46, green: 0.32, blue: 0.14)),
-        PhoneApp(id: "phonepeek", name: "TA 的手机", symbol: "iphone.gen3",
-                 colors: [Color(red: 0.72, green: 0.74, blue: 0.86), Color(red: 0.44, green: 0.45, blue: 0.62)],
-                 destination: .scene(.phonePeek))
+                 symbolTint: Color(red: 0.46, green: 0.32, blue: 0.14))
     ]
 
-    /// Dock 里的四个。信息放第一位，因为它是唯一每天都要点开的。
+    /// Dock 里的四个。桌面上的同类入口已经全部撤掉，这里不再有第二份。
     static let dock: [PhoneApp] = [
         PhoneApp(id: "dock.messages", name: "信息", symbol: "message.fill",
                  colors: [Color(red: 0.42, green: 0.96, blue: 0.54), Color(red: 0.16, green: 0.82, blue: 0.38)],
@@ -101,9 +95,9 @@ enum AppCatalog {
         PhoneApp(id: "dock.feed", name: "西瓜皮", symbol: "book.closed.fill",
                  colors: [Color(red: 1.0, green: 0.42, blue: 0.40), Color(red: 0.90, green: 0.14, blue: 0.22)],
                  destination: .scene(.feed)),
-        PhoneApp(id: "dock.letters", name: "信件", symbol: "envelope.fill",
-                 colors: [Color(red: 0.38, green: 0.78, blue: 1.0), Color(red: 0.14, green: 0.52, blue: 0.96)],
-                 destination: .scene(.letters)),
+        PhoneApp(id: "dock.phonepeek", name: "TA 的手机", symbol: "iphone.gen3",
+                 colors: [Color(red: 0.72, green: 0.74, blue: 0.86), Color(red: 0.44, green: 0.45, blue: 0.62)],
+                 destination: .scene(.phonePeek)),
         PhoneApp(id: "dock.settings", name: "设置", symbol: "gearshape.fill",
                  colors: [Color(red: 0.86, green: 0.89, blue: 0.93), Color(red: 0.62, green: 0.67, blue: 0.74)],
                  destination: .settings,

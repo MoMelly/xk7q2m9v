@@ -5,6 +5,9 @@ import SwiftUI
 /// 只有一件事：火花。数字是连续天数，两个人都开过口才算一天。
 /// 不做签到按钮——真按一下就能加一天，这个数字就没有意义了；
 /// 想续火花只有一条路，去跟他说句话。
+///
+/// 视觉上是一块大号液态玻璃：磨砂透出壁纸、左上角一层玫瑰色柔光、字走墨色。
+/// 上一版是一整块橙红渐变加白字，颜色太吵，像活动横幅而不是一件私人的东西。
 struct CoupleScene: View {
     let world: WorldStore
     var onClose: () -> Void
@@ -14,6 +17,7 @@ struct CoupleScene: View {
     private var best: Int { CoupleEngine.best(state) }
     private var activeToday: Bool { CoupleEngine.isActiveToday(state) }
     private var onlyMine: Bool { CoupleEngine.onlyMineToday(state) }
+    private var recent: [(key: String, active: Bool)] { CoupleEngine.recent(state, days: 14) }
 
     var body: some View {
         AppScreen(title: "情侣空间", onClose: onClose) {
@@ -34,42 +38,92 @@ struct CoupleScene: View {
     // MARK: - 火花
 
     private var sparkCard: some View {
-        VStack(spacing: 2) {
-            // 不用脉冲：那张截图正好抓到淡出的帧，火焰只剩一团白雾。
-            Image(systemName: "flame.fill")
-                .font(.system(size: 32))
-                .foregroundStyle(.white)
-                .opacity(streak > 0 ? 1 : 0.3)
+        VStack(alignment: .leading, spacing: 0) {
+            header
 
-            Text("\(streak)")
-                .font(.system(size: 52, weight: .bold, design: .rounded))
-                .foregroundStyle(.white)
-                .contentTransition(.numericText())
+            HStack(alignment: .center, spacing: 14) {
+                flameBadge
 
-            Text("天").font(.system(size: 12))
-                .foregroundStyle(.white.opacity(0.7))
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text("\(streak)")
+                            .font(.system(size: 58, weight: .bold, design: .rounded))
+                            .foregroundStyle(Theme.label)
+                            .contentTransition(.numericText())
 
-            Text(statusLine)
-                .font(.system(size: PhoneMetrics.FontSize.footnote))
-                .foregroundStyle(.white.opacity(0.82))
-                .padding(.top, 6)
+                        Text("天")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundStyle(Theme.secondaryLabel)
+                    }
+
+                    Text(statusLine)
+                        .font(.system(size: PhoneMetrics.FontSize.footnote))
+                        .foregroundStyle(Theme.secondaryLabel)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.top, 10)
+
+            recentStrip
+                .padding(.top, 16)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, PhoneMetrics.Space.l)
+        .padding(PhoneMetrics.Space.l)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background {
-            RoundedRectangle(cornerRadius: PhoneMetrics.Radius.widget, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [Theme.IconTint.orange, Theme.IconTint.pink],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+            // 柔光贴着内容铺，磨砂在它下面：这样玻璃还是玻璃，
+            // 只是整体偏一点玫瑰，不是把整块染成粉色。
+            RadialGradient(
+                colors: [Theme.IconTint.rose.opacity(0.22), .clear],
+                center: .topLeading,
+                startRadius: 6,
+                endRadius: 280
+            )
         }
-        .overlay {
-            RoundedRectangle(cornerRadius: PhoneMetrics.Radius.widget, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.28), lineWidth: 0.8)
+        .frostedCard(cornerRadius: PhoneMetrics.Radius.glass)
+    }
+
+    private var header: some View {
+        HStack(spacing: 6) {
+            Text("连着说上话")
+                .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
+                .foregroundStyle(Theme.secondaryLabel)
+
+            Spacer(minLength: 0)
+
+            Text(dayCountText)
+                .font(.system(size: PhoneMetrics.FontSize.caption))
+                .foregroundStyle(Theme.secondaryLabel.opacity(0.8))
         }
+    }
+
+    /// 火苗装在一颗淡玫瑰的圆里，比直接放大一个图标更像一个标记。
+    private var flameBadge: some View {
+        ZStack {
+            Circle()
+                .fill(Theme.IconTint.rose.opacity(streak > 0 ? 0.16 : 0.08))
+                .frame(width: 58, height: 58)
+
+            Image(systemName: "flame.fill")
+                .font(.system(size: 26))
+                .foregroundStyle(Theme.IconTint.rose)
+                .opacity(streak > 0 ? 1 : 0.4)
+        }
+    }
+
+    /// 最近 14 天，一天一根竖条。今天在最右。
+    private var recentStrip: some View {
+        HStack(spacing: 5) {
+            ForEach(recent, id: \.key) { day in
+                Capsule()
+                    .fill(day.active ? Theme.IconTint.rose.opacity(0.9) : Theme.separator.opacity(0.42))
+                    .frame(height: day.key == recent.last?.key ? 10 : 6)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .frame(height: 10, alignment: .center)
+        .accessibilityLabel("最近 14 天里说上话的有 \(recent.filter { $0.active }.count) 天")
     }
 
     /// 三种状态说三种话。今天还没结束时不能说「断了」。
@@ -78,6 +132,17 @@ struct CoupleScene: View {
         if onlyMine { return "你说过了，等他也开口" }
         if streak > 0 { return "今天还没说话，火花等在这儿" }
         return "说一句话，就是第一天"
+    }
+
+    /// 「第 41 天」：从关系起算那天到今天，含头含尾。
+    private var dayCountText: String {
+        guard let key = state.sinceKey, let start = TimeFormat.date(fromKey: key) else { return "还没开始" }
+        let days = Calendar.current.dateComponents(
+            [.day],
+            from: Calendar.current.startOfDay(for: start),
+            to: Calendar.current.startOfDay(for: Date())
+        ).day ?? 0
+        return "第 \(days + 1) 天"
     }
 
     // MARK: - 热力图
@@ -95,7 +160,7 @@ struct CoupleScene: View {
             ) {
                 ForEach(CoupleEngine.recent(state, days: 30), id: \.key) { day in
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
-                        .fill(day.active ? Theme.IconTint.pink.opacity(0.9) : Theme.separator.opacity(0.5))
+                        .fill(day.active ? Theme.IconTint.rose.opacity(0.85) : Theme.separator.opacity(0.5))
                         .aspectRatio(1, contentMode: .fit)
                 }
             }
@@ -113,7 +178,7 @@ struct CoupleScene: View {
         VStack(spacing: 0) {
             statRow("最长连续", value: "\(best) 天")
             RowDivider()
-            statRow("一起的第", value: dayCountText)
+            statRow("一起的第", value: dayCountText.replacingOccurrences(of: "第 ", with: ""))
             RowDivider()
             statRow("聊过的天数", value: "\(state.activeDays.count) 天")
         }
@@ -135,17 +200,6 @@ struct CoupleScene: View {
         }
         .padding(.horizontal, PhoneMetrics.Space.m)
         .frame(height: 44)
-    }
-
-    /// 「第 41 天」：从关系起算那天到今天，含头含尾。
-    private var dayCountText: String {
-        guard let key = state.sinceKey, let start = TimeFormat.date(fromKey: key) else { return "还没开始" }
-        let days = Calendar.current.dateComponents(
-            [.day],
-            from: Calendar.current.startOfDay(for: start),
-            to: Calendar.current.startOfDay(for: Date())
-        ).day ?? 0
-        return "\(days + 1) 天"
     }
 
     private var footnote: some View {

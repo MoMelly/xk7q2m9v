@@ -424,6 +424,9 @@ final class ReadingBook {
 }
 
 /// 设定集条目（世界书的简化版）：命中关键词才注入提示词。
+///
+/// `alwaysOn` 是不靠关键词的那一档：住处、工作、家里有谁这类基本盘，
+/// 用户不会每句话都提到关键词，但角色必须一直知道。默认关，老的条目保持原样。
 @Model
 final class WorldEntry {
     var uid: UUID = UUID()
@@ -432,14 +435,17 @@ final class WorldEntry {
     var keywords: String = ""
     var content: String = ""
     var enabled: Bool = true
+    /// 常驻：每轮都进提示词，不看关键词。
+    var alwaysOn: Bool = false
     var createdAt: Date = Date()
 
-    init(characterUID: UUID?, keywords: String, content: String) {
+    init(characterUID: UUID?, keywords: String, content: String, alwaysOn: Bool = false) {
         self.uid = UUID()
         self.characterUID = characterUID
         self.keywords = keywords
         self.content = content
         self.enabled = true
+        self.alwaysOn = alwaysOn
         self.createdAt = Date()
     }
 

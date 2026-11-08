@@ -143,7 +143,7 @@ struct PhoneShellView: View {
             // 悬浮球：真的有歌在放才出现，App 页之上、提示之下。
             // 歌词页不套系统 sheet——手机壳里再弹一个系统面板，拟真就破了。
             if player.track != nil, !isLocked {
-                MiniPlayerOverlay(player: player)
+                MiniPlayerOverlay(player: player, companionName: listeningPartner)
                     .zIndex(2.5)
             }
 
@@ -191,6 +191,16 @@ struct PhoneShellView: View {
         }
     }
 
+    // MARK: - 一起听
+
+    /// 歌词页上「和谁一起在听」的那个名字。
+    ///
+    /// 取第一个角色：这台手机主要还是跟一个人聊。真正跟谁一起听，
+    /// 在聊天里由提示词里的「他正在听」决定，这里只是把这件事摆到界面上。
+    private var listeningPartner: String {
+        companions.first?.name ?? ""
+    }
+
     // MARK: - 通知横幅
 
     /// 把刷新页面映射回桌面图标，横幅上用的就是用户认得的那个 App 图标。
@@ -202,7 +212,9 @@ struct PhoneShellView: View {
             case .shop: destination = .scene(.feed)
             case .feed: destination = .scene(.feed)
             }
-            guard let app = AppCatalog.home.first(where: { $0.destination == destination }) else {
+            // 西瓜皮现在只在 Dock 里，桌面那张表查不到它。
+            guard let app = (AppCatalog.home + AppCatalog.dock)
+                .first(where: { $0.destination == destination }) else {
                 return nil
             }
             return NotificationStack.Notice(

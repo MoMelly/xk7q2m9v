@@ -43,7 +43,7 @@ struct CharacterMemoryPage: View {
                         "记得的事",
                         footer: facts.isEmpty
                             ? "还没记住具体的事。多聊几次，值得留下的会自己进来。"
-                            : "每条都标了是谁在什么场合说的。群聊里发生的事，单聊也读得到。"
+                            : "每一轮都会带上这些，和你最近说的话更相关的排前面。记错了就长按删掉——留着错的，之后每轮都跟着错。"
                     ) {
                         if facts.isEmpty {
                             placeholder("还没有")
@@ -54,6 +54,13 @@ struct CharacterMemoryPage: View {
                                     subtitle: "\(fact.sourceName) · \(TimeFormat.callTime(fact.createdAt))"
                                 )
                                 .padding(.vertical, PhoneMetrics.Space.xs)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        world.deleteFact(person: character.name, id: fact.id)
+                                    } label: {
+                                        Label("这条记错了", systemImage: "trash")
+                                    }
+                                }
 
                                 if fact.id != facts.last?.id {
                                     RowDivider()

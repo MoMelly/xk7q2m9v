@@ -144,6 +144,17 @@ enum PromptBuilder {
             }
         }
 
+        // 设定集：常驻的那几条不看关键词，每轮都在。基本盘失忆是最伤的一类错——
+        // 聊到第五句才发现角色不知道你们住哪儿。
+        let constant = constantEntries(worldEntries, character: character)
+        if !constant.isEmpty {
+            blocks.append("""
+            【基本设定】
+            \(constant.joined(separator: "\n"))
+            这些是不管聊什么都成立的事。不用等被问到才想起来，也不要照着复述。
+            """)
+        }
+
         // 设定集命中
         let hits = matchedEntries(worldEntries, triggerText: triggerText, character: character)
         if !hits.isEmpty {
@@ -249,13 +260,20 @@ enum PromptBuilder {
     ///
     /// 心声带 id 是为了让模型能明确指认「哪件心结了结了」；
     /// 带 lastReferencedAt 的心声仍会保留，但要求别每轮重复念一遍。
+    ///
+    /// 这一整块的性质是「你已经知道的事」，不是用户刚说的话。所以开头先交代一句，
+    /// 否则模型会拿它当新信息回应——「哦，你养猫啊」这种失忆式回答就是这么来的。
     private static func worldBlock(_ context: WorldContext) -> String {
         var parts: [String] = []
 
         var memoryLines = context.summaries
         memoryLines.append(contentsOf: context.facts.map { "- \($0.text)" })
         if !memoryLines.isEmpty {
-            parts.append("【共同记得的事】\n" + memoryLines.joined(separator: "\n"))
+            parts.append("""
+            【共同记得的事】
+            \(memoryLines.joined(separator: "\n"))
+            这些是你已经知道的，不需要他再讲一遍。聊到相关的就顺着用；他记错了可以纠正。
+            """)
         }
 
         if !context.voices.isEmpty {
@@ -302,6 +320,16 @@ enum PromptBuilder {
             """)
         }
 
+        // 你自己手机里的东西。他随时会翻——被问起时不能答「什么手机」。
+        if !context.phoneLines.isEmpty {
+            parts.append("""
+            【你自己手机里的事】
+            \(context.phoneLines.joined(separator: "\n"))
+            这是你自己的手机，上面都是你留过的东西。他翻到了问起来，你认得，也可以解释；
+            但别主动一条条报出来，更不要在没人问的时候自曝。
+            """)
+        }
+
         // 他自己在西瓜皮上发过的东西。
         if !context.socialLines.isEmpty {
             parts.append("""
@@ -309,6 +337,15 @@ enum PromptBuilder {
             你在这个 App 里有自己的号，最近发过：
             \(context.socialLines.joined(separator: "\n"))
             你记得自己发过什么，也记得底下谁说了什么。别人问起可以聊，但不要主动当广告念。
+            """)
+        }
+
+        // 寄出去的信。写过的东西要认得，被问「你上次写那封」不能反问我写过吗。
+        if !context.letterLines.isEmpty {
+            parts.append("""
+            【你写过的信】
+            \(context.letterLines.joined(separator: "\n"))
+            这些是你亲手写的，内容你自己记得。他不提就别主动追着问「看了没有」。
             """)
         }
 
@@ -322,8 +359,16 @@ enum PromptBuilder {
             """)
         }
 
-        if let track = context.currentTrack {
-            parts.append("【正在听】\(track.artist) - \(track.title)")
+        // 一起听。他正在放歌，两个人这会儿在同一个声音里。
+        if let track = context.listeningNow {
+            parts.append("""
+            【他正在听】
+            \(track.artist) - \(track.title)
+            他一边跟你聊天一边在放这首歌。你可以顺口提一句歌词或歌里的情绪，
+            当作你们在听同一首；但不要每轮都问「好听吗」，也不要装成自己刚发现。
+            """)
+        } else if let track = context.currentTrack {
+            parts.append("【他上次在听】\(track.artist) - \(track.title)（现在没在放）")
         }
 
         if !context.location.isEmpty {
@@ -353,7 +398,7 @@ enum PromptBuilder {
         let haystack = triggerText.lowercased()
 
         return entries.compactMap { entry in
-            guard entry.enabled else { return nil }
+            guard entry.enabled, !entry.alwaysOn else { return nil }
             if let owner = entry.characterUID, owner != character.uid { return nil }
             let keywords = entry.keywordList
             guard !keywords.isEmpty else { return nil }
@@ -362,6 +407,31 @@ enum PromptBuilder {
             let content = entry.content.trimmingCharacters(in: .whitespacesAndNewlines)
             return content.isEmpty ? nil : content
         }
+    }
+
+    /// 常驻条目：不看关键词，只在数量上收着。
+    ///
+    /// 上限八条——再多就把对话本身挤下去了，而且模型会开始照着念设定。
+    /// 全局条目排在角色自己的前面：世界观先立住，细节再补。
+    static func constantEntries(_ entries: [WorldEntry], character: Companion) -> [String] {
+        let mine = entries
+            .filter { $0.enabled && $0.alwaysOn }
+            .filter { entry in
+                guard let owner = entry.characterUID else { return true }
+                return owner == character.uid
+            }
+            .sorted { lhs, rhs in
+                if (lhs.characterUID == nil) != (rhs.characterUID == nil) {
+                    return lhs.characterUID == nil
+                }
+                return lhs.createdAt < rhs.createdAt
+            }
+            .compactMap { entry -> String? in
+                let content = entry.content.trimmingCharacters(in: .whitespacesAndNewlines)
+                return content.isEmpty ? nil : content
+            }
+
+        return Array(mine.prefix(8))
     }
 
     /// 动态墙那条状态的提示词。

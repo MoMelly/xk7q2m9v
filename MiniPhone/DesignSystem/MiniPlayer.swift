@@ -9,6 +9,8 @@ import SwiftUI
 /// 通知横幅在顶部，这个位置两边都不挡。
 struct MiniPlayerOverlay: View {
     let player: PlayerService
+    /// 一起听的那个人。空串就不显示那一行。
+    var companionName: String = ""
 
     /// 截图流水线要直接拍到歌词页，正常启动读不到这个键。
     @State private var expanded = UserDefaults.standard.string(forKey: "previewState") == "musicLyrics"
@@ -16,7 +18,7 @@ struct MiniPlayerOverlay: View {
     var body: some View {
         ZStack {
             if expanded {
-                LyricsPage(player: player) {
+                LyricsPage(player: player, companionName: companionName) {
                     expanded = false
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.94)))
@@ -55,15 +57,89 @@ struct MiniPlayerOverlay: View {
                 .rotationEffect(.degrees(-90))
                 .padding(2.5)
 
-            Image(systemName: player.isPlaying ? "waveform" : "play.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .symbolEffect(.variableColor.iterative, isActive: player.isPlaying)
+            // 球面上也换成一张小唱片的样子，和歌词页右上角是同一个东西。
+            CompactDisc(size: 26, tint: Theme.IconTint.rose, spinning: player.isPlaying)
         }
         .frame(width: 50, height: 50)
         .shadow(color: Color.black.opacity(0.2), radius: 9, y: 3)
         .accessibilityLabel(player.track?.title ?? "正在播放")
         .accessibilityHint("打开歌词")
+    }
+}
+
+// MARK: - 黑胶
+
+/// 一张会转的唱片。
+///
+/// 33⅓ 转对应 200°/s：转得太快像风扇，太慢又看不出在转。
+/// 角度由外部累加而不是读播放进度——`AVPlayer` 的进度每 0.4 秒才推一次，
+/// 拿它驱动旋转会一顿一顿；暂停时停在这一格，不回零。
+struct CompactDisc: View {
+    var size: CGFloat = 132
+    var tint: Color = Theme.IconTint.rose
+    var spinning: Bool = true
+    /// 只有需要自己转的地方才传 true；放在球面上那种小尺寸由外面控制。
+    var rotatesItself: Bool = false
+
+    @State private var angle: Double = 18
+    @State private var spinTask: Task<Void, Never>?
+
+    var body: some View {
+        disc
+            .rotationEffect(.degrees(rotatesItself ? angle : 18))
+            .onAppear { if rotatesItself { syncSpin() } }
+            .onChange(of: spinning) { _, _ in syncSpin() }
+            .onDisappear { spinTask?.cancel() }
+    }
+
+    private var disc: some View {
+        ZStack {
+            Circle()
+                .fill(Color.black.opacity(0.82))
+
+            // 纹路。四圈细描边，比画满一百圈便宜，近看也够。
+            ForEach(0..<4, id: \.self) { index in
+                Circle()
+                    .strokeBorder(Color.white.opacity(0.055), lineWidth: 0.8)
+                    .padding(size * (0.09 + CGFloat(index) * 0.075))
+            }
+
+            // 一道斜向反光，告诉眼睛这是个弧面。
+            Circle()
+                .trim(from: 0.62, to: 0.86)
+                .stroke(Color.white.opacity(0.16), lineWidth: size * 0.03)
+                .padding(size * 0.06)
+
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [tint.opacity(0.95), tint.opacity(0.62)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: size * 0.38, height: size * 0.38)
+
+            Circle()
+                .fill(Color.black.opacity(0.7))
+                .frame(width: max(2.5, size * 0.035), height: max(2.5, size * 0.035))
+        }
+        .overlay {
+            Circle().strokeBorder(Color.white.opacity(0.16), lineWidth: 0.8)
+        }
+        .frame(width: size, height: size)
+    }
+
+    private func syncSpin() {
+        spinTask?.cancel()
+        guard rotatesItself, spinning else { return }
+        spinTask = Task { @MainActor in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 33_000_000)
+                guard spinning else { return }
+                angle = (angle + 6.6).truncatingRemainder(dividingBy: 360)
+            }
+        }
     }
 }
 
@@ -73,8 +149,12 @@ struct MiniPlayerOverlay: View {
 ///
 /// 不用系统 sheet：手机外壳里再弹一个系统面板，圆角和拖动条都露在外面，
 /// 那层拟真就破了。这里自己做一层深色玻璃，从球的位置淡出来。
+///
+/// 上一版中间摆一块 168×168 的方形封面，上面印一个音符——像占位图。
+/// 现在封面缩成右上角一张唱片，正在放的时候它在转。
 struct LyricsPage: View {
     let player: PlayerService
+    var companionName: String = ""
     var onClose: () -> Void
 
     private var track: Track? { player.track }
@@ -86,14 +166,11 @@ struct LyricsPage: View {
             VStack(spacing: 0) {
                 topBar
 
-                cover
+                titleBlock
                     .padding(.top, PhoneMetrics.Space.l)
 
-                titleBlock
-                    .padding(.top, PhoneMetrics.Space.m)
-
                 lyricsScroll
-                    .padding(.top, PhoneMetrics.Space.m)
+                    .padding(.top, PhoneMetrics.Space.l)
 
                 controls
                     .padding(.horizontal, PhoneMetrics.Space.xl)
@@ -126,7 +203,7 @@ struct LyricsPage: View {
     }
 
     private var topBar: some View {
-        HStack {
+        HStack(alignment: .top) {
             Button(action: onClose) {
                 Image(systemName: "chevron.down")
                     .font(.system(size: 15, weight: .semibold))
@@ -138,36 +215,18 @@ struct LyricsPage: View {
 
             Spacer(minLength: 0)
 
-            // 中间原来写「正在播放」，正好落在灵动岛底下，只剩一条被切掉的字。
-            // 顶上有封面和曲名，这行字本来就是多余的。
-            Color.clear.frame(width: 38, height: 38)
+            // 右上角这张唱片就是原来的封面：同一块面积，换了个形状和位置。
+            CompactDisc(size: 74, tint: Theme.IconTint.rose, spinning: player.isPlaying, rotatesItself: true)
+                .shadow(color: Color.black.opacity(0.4), radius: 14, y: 6)
         }
-        .padding(.horizontal, PhoneMetrics.Space.m)
+        .padding(.horizontal, PhoneMetrics.Space.l)
         .padding(.top, PhoneMetrics.Space.l)
     }
 
-    private var cover: some View {
-        RoundedRectangle(cornerRadius: PhoneMetrics.Radius.widget, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [Theme.IconTint.pink, Theme.IconTint.orange],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .frame(width: 168, height: 168)
-            .overlay {
-                Image(systemName: "music.note")
-                    .font(.system(size: 52, weight: .light))
-                    .foregroundStyle(.white.opacity(0.9))
-            }
-            .shadow(color: Color.black.opacity(0.35), radius: 24, y: 10)
-    }
-
     private var titleBlock: some View {
-        VStack(spacing: 3) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(track?.title ?? "没在放")
-                .font(.system(size: 19, weight: .semibold))
+                .font(.system(size: 22, weight: .semibold))
                 .foregroundStyle(.white)
                 .lineLimit(1)
 
@@ -175,7 +234,21 @@ struct LyricsPage: View {
                 .font(.system(size: 13))
                 .foregroundStyle(.white.opacity(0.55))
                 .lineLimit(1)
+
+            if !companionName.isEmpty {
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(Theme.IconTint.rose.opacity(0.95))
+                        .frame(width: 5, height: 5)
+
+                    Text("和 \(companionName) 一起在听")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.62))
+                }
+                .padding(.top, 5)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, PhoneMetrics.Space.xl)
     }
 
@@ -194,7 +267,7 @@ struct LyricsPage: View {
                         }
                     }
                     .padding(.horizontal, PhoneMetrics.Space.xl)
-                    .padding(.vertical, 40)
+                    .padding(.vertical, 30)
                 }
             }
             .frame(maxHeight: .infinity)

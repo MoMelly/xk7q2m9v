@@ -270,6 +270,17 @@ final class WorldStore {
         save()
     }
 
+    /// 删掉一条记错的事。
+    ///
+    /// 记忆页原本是完全只读的：手改会让记忆和实际发生过的事对不上。
+    /// 但「记错了」和「想加一句」不是一回事——记错的那条必须能去掉，
+    /// 否则之后每轮都会带着这个错，越聊越歪。
+    func deleteFact(person name: String, id: UUID) {
+        guard let index = state.people.firstIndex(where: { $0.name == name }) else { return }
+        state.people[index].facts.removeAll { $0.id == id }
+        save()
+    }
+
     // MARK: - 心声
 
     @discardableResult
@@ -416,10 +427,15 @@ final class WorldStore {
     // MARK: - 提示词上下文
 
     /// 交给 PromptBuilder 的只读快照。这里不拼提示词，业务层不写文案。
+    ///
+    /// `focus` 是这一轮用户说的话，只用来给记忆排序：跟当下话题沾边的事实排前面，
+    /// 不然十几条按时间排，聊到猫的时候它已经被挤出去了。
     func context(
         for names: [String],
         deviceLines: [String],
         calendarLines: [String] = [],
+        focus: String = "",
+        listeningNow: Track? = nil,
         now: Date = Date()
     ) -> WorldContext {
         let keys = Set(names)
@@ -427,8 +443,13 @@ final class WorldStore {
 
         let facts = related
             .flatMap(\.facts)
-            .sorted { $0.createdAt > $1.createdAt }
-            .prefix(12)
+            .sorted { lhs, rhs in
+                let left = Self.relevance(lhs.text, focus: focus)
+                let right = Self.relevance(rhs.text, focus: focus)
+                if left != right { return left > right }
+                return lhs.createdAt > rhs.createdAt
+            }
+            .prefix(14)
             .map { $0 }
 
         let summaries = related
@@ -482,6 +503,9 @@ final class WorldStore {
             days: days,
             userCalendarLines: calendarLines,
             socialLines: Array(social),
+            phoneLines: phoneLines(for: owner),
+            letterLines: letterLines(for: owner),
+            listeningNow: listeningNow,
             now: now
         )
     }
@@ -504,5 +528,11 @@ struct WorldContext {
     var userCalendarLines: [String] = []
     /// 这个角色自己在西瓜皮上发过什么。发过的东西也要进记忆，否则问起会失忆。
     var socialLines: [String] = []
+    /// 他自己手机里留过的东西：微信、相册、备忘录、购物车、搜索、时长、瞒着的事。
+    var phoneLines: [String] = []
+    /// 他写给你的信，只留标题和时间。信本身在信件里，不重复搬进提示词。
+    var letterLines: [String] = []
+    /// 这会儿真的在放的那首歌。暂停了不算——「在听」是个状态，不是历史。
+    var listeningNow: Track?
     var now: Date
 }

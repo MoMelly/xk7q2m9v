@@ -189,10 +189,16 @@ final class ChatViewModel {
             ? UserCalendarBridge.upcomingLines()
             : []
 
+        // 这会儿真的在放的那首。暂停了就当没在听——「在听」是状态不是历史。
+        let player = PlayerService.shared
+        let listeningNow = player.isPlaying ? player.track : nil
+
         let worldContext = world.context(
             for: names,
             deviceLines: DeviceSnapshot.lines(allowPhoneLookups: settings.allowPhoneLookups),
-            calendarLines: calendarLines
+            calendarLines: calendarLines,
+            focus: trigger,
+            listeningNow: listeningNow
         )
         if !worldContext.voices.isEmpty {
             world.markReferenced(worldContext.voices)
