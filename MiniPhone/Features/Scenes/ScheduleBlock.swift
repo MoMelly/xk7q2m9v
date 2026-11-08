@@ -9,6 +9,8 @@ struct ScheduleBlock: View {
     let item: ScheduleItem
     /// 最后一条不再往下画线，否则会拖出一截没有去处的竖线。
     var isLast: Bool = false
+    /// 点开来改。不给就只是展示——角色那份日程复用同一块，不该能点。
+    var onTap: (() -> Void)? = nil
 
     private var tint: Color { MoodColor.of(item.mood) }
 
@@ -18,6 +20,15 @@ struct ScheduleBlock: View {
     }
 
     var body: some View {
+        if let onTap {
+            Button(action: onTap) { content }
+                .buttonStyle(.plain)
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         HStack(alignment: .top, spacing: PhoneMetrics.Space.xs) {
             Text(item.timeText)
                 .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))

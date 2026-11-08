@@ -18,6 +18,9 @@ struct CalendarScene: View {
 
     @State private var tab: Tab = .mine
     @State private var selectedDay = Date()
+    /// 正在改的那条。nil 表示在新建。
+    @State private var editingItem: ScheduleItem?
+    @State private var showEditor = false
 
     enum Tab: String, CaseIterable, Hashable {
         case mine = "我的"
@@ -57,6 +60,33 @@ struct CalendarScene: View {
                 }
             }
         }
+        .sheet(isPresented: $showEditor) {
+            ScheduleEditor(
+                item: editingItem,
+                onSave: { world.upsertScheduleItem($0) },
+                onDelete: { world.deleteScheduleItem(id: $0.id) }
+            )
+        }
+    }
+
+    /// 加一条。顶栏那个位置被「今天」占了，就放在时间轴末尾——
+    /// 真机日历是右上角加号，这里放尾巴上一样找得到。
+    private var addButton: some View {
+        Button {
+            editingItem = nil
+            showEditor = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus.circle.fill")
+                Text("添加一条")
+            }
+            .font(.system(size: PhoneMetrics.FontSize.sub, weight: .medium))
+            .foregroundStyle(Theme.tint)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+        }
+        .buttonStyle(.plain)
+        .padding(.bottom, PhoneMetrics.Space.s)
     }
 
     // MARK: - 我的
@@ -104,8 +134,13 @@ struct CalendarScene: View {
                     )
                 } else {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        ScheduleBlock(item: item, isLast: index == items.count - 1)
+                        ScheduleBlock(item: item, isLast: index == items.count - 1) {
+                            editingItem = item
+                            showEditor = true
+                        }
                     }
+
+                    addButton
                     moodFooter
                 }
             }
