@@ -20,6 +20,7 @@ struct ChatView: View {
     @State private var draft = ""
     @State private var showDetail = false
     @State private var showCalls = false
+    @State private var showVoices = false
     @State private var callKind: CallKind?
     /// 表情面板展开状态。输入栏那颗按钮切换它，不抢键盘。
     @State private var showStickers = false
@@ -53,10 +54,6 @@ struct ChatView: View {
     /// 「回话」键亮不亮：攒了没被回的话、而且对方不在打字。
     private var canRequestReply: Bool {
         !viewModel.isStreaming && viewModel.hasPendingUserMessages(for: character)
-    }
-
-    private func isAsleep(at date: Date) -> Bool {
-        CharacterClock.isAsleep(character, at: date)
     }
 
     var body: some View {
@@ -133,6 +130,9 @@ struct ChatView: View {
                 onClose: { showDetail = false }
             )
         }
+        .sheet(isPresented: $showVoices) {
+            CharacterVoicesSheet(name: character.name) { showVoices = false }
+        }
         .sheet(isPresented: $showCalls) {
             CallScene(world: WorldStore.shared, onClose: { showCalls = false })
         }
@@ -166,10 +166,10 @@ struct ChatView: View {
                         .lineLimit(1)
 
                     TimelineView(.everyMinute) { context in
-                        Text(subtitle(at: context.date))
+                        Text(ChatLabels.subtitle(character, at: context.date))
                             .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(
-                                isAsleep(at: context.date)
+                                CharacterClock.isAsleep(character, at: context.date)
                                     ? Theme.cream.opacity(0.4)
                                     : Theme.mint.opacity(0.72)
                             )
@@ -187,7 +187,16 @@ struct ChatView: View {
             GlassMenuButton(symbol: "phone.fill") {
                 callMenuItems
             }
-            GlassIconButton(symbol: "ellipsis") { showDetail = true }
+            // 右上角原来直接开详情。加了心声之后这一格装不下两个入口，
+            // 改成菜单：真机的「…」本来也是弹菜单，不是跳页。
+            GlassMenuButton(symbol: "ellipsis") {
+                Button { showDetail = true } label: {
+                    Label("角色详情", systemImage: "person.text.rectangle")
+                }
+                Button { showVoices = true } label: {
+                    Label("他的心声", systemImage: "quote.bubble")
+                }
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)
@@ -224,13 +233,6 @@ struct ChatView: View {
         } label: {
             Label("通话记录", systemImage: "clock.arrow.circlepath")
         }
-    }
-
-    private func subtitle(at date: Date) -> String {
-        var parts: [String] = [character.preset.displayName]
-        if character.isGroup { parts.append("群聊") }
-        parts.append(isAsleep(at: date) ? "睡了" : "在的")
-        return parts.joined(separator: " · ")
     }
 
     // MARK: - 对话区
