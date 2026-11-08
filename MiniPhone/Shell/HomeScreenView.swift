@@ -2,12 +2,18 @@ import SwiftUI
 
 /// 主屏。
 ///
-/// 24 个图标刚好一页，跟真机 4×6 的排布一致，所以这一版不做左右翻页——
-/// 伪造一个空白的第二页反而更假。等 P4 加了角色动态、图标超过一页再补。
+/// 从上到下三块：小组件、图标网格、Dock。图标现在 12 个（4×3），
+/// 上面留给三块组件——今日日程、心情、在听。之前只有图标，
+/// 底下空一大片，看着不像一台被用过的手机。
+///
+/// 不做左右翻页：图标还没多到需要第二页，伪造一页空的反而更假。
 struct HomeScreenView: View {
     let selection: WallpaperSelection
+    let world: WorldStore
     let onOpen: (PhoneApp) -> Void
     var videoWallpaperEnabled: Bool = false
+    /// 音乐是否正在放。组件上的波形跟着它动。
+    var musicPlaying: Bool = false
 
     var body: some View {
         ZStack {
@@ -20,8 +26,11 @@ struct HomeScreenView: View {
             VStack(spacing: 0) {
                 StatusBarView()
 
-                // 顶行图标离状态栏近了一贴上去，留够呼吸空间。
-                Spacer(minLength: 0).frame(height: 24)
+                Spacer(minLength: 0).frame(height: 14)
+
+                widgetStack
+
+                Spacer(minLength: 0).frame(height: 22)
 
                 iconGrid
 
@@ -38,6 +47,32 @@ struct HomeScreenView: View {
         }
         // 同锁屏：真机顶部安全区会把假状态栏压下来，让它从物理最顶端画起。
         .ignoresSafeArea(edges: .top)
+    }
+
+    // MARK: - 小组件
+
+    private var widgetStack: some View {
+        VStack(spacing: HomeWidgetSize.gap) {
+            HomeTodayWidget(schedule: world.state.schedule) {
+                openApp("calendar")
+            }
+
+            HStack(spacing: HomeWidgetSize.gap) {
+                HomeMoodWidget(mood: world.state.mood) {
+                    openApp("messages")
+                }
+                HomeMusicWidget(track: world.state.currentTrack, playing: musicPlaying) {
+                    openApp("music")
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+
+    /// 组件点开对应的 App。找不到就当没点——主屏不该因为一个 id 崩掉。
+    private func openApp(_ id: String) {
+        guard let app = AppCatalog.home.first(where: { $0.id == id }) else { return }
+        onOpen(app)
     }
 
     // MARK: - 图标网格

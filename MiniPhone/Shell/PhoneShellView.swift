@@ -108,6 +108,7 @@ struct PhoneShellView: View {
             } else {
                 HomeScreenView(
                     selection: settings.homeSelection,
+                    world: world,
                     onOpen: open,
                     videoWallpaperEnabled: settings.videoWallpaperEnabled
                 )

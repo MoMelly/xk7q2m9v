@@ -13,12 +13,56 @@ struct PreviewSeeder {
     let context: ModelContext
     let world: WorldStore
 
+    // MARK: - 主屏
+
+    /// 今天的日程 + 当前心情 + 在放的那首。
+    ///
+    /// 时间按「此刻往后一小时」起排，不管几点跑 CI，组件里都能显示出「还没到」的条目。
+    private func seedHomeWorld() {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let slots = [(1, "在工作室改图", Mood.focused),
+                     (4, "去趟打印店取样张", Mood.calm),
+                     (7, "超市买菜", Mood.calm),
+                     (10, "回来把书看完", Mood.calm)]
+        let items = slots.map { offset, title, mood in
+            ScheduleItem(
+                id: UUID(),
+                hour: min(hour + offset, 23),
+                title: title,
+                mood: mood,
+                note: ""
+            )
+        }
+        world.state.schedule = DaySchedule(
+            dateKey: DayScheduleEngine.dateKey(),
+            items: items,
+            generatedAt: Date()
+        )
+        world.state.mood = MoodState(
+            mood: .tired,
+            reason: "赶了两天的图，眼睛有点干",
+            updatedAt: Date(),
+            source: .schedule
+        )
+        world.state.currentTrack = Track(
+            id: "preview-track",
+            title: "晚风",
+            artist: "雨天公交",
+            fileName: "bundle:晚风.m4a"
+        )
+        world.save()
+    }
+
     // MARK: - 入口
 
     /// 只在带 `-previewState` 启动时写。正常启动读不到这个键，一条都不会插。
     /// 聊天详情和我的主页没有预置内容就是空态，截图看不出布局对不对。
     func run() {
         switch state {
+        case "home", "homeVector", "homeDark", "homeNight":
+            // 主屏三块组件都读世界状态。不垫数据，截出来全是「今天还没排事」。
+            seedHomeWorld()
+
         case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call":
             guard companions.isEmpty else { return }
             let character = Companion(
