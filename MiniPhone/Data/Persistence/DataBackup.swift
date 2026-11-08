@@ -33,6 +33,9 @@ enum DataBackup {
             /// v4 新增。撤回 / 引用 / 编辑这三件事要跟着备份走，
             /// 否则恢复之后撤回的消息又冒出来，引用块也丢了。
             var isRecalled: Bool?
+            /// 置顶是界面状态，不属于聊天内容，但备份丢掉它
+            /// 用户会以为「恢复以后置顶怎么就没了」。
+            var isPinned: Bool?
             var quoteSpeaker: String?
             var quoteText: String?
             var editedAt: Date?
@@ -166,6 +169,7 @@ enum DataBackup {
                                     createdAt: $0.createdAt,
                                     imageSeed: $0.imageSeed == 0 ? nil : $0.imageSeed,
                                     isRecalled: $0.isRecalled ? true : nil,
+                                    isPinned: $0.isPinned ? true : nil,
                                     quoteSpeaker: $0.quoteSpeaker.isEmpty ? nil : $0.quoteSpeaker,
                                     quoteText: $0.quoteText.isEmpty ? nil : $0.quoteText,
                                     editedAt: $0.editedAt
@@ -363,6 +367,7 @@ enum DataBackup {
                 )
                 stored.imageSeed = message.imageSeed ?? 0
                 stored.isRecalled = message.isRecalled ?? false
+                stored.isPinned = message.isPinned ?? false
                 stored.quoteSpeaker = message.quoteSpeaker ?? ""
                 stored.quoteText = message.quoteText ?? ""
                 stored.editedAt = message.editedAt

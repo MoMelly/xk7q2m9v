@@ -11,6 +11,7 @@ struct ChatMessageMenu: ViewModifier {
     var onQuote: () -> Void
     var onEdit: () -> Void
     var onRecall: () -> Void
+    var onPin: (() -> Void)?
     var onDelete: () -> Void
 
     func body(content: Content) -> some View {
@@ -46,6 +47,18 @@ struct ChatMessageMenu: ViewModifier {
                     Label("编辑", systemImage: "pencil")
                 }
 
+                if let onPin {
+                    Button {
+                        Haptics.tap()
+                        onPin()
+                    } label: {
+                        Label(
+                            message.isPinned ? "取消置顶" : "置顶",
+                            systemImage: message.isPinned ? "pin.slash" : "pin"
+                        )
+                    }
+                }
+
                 if canRecall {
                     Button(role: .destructive) {
                         Haptics.tap()
@@ -77,6 +90,7 @@ extension View {
         onQuote: @escaping () -> Void,
         onEdit: @escaping () -> Void,
         onRecall: @escaping () -> Void,
+        onPin: (() -> Void)? = nil,
         onDelete: @escaping () -> Void
     ) -> some View {
         modifier(
@@ -87,6 +101,7 @@ extension View {
                 onQuote: onQuote,
                 onEdit: onEdit,
                 onRecall: onRecall,
+                onPin: onPin,
                 onDelete: onDelete
             )
         )

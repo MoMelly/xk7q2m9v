@@ -183,6 +183,9 @@ final class StoredMessage {
     /// 拍一拍事件。这类行不套气泡，在对话里居中显示一行小字。
     var isPat: Bool = false
 
+    /// 置顶。置顶的消息在顶栏留一条，点一下能滚回去。
+    var isPinned: Bool = false
+
     var createdAt: Date = Date()
 
     var character: Companion?

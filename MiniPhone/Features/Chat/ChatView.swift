@@ -21,6 +21,8 @@ struct ChatView: View {
     @State private var showDetail = false
     @State private var showCalls = false
     @State private var showVoices = false
+    /// 点了置顶条要滚到哪一条。滚完清空，不然回来还会再滚一次。
+    @State private var pinnedTarget: UUID?
     @State private var callKind: CallKind?
     /// 表情面板展开状态。输入栏那颗按钮切换它，不抢键盘。
     @State private var showStickers = false
@@ -62,6 +64,16 @@ struct ChatView: View {
 
             VStack(spacing: 0) {
                 header
+
+                if !pinnedMessages.isEmpty {
+                    ChatPinnedBar(
+                        messages: pinnedMessages,
+                        myName: profiles.first?.name ?? "我",
+                        onTap: { pinnedTarget = $0.uid },
+                        onUnpin: { togglePin($0) }
+                    )
+                }
+
                 transcript
                 if showStickers {
                     ChatStickerPanel(character: character) { sendSticker($0) }
@@ -150,89 +162,30 @@ struct ChatView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 10) {
-            GlassIconButton(symbol: "chevron.left", action: onExit)
-
-            HStack(spacing: 9) {
-                // 双击头像 = 拍一拍。头像只认双击：外层那块单击是「打开详情」，
-                // 两个手势叠在同一处会互相抢，单击第一下就把详情推出来了。
-                AvatarBubble(character: character, size: 30)
-                    .onTapGesture(count: 2) { pat() }
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(character.name)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Theme.cream)
-                        .lineLimit(1)
-
-                    TimelineView(.everyMinute) { context in
-                        Text(ChatLabels.subtitle(character, at: context.date))
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(
-                                CharacterClock.isAsleep(character, at: context.date)
-                                    ? Theme.cream.opacity(0.4)
-                                    : Theme.mint.opacity(0.72)
-                            )
-                            .lineLimit(1)
-                    }
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { showDetail = true }
-            }
-
-            Spacer(minLength: 0)
-
-            // 真机的信息 App 右上角就是这个位置放通话入口。
-            // 点开是三项：语音、视频、通话记录——不再单独占一个桌面图标。
-            GlassMenuButton(symbol: "phone.fill") {
-                callMenuItems
-            }
-            // 右上角原来直接开详情。加了心声之后这一格装不下两个入口，
-            // 改成菜单：真机的「…」本来也是弹菜单，不是跳页。
-            GlassMenuButton(symbol: "ellipsis") {
-                Button { showDetail = true } label: {
-                    Label("角色详情", systemImage: "person.text.rectangle")
-                }
-                Button { showVoices = true } label: {
-                    Label("他的心声", systemImage: "quote.bubble")
-                }
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 6)
-        .padding(.bottom, 8)
+        ChatHeaderBar(
+            character: character,
+            onBack: onExit,
+            onPat: pat,
+            onOpenDetail: { showDetail = true },
+            onOpenVoices: { showVoices = true },
+            onOpenPhotos: {
+                showStickers = false
+                showPhotos = true
+            },
+            onCall: { callKind = $0 },
+            onCallHistory: { showCalls = true }
+        )
     }
 
-    @ViewBuilder
-    private var callMenuItems: some View {
-        Button {
-            showStickers = false
-            showPhotos = true
-        } label: {
-            Label("发一张图", systemImage: "photo.on.rectangle")
-        }
+    /// 置顶的取最新两条。撤回和拍一拍不该出现在这里——
+    /// 一条被收回的话挂在顶上只会让人困惑。
+    private var pinnedMessages: [StoredMessage] {
+        Array(messages.filter { $0.isPinned && !$0.isRecalled && !$0.isPat }.suffix(2))
+    }
 
-        Divider()
-
-        Button {
-            callKind = .voice
-        } label: {
-            Label("语音通话", systemImage: "phone.fill")
-        }
-
-        Button {
-            callKind = .video
-        } label: {
-            Label("视频通话", systemImage: "video.fill")
-        }
-
-        Divider()
-
-        Button {
-            showCalls = true
-        } label: {
-            Label("通话记录", systemImage: "clock.arrow.circlepath")
-        }
+    private func togglePin(_ message: StoredMessage) {
+        message.isPinned.toggle()
+        try? context.save()
     }
 
     // MARK: - 对话区
@@ -281,6 +234,13 @@ struct ChatView: View {
                 .padding(.bottom, 10)
             }
             .scrollDismissesKeyboard(.interactively)
+            .onChange(of: pinnedTarget) { _, new in
+                guard let new else { return }
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(new, anchor: .center)
+                }
+                pinnedTarget = nil
+            }
             .onChange(of: messages.count) { _, _ in
                 scrollToBottom(proxy)
             }
@@ -342,6 +302,7 @@ struct ChatView: View {
             onQuote: { beginQuote(message) },
             onEdit: { beginEdit(message) },
             onRecall: { recall(message) },
+            onPin: { togglePin(message) },
             onDelete: { delete(message) }
         )
     }

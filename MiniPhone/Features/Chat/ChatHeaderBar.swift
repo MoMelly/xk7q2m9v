@@ -1,0 +1,120 @@
+import SwiftUI
+
+/// 聊天页顶栏。
+///
+/// 从 `ChatView` 抽出来的：那个文件一直贴着 600 行上限，加一个入口就得先
+/// 拆一个函数。顶栏是整页里唯一一块「只读状态、只回调」的视图，
+/// 拆出来不牵扯业务逻辑，最划算。
+///
+/// 三处能点：头像双击拍一拍、名字点开详情、右上角两个菜单。
+struct ChatHeaderBar: View {
+    let character: Companion
+
+    var onBack: () -> Void
+    var onPat: () -> Void
+    var onOpenDetail: () -> Void
+    var onOpenVoices: () -> Void
+    /// 发一张图。和表情面板互斥，由外面收拾。
+    var onOpenPhotos: () -> Void
+    var onCall: (CallKind) -> Void
+    var onCallHistory: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            GlassIconButton(symbol: "chevron.left", action: onBack)
+
+            HStack(spacing: 9) {
+                // 双击头像 = 拍一拍。头像只认双击：外层那块单击是「打开详情」，
+                // 两个手势叠在同一处会互相抢，单击第一下就把详情推出来了。
+                AvatarBubble(character: character, size: 30)
+                    .onTapGesture(count: 2) { onPat() }
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(character.name)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Theme.cream)
+                        .lineLimit(1)
+
+                    TimelineView(.everyMinute) { context in
+                        Text(ChatLabels.subtitle(character, at: context.date))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(
+                                CharacterClock.isAsleep(character, at: context.date)
+                                    ? Theme.cream.opacity(0.4)
+                                    : Theme.mint.opacity(0.72)
+                            )
+                            .lineLimit(1)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { onOpenDetail() }
+            }
+
+            Spacer(minLength: 0)
+
+            // 真机的信息 App 右上角就是这个位置放通话入口。
+            // 点开是三项：语音、视频、通话记录——不再单独占一个桌面图标。
+            GlassMenuButton(symbol: "phone.fill") {
+                Button {
+                    onOpenPhotos()
+                } label: {
+                    Label("发一张图", systemImage: "photo.on.rectangle")
+                }
+
+                Divider()
+
+                Button {
+                    onCall(.voice)
+                } label: {
+                    Label("语音通话", systemImage: "phone.fill")
+                }
+
+                Button {
+                    onCall(.video)
+                } label: {
+                    Label("视频通话", systemImage: "video.fill")
+                }
+
+                Divider()
+
+                Button {
+                    onCallHistory()
+                } label: {
+                    Label("通话记录", systemImage: "clock.arrow.circlepath")
+                }
+            }
+
+            // 右上角原来直接开详情。加了心声之后这一格装不下两个入口，
+            // 改成菜单：真机的「…」本来也是弹菜单，不是跳页。
+            GlassMenuButton(symbol: "ellipsis") {
+                Button {
+                    onOpenDetail()
+                } label: {
+                    Label("角色详情", systemImage: "person.text.rectangle")
+                }
+
+                Button {
+                    onOpenVoices()
+                } label: {
+                    Label("他的心声", systemImage: "quote.bubble")
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 6)
+        .padding(.bottom, 8)
+    }
+}
+
+/// 聊天页顶栏那行小字。
+enum ChatLabels {
+    /// 「自定义 · 在的」「群聊 · 睡了」
+    static func subtitle(_ character: Companion, at date: Date) -> String {
+        var parts: [String] = [character.preset.displayName]
+        if character.isGroup {
+            parts.append("群聊")
+        }
+        parts.append(CharacterClock.isAsleep(character, at: date) ? "睡了" : "在的")
+        return parts.joined(separator: " · ")
+    }
+}
