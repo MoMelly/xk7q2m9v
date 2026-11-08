@@ -390,6 +390,8 @@ struct WorldState: Codable {
     var characterDays: [CharacterDay] = []
     /// 他的手机里有什么。按角色名换一台，换人时旧的不清，但只有当前角色那台会被读到。
     var phone: CharacterPhone?
+    /// 情侣空间的火花：记的是哪天两个人说过话。
+    var couple: CoupleState = CoupleState()
     var updatedAt: Date = Date()
 
     init() {}
@@ -399,7 +401,7 @@ struct WorldState: Codable {
         case shopping, forum, shop, feed, lastRefreshAt, refreshTurns
         case characterDays, letters, updatedAt
         case feedInbox, feedActivity
-        case phone
+        case phone, couple
     }
 
     init(from decoder: Decoder) throws {
@@ -422,6 +424,7 @@ struct WorldState: Codable {
         feedInbox = try container.decodeIfPresent([FeedInboxItem].self, forKey: .feedInbox) ?? []
         feedActivity = try container.decodeIfPresent([FeedActivity].self, forKey: .feedActivity) ?? []
         phone = try container.decodeIfPresent(CharacterPhone.self, forKey: .phone)
+        couple = try container.decodeIfPresent(CoupleState.self, forKey: .couple) ?? CoupleState()
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
     }
 
@@ -446,6 +449,7 @@ struct WorldState: Codable {
         try container.encode(feedInbox, forKey: .feedInbox)
         try container.encode(feedActivity, forKey: .feedActivity)
         try container.encodeIfPresent(phone, forKey: .phone)
+        try container.encode(couple, forKey: .couple)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
 

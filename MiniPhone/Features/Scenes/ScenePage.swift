@@ -15,6 +15,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
     case photoLibrary
     case reading
     case phonePeek
+    case couple
 
     var id: String { rawValue }
 
@@ -31,6 +32,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .photoLibrary: return "照片"
         case .reading: return "阅读"
         case .phonePeek: return "TA 的手机"
+        case .couple: return "情侣空间"
         }
     }
 
@@ -47,6 +49,7 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .photoLibrary: return "photo.fill"
         case .reading: return "books.vertical.fill"
         case .phonePeek: return "iphone.gen3"
+        case .couple: return "flame.fill"
         }
     }
 }
@@ -83,6 +86,8 @@ struct ScenePage: View {
                 ReadingScene(onClose: onExit)
             case .phonePeek:
                 CharacterPhoneScene(world: world, settings: settings, onClose: onExit)
+            case .couple:
+                CoupleScene(world: world, onClose: onExit)
             }
         }
         .onAppear { world.seedSceneContentIfNeeded() }

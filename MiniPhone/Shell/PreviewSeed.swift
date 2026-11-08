@@ -86,6 +86,27 @@ struct PreviewSeeder {
     [01:18.70]假装不冷 假装不等
     """
 
+    /// 连续 41 天，再往前留一段更早的。火花算的是交集，两侧都要填。
+    private func seedCouple() {
+        var couple = CoupleState()
+        let calendar = Calendar.current
+        let today = Date()
+
+        func mark(_ offset: Int, both: Bool = true) {
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return }
+            let key = DayScheduleEngine.dateKey(day)
+            CoupleEngine.markMine(&couple, day: key)
+            if both { CoupleEngine.markTheirs(&couple, day: key) }
+        }
+
+        for offset in 0..<41 { mark(offset) }
+        // 更早的一段，跟上面断着——用来验「最长连续」不是简单把总天数加起来。
+        for offset in 45...47 { mark(offset) }
+
+        world.state.couple = couple
+        world.save()
+    }
+
     // MARK: - 入口
 
     /// 只在带 `-previewState` 启动时写。正常启动读不到这个键，一条都不会插。
@@ -98,6 +119,9 @@ struct PreviewSeeder {
 
         case "musicBall", "musicLyrics":
             seedNowPlaying()
+
+        case "couple":
+            seedCouple()
 
         case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call":
             guard companions.isEmpty else { return }
