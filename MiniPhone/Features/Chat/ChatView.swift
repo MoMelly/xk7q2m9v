@@ -380,7 +380,14 @@ struct ChatView: View {
         HStack(spacing: 10) {
             // 微信那套：输入框左边的加号里放通话。拨号不再占桌面一格。
             GlassMenuButton(symbol: "plus", size: 30) {
-                callMenuItems
+                ChatCallMenuItems(
+                    onPhotos: {
+                        showStickers = false
+                        showPhotos = true
+                    },
+                    onCall: { callKind = $0 },
+                    onHistory: { showCalls = true }
+                )
             }
 
             // 表情固定在输入栏里，不藏进菜单：发表情是高频动作，

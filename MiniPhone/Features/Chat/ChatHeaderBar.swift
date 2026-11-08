@@ -55,33 +55,11 @@ struct ChatHeaderBar: View {
             // 真机的信息 App 右上角就是这个位置放通话入口。
             // 点开是三项：语音、视频、通话记录——不再单独占一个桌面图标。
             GlassMenuButton(symbol: "phone.fill") {
-                Button {
-                    onOpenPhotos()
-                } label: {
-                    Label("发一张图", systemImage: "photo.on.rectangle")
-                }
-
-                Divider()
-
-                Button {
-                    onCall(.voice)
-                } label: {
-                    Label("语音通话", systemImage: "phone.fill")
-                }
-
-                Button {
-                    onCall(.video)
-                } label: {
-                    Label("视频通话", systemImage: "video.fill")
-                }
-
-                Divider()
-
-                Button {
-                    onCallHistory()
-                } label: {
-                    Label("通话记录", systemImage: "clock.arrow.circlepath")
-                }
+                ChatCallMenuItems(
+                    onPhotos: onOpenPhotos,
+                    onCall: onCall,
+                    onHistory: onCallHistory
+                )
             }
 
             // 右上角原来直接开详情。加了心声之后这一格装不下两个入口，
@@ -116,5 +94,45 @@ enum ChatLabels {
         }
         parts.append(CharacterClock.isAsleep(character, at: date) ? "睡了" : "在的")
         return parts.joined(separator: " · ")
+    }
+}
+
+/// 通话菜单项。
+///
+/// 顶栏的「电话」和输入栏的「+」放的是同一份东西。各写一遍的话，
+/// 早晚一边加了「发图片」另一边没加。
+struct ChatCallMenuItems: View {
+    var onPhotos: () -> Void
+    var onCall: (CallKind) -> Void
+    var onHistory: () -> Void
+
+    var body: some View {
+        Button {
+            onPhotos()
+        } label: {
+            Label("发一张图", systemImage: "photo.on.rectangle")
+        }
+
+        Divider()
+
+        Button {
+            onCall(.voice)
+        } label: {
+            Label("语音通话", systemImage: "phone.fill")
+        }
+
+        Button {
+            onCall(.video)
+        } label: {
+            Label("视频通话", systemImage: "video.fill")
+        }
+
+        Divider()
+
+        Button {
+            onHistory()
+        } label: {
+            Label("通话记录", systemImage: "clock.arrow.circlepath")
+        }
     }
 }
