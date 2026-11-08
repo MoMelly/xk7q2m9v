@@ -15,32 +15,52 @@ struct ChatMessageMenu: ViewModifier {
 
     func body(content: Content) -> some View {
         content.contextMenu {
+            // 每项点下去都给一下触感。系统只在「长按弹出」时震，
+            // 点菜单项本身是静的，回收站动作那种手感全靠这一下。
             if message.isRecalled {
-                Button(role: .destructive, action: onDelete) {
+                Button(role: .destructive) {
+                    Haptics.warn()
+                    onDelete()
+                } label: {
                     Label("删除", systemImage: "trash")
                 }
             } else {
-                Button(action: onCopy) {
+                Button {
+                    Haptics.tap()
+                    onCopy()
+                } label: {
                     Label("复制", systemImage: "doc.on.doc")
                 }
 
-                Button(action: onQuote) {
+                Button {
+                    Haptics.tap()
+                    onQuote()
+                } label: {
                     Label("引用", systemImage: "quote.opening")
                 }
 
-                Button(action: onEdit) {
+                Button {
+                    Haptics.tap()
+                    onEdit()
+                } label: {
                     Label("编辑", systemImage: "pencil")
                 }
 
                 if canRecall {
-                    Button(role: .destructive, action: onRecall) {
+                    Button(role: .destructive) {
+                        Haptics.tap()
+                        onRecall()
+                    } label: {
                         Label("撤回", systemImage: "arrow.uturn.backward")
                     }
                 }
 
                 Divider()
 
-                Button(role: .destructive, action: onDelete) {
+                Button(role: .destructive) {
+                    Haptics.warn()
+                    onDelete()
+                } label: {
                     Label("删除", systemImage: "trash")
                 }
             }

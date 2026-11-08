@@ -22,6 +22,8 @@ struct PhoneShellView: View {
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
     @State private var noticeTask: Task<Void, Never>?
+    /// 播放器是单例，外壳只读不持有——退出 App 页面也接着放。
+    private let player = PlayerService.shared
 
     /// 截图状态下要直开的那段会话。正常启动不会用到，也不写任何演示数据。
     @Query(sort: \Companion.createdAt, order: .forward) private var companions: [Companion]
@@ -59,7 +61,7 @@ struct PhoneShellView: View {
         case "settings", "theme": destination = .settings
         case "calendar": destination = .scene(.calendar)
         case "notes": destination = .scene(.notes)
-        case "music": destination = .scene(.music)
+        case "music", "musicBall", "musicLyrics": destination = .scene(.music)
         case "health": destination = .scene(.health)
         case "market", "feedInbox", "feedChat", "feedShare", "feedCard", "feedLive": destination = .scene(.feed)
         case "feed": destination = .scene(.feed)
@@ -110,7 +112,8 @@ struct PhoneShellView: View {
                     selection: settings.homeSelection,
                     world: world,
                     onOpen: open,
-                    videoWallpaperEnabled: settings.videoWallpaperEnabled
+                    videoWallpaperEnabled: settings.videoWallpaperEnabled,
+                    musicPlaying: player.isPlaying
                 )
                 .transition(.opacity)
                 .onPreferenceChange(IconFramePreferenceKey.self) { frames in
@@ -133,6 +136,13 @@ struct PhoneShellView: View {
                     // 遮罩只按安全区算的话，上下会各裁掉一条、露出壁纸。
                     .mask { launchMask.ignoresSafeArea() }
                     .zIndex(2)
+            }
+
+            // 悬浮球：真的有歌在放才出现，App 页之上、提示之下。
+            // 歌词页不套系统 sheet——手机壳里再弹一个系统面板，拟真就破了。
+            if player.track != nil, !isLocked {
+                MiniPlayerOverlay(player: player)
+                    .zIndex(2.5)
             }
 
             if let toastText {

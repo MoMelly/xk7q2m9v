@@ -53,6 +53,39 @@ struct PreviewSeeder {
         world.save()
     }
 
+    /// 摆一首在放的歌，连歌词一起。仓库里没有音频，只写状态不动 AVPlayer。
+    private func seedNowPlaying() {
+        let track = Track(
+            id: "preview-track",
+            title: "晚风",
+            artist: "雨天公交",
+            fileName: "bundle:晚风.m4a"
+        )
+        world.state.currentTrack = track
+        world.save()
+#if DEBUG
+        PlayerService.shared.stagePreview(
+            track: track,
+            lyrics: LyricsLoader.parse(Self.previewLRC)
+        )
+#endif
+    }
+
+    /// 一段真能解析的 LRC：解析器得跟着截图一起验，不能只验画面。
+    private static let previewLRC = """
+    [00:12.40]雨落在窗台上 没人在意
+    [00:18.90]你说今天不回 也没关系
+    [00:25.30]我把伞挂在门后
+    [00:31.10]像挂着没说出口的话
+    [00:38.50]晚风把路灯吹得有点晃
+    [00:45.20]我数到第七盏就走
+    [00:52.00]如果你也刚好抬头
+    [00:58.60]就当是我们见过
+    [01:05.30]晚风把公交站吹得有点空
+    [01:12.10]我把手插在口袋里
+    [01:18.70]假装不冷 假装不等
+    """
+
     // MARK: - 入口
 
     /// 只在带 `-previewState` 启动时写。正常启动读不到这个键，一条都不会插。
@@ -62,6 +95,9 @@ struct PreviewSeeder {
         case "home", "homeVector", "homeDark", "homeNight":
             // 主屏三块组件都读世界状态。不垫数据，截出来全是「今天还没排事」。
             seedHomeWorld()
+
+        case "musicBall", "musicLyrics":
+            seedNowPlaying()
 
         case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call":
             guard companions.isEmpty else { return }

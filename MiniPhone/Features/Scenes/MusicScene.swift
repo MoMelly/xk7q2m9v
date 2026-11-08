@@ -12,8 +12,8 @@ struct MusicScene: View {
     var onClose: () -> Void
 
     @State private var tracks: [Track] = []
-    @State private var player: AVPlayer?
-    @State private var playingID: String?
+    /// 播放状态在 `PlayerService` 里，退出这个页面不会停——悬浮球接着放。
+    private var player: PlayerService { .shared }
     @State private var showImporter = false
     @State private var notice: String?
 
@@ -46,8 +46,10 @@ struct MusicScene: View {
                 }
             }
         }
-        .onAppear { tracks = MusicLibrary.allTracks() }
-        .onDisappear { player?.pause() }
+        .onAppear {
+            tracks = MusicLibrary.allTracks()
+            player.reloadQueue()
+        }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: [.audio],
@@ -104,7 +106,7 @@ struct MusicScene: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.title)
                         .font(.system(size: PhoneMetrics.FontSize.body))
-                        .foregroundStyle(playingID == track.id ? Theme.tint : Theme.label)
+                        .foregroundStyle(player.track?.id == track.id ? Theme.tint : Theme.label)
                         .lineLimit(1)
                     Text(track.artist)
                         .font(.system(size: PhoneMetrics.FontSize.footnote))
@@ -114,9 +116,9 @@ struct MusicScene: View {
 
                 Spacer(minLength: PhoneMetrics.Space.xs)
 
-                Image(systemName: playingID == track.id ? "speaker.wave.2.fill" : "ellipsis")
+                Image(systemName: playingID(of: track) ? "speaker.wave.2.fill" : "ellipsis")
                     .font(.system(size: PhoneMetrics.FontSize.footnote))
-                    .foregroundStyle(playingID == track.id ? Theme.tint : Theme.secondaryLabel.opacity(0.7))
+                    .foregroundStyle(playingID(of: track) ? Theme.tint : Theme.secondaryLabel.opacity(0.7))
                     .frame(width: 28)
             }
             .padding(.horizontal, PhoneMetrics.Space.m)
@@ -197,7 +199,7 @@ struct MusicScene: View {
                 Button {
                     toggle(track)
                 } label: {
-                    Image(systemName: playingID == track.id ? "pause.fill" : "play.fill")
+                    Image(systemName: playingID(of: track) && player.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 20))
                         .foregroundStyle(Theme.label)
                         .frame(width: 44, height: 44)
@@ -213,27 +215,20 @@ struct MusicScene: View {
 
     // MARK: - 播放
 
-    private func toggle(_ track: Track) {
-        if playingID == track.id {
-            player?.pause()
-            playingID = nil
-            return
-        }
+    /// 是不是这一首在放（暂停也算「当前这首」）。
+    private func playingID(of track: Track) -> Bool {
+        player.track?.id == track.id
+    }
 
-        guard let url = MusicLibrary.url(for: track) else {
+    private func toggle(_ track: Track) {
+        guard playingID(of: track) || MusicLibrary.url(for: track) != nil else {
             notice = "找不到这个文件，可能被移出了 Documents。"
             return
         }
-
-        player?.pause()
-        player = AVPlayer(url: url)
-        player?.play()
-        playingID = track.id
-        world.setCurrentTrack(track)
+        player.play(track)
     }
 
     private func exit() {
-        player?.pause()
         onClose()
     }
 
