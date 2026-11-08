@@ -150,7 +150,25 @@ struct PreviewSeeder {
         case "couple":
             seedCouple()
 
-        case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call", "chatTogether":
+        case "chatTogether":
+            // 这一屏专门拍「一起听」的状态条，只需要一首在放的歌。
+            // 邀请交给 `ChatView.onAppear`——这一屏打开的是哪个角色由外壳挑，
+            // 邀请必须落在同一个人身上。歌放在这里，是因为它跟会话无关；
+            // 也不能塞进下面那个 case：那一段有 `guard companions.isEmpty`，
+            // 小助手已经存在时会整段跳过，垫了也白垫。
+#if DEBUG
+            PlayerService.shared.stagePreview(
+                track: Track(
+                    id: "preview-track",
+                    title: "晚风",
+                    artist: "雨天公交",
+                    fileName: "bundle:晚风.m4a"
+                ),
+                lyrics: []
+            )
+#endif
+
+        case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call":
             guard companions.isEmpty else { return }
             let character = Companion(
                 name: "小满",
@@ -181,23 +199,6 @@ struct PreviewSeeder {
                 context.insert(message)
             }
             try? context.save()
-
-            // 这一屏专门拍「一起听」的状态条：垫一首在放的歌。
-            // 邀请不在这里做——这一屏打开的是哪个角色由外壳决定，
-            // 邀请必须落在同一个角色身上，交给 `ChatView.onAppear` 按状态名补。
-            if state == "chatTogether" {
-#if DEBUG
-                PlayerService.shared.stagePreview(
-                    track: Track(
-                        id: "preview-track",
-                        title: "晚风",
-                        artist: "雨天公交",
-                        fileName: "bundle:晚风.m4a"
-                    ),
-                    lyrics: []
-                )
-#endif
-            }
 
         case "feedProfile":
             guard !world.state.feed.contains(where: { $0.authorName == "我" }) else { return }
