@@ -244,8 +244,8 @@ struct LyricsPage: View {
 
                     // 暂停时写「一起在听」就是假话，只留「和谁一起听」。
                     Text(player.isListeningTogether
-                         ? "和 \(companionName) 一起在听"
-                         : "和 \(companionName) 一起听")
+                         ? "和\(companionName)一起在听"
+                         : "和\(companionName)一起听")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.white.opacity(0.62))
                 }

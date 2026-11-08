@@ -70,7 +70,8 @@ struct PreviewSeeder {
         )
         // 截图里要能看到「和谁一起在听」。真机上这一步来自聊天里的邀请，
         // 冷启动点不到按钮，这里直接把状态摆好。
-        if let partner = companions.first {
+        // 内置小助手不算恋爱对象，让它出现在这行上读起来很怪，先垫一个角色。
+        if let partner = ensureDemoCompanion() ?? companions.first {
             PlayerService.shared.invite(uid: partner.uid, name: partner.name)
         }
 #endif
@@ -112,6 +113,27 @@ struct PreviewSeeder {
         world.save()
     }
 
+    /// 截图用的固定角色。
+    ///
+    /// 只活在预览数据里：内置小助手是助手，不是恋爱对象，
+    /// 让它出现在「和谁一起在听」那行上读起来很怪。
+    @discardableResult
+    private func ensureDemoCompanion() -> Companion? {
+        if let existing = companions.first(where: { $0.name == "沈砚" }) {
+            return existing
+        }
+        let character = Companion(
+            name: "沈砚",
+            persona: "在杭州做设计，话不多，记性好，习惯把事压在心里不说。",
+            greeting: "回来了？"
+        )
+        character.signature = "晚点到"
+        character.lastMessageAt = Date()
+        context.insert(character)
+        try? context.save()
+        return character
+    }
+
     // MARK: - 入口
 
     /// 只在带 `-previewState` 启动时写。正常启动读不到这个键，一条都不会插。
@@ -128,7 +150,7 @@ struct PreviewSeeder {
         case "couple":
             seedCouple()
 
-        case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call":
+        case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call", "chatTogether":
             guard companions.isEmpty else { return }
             let character = Companion(
                 name: "小满",
@@ -160,6 +182,23 @@ struct PreviewSeeder {
             }
             try? context.save()
 
+            // 这一屏专门拍「一起听」的状态条：邀请 + 一首在放的歌。
+            // 不垫的话抓不到这条 UI —— 它只在邀请之后才出现。
+            if state == "chatTogether" {
+                PlayerService.shared.invite(uid: character.uid, name: character.name)
+#if DEBUG
+                PlayerService.shared.stagePreview(
+                    track: Track(
+                        id: "preview-track",
+                        title: "晚风",
+                        artist: "雨天公交",
+                        fileName: "bundle:晚风.m4a"
+                    ),
+                    lyrics: []
+                )
+#endif
+            }
+
         case "feedProfile":
             guard !world.state.feed.contains(where: { $0.authorName == "我" }) else { return }
             world.publishNote(
@@ -186,17 +225,7 @@ struct PreviewSeeder {
             // 内置的小助手会在启动时自动建好，所以这里不能只看「有没有角色」，
             // 要专门确认这台手机的主人存在。
             let owner = "沈砚"
-            if !companions.contains(where: { $0.name == owner }) {
-                let character = Companion(
-                    name: owner,
-                    persona: "在杭州做设计，话不多，记性好，习惯把事压在心里不说。",
-                    greeting: "回来了？"
-                )
-                character.signature = "晚点到"
-                character.lastMessageAt = Date()
-                context.insert(character)
-                try? context.save()
-            }
+            ensureDemoCompanion()
             world.seedPreviewPhone(owner: owner)
 
         case "reading":

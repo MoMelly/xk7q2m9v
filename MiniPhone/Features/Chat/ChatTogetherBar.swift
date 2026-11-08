@@ -15,12 +15,12 @@ struct ChatTogetherBar: View {
 
     private var text: String {
         guard let trackTitle, !trackTitle.isEmpty else {
-            return "和 \(partnerName) 一起听 · 去音乐里放一首"
+            return "和\(partnerName)一起听 · 去音乐里放一首"
         }
         if isPlaying {
-            return "和 \(partnerName) 一起在听 · \(trackTitle)"
+            return "和\(partnerName)一起在听 · \(trackTitle)"
         }
-        return "和 \(partnerName) 一起听 · 暂停中"
+        return "和\(partnerName)一起听 · 暂停中"
     }
 
     var body: some View {
