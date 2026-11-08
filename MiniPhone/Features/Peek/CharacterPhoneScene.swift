@@ -85,29 +85,21 @@ struct CharacterPhoneScene: View {
     private func filled(_ owner: Companion, _ phone: CharacterPhone) -> some View {
         ScrollView {
             VStack(spacing: PhoneMetrics.Space.m) {
-                note
-
-                LazyVGrid(
-                    columns: Array(repeating: GridItem(.flexible(), spacing: PhoneMetrics.Space.s), count: 4),
-                    spacing: PhoneMetrics.Space.m
-                ) {
-                    ForEach(PeekApp.allCases) { app in
-                        NavigationLink {
-                            destination(app, phone)
-                        } label: {
-                            tile(app, phone)
-                        }
-                        .buttonStyle(.plain)
-                    }
+                // 他的那一块。左右留白加在这一层，
+                // 下面的「我这台」自带一层（GroupedSection 内部已有 Space.m），
+                // 再套一层会窄一圈。
+                VStack(spacing: PhoneMetrics.Space.m) {
+                    note
+                    appGrid(phone)
+                    usageCard
                 }
-                .padding(PhoneMetrics.Space.l)
-                .frostedCard(cornerRadius: PhoneMetrics.Radius.widget, shadow: .none)
+                .padding(.horizontal, PhoneMetrics.Space.m)
 
-                usageCard
+                MyDeviceCard(settings: settings, world: world)
 
                 footer(phone)
+                    .padding(.horizontal, PhoneMetrics.Space.m)
             }
-            .padding(.horizontal, PhoneMetrics.Space.m)
             .padding(.bottom, PhoneMetrics.Space.xl)
         }
         .overlay {
@@ -115,6 +107,24 @@ struct CharacterPhoneScene: View {
                 generatingOverlay
             }
         }
+    }
+
+    private func appGrid(_ phone: CharacterPhone) -> some View {
+        LazyVGrid(
+            columns: Array(repeating: GridItem(.flexible(), spacing: PhoneMetrics.Space.s), count: 4),
+            spacing: PhoneMetrics.Space.m
+        ) {
+            ForEach(PeekApp.allCases) { app in
+                NavigationLink {
+                    destination(app, phone)
+                } label: {
+                    tile(app, phone)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(PhoneMetrics.Space.l)
+        .frostedCard(cornerRadius: PhoneMetrics.Radius.widget, shadow: .none)
     }
 
     private var note: some View {

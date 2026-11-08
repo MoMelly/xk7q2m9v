@@ -7,7 +7,6 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
     case calendar
     case notes
     case calls
-    case health
     case music
     case feed
     case letters
@@ -24,7 +23,6 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .calendar: return "日历"
         case .notes: return "备忘录"
         case .calls: return "通话记录"
-        case .health: return "健康"
         case .music: return "音乐"
         case .feed: return "西瓜皮"
         case .letters: return "信件"
@@ -41,7 +39,6 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .calendar: return "calendar"
         case .notes: return "note.text"
         case .calls: return "phone.fill"
-        case .health: return "heart.fill"
         case .music: return "music.note"
         case .feed: return "book.closed.fill"
         case .letters: return "envelope.fill"
@@ -70,8 +67,6 @@ struct ScenePage: View {
                 NotesScene(onClose: onExit)
             case .calls:
                 CallScene(world: world, onClose: onExit)
-            case .health:
-                HealthScene(settings: settings, world: world, onClose: onExit)
             case .music:
                 MusicScene(world: world, onClose: onExit)
             case .feed:

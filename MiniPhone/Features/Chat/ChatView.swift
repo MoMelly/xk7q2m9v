@@ -58,6 +58,22 @@ struct ChatView: View {
         !viewModel.isStreaming && viewModel.hasPendingUserMessages(for: character)
     }
 
+    /// 一起听的状态挂在播放器上：歌是这台手机放的，跟会话无关。
+    private let player = PlayerService.shared
+
+    private var isTogether: Bool { player.isTogether(with: character.uid) }
+
+    /// 邀请/结束都不走网络。它只是把「这会儿跟谁一起听」记下来，
+    /// 下一轮生成时若还在一起听，提示词才会带这首歌。
+    private func toggleTogether() {
+        Haptics.tap()
+        if isTogether {
+            player.endTogether()
+        } else {
+            player.invite(uid: character.uid, name: character.name)
+        }
+    }
+
     var body: some View {
         ZStack {
             ChatBackgroundView(settings: settings).ignoresSafeArea()
@@ -71,6 +87,15 @@ struct ChatView: View {
                         myName: profiles.first?.name ?? "我",
                         onTap: { pinnedTarget = $0.uid },
                         onUnpin: { togglePin($0) }
+                    )
+                }
+
+                if isTogether {
+                    ChatTogetherBar(
+                        partnerName: character.name,
+                        trackTitle: player.track?.title,
+                        isPlaying: player.isPlaying,
+                        onEnd: { player.endTogether() }
                     )
                 }
 
@@ -173,7 +198,9 @@ struct ChatView: View {
                 showPhotos = true
             },
             onCall: { callKind = $0 },
-            onCallHistory: { showCalls = true }
+            onCallHistory: { showCalls = true },
+            togetherTitle: isTogether ? "结束一起听" : "一起听",
+            onTogether: toggleTogether
         )
     }
 
@@ -386,7 +413,9 @@ struct ChatView: View {
                         showPhotos = true
                     },
                     onCall: { callKind = $0 },
-                    onHistory: { showCalls = true }
+                    onHistory: { showCalls = true },
+                    togetherTitle: isTogether ? "结束一起听" : "一起听",
+                    onTogether: toggleTogether
                 )
             }
 

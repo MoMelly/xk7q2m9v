@@ -31,6 +31,20 @@ final class PlayerService {
     /// 资料库里有什么。切上一首/下一首靠它，播放时不用再扫一次目录。
     private(set) var queue: [Track] = []
 
+    /// 一起听的对象。
+    ///
+    /// 这是个「邀请」的结果，不是自动状态：没被邀请过就一直是 nil，
+    /// 界面上不显示名字，提示词里也不带这一块。邀请本身不调模型，
+    /// 只是把两个人的身份对上——歌是本地放的，本来就不需要服务端。
+    private(set) var partnerUID: UUID?
+    private(set) var partnerName: String?
+
+    /// 有对象、而且这会儿真的在放，才算「在一起听」。
+    /// 只邀请没放歌算半截状态：界面上照样显示名字，但不进提示词。
+    var isListeningTogether: Bool {
+        partnerUID != nil && isPlaying && track != nil
+    }
+
     private let player = AVPlayer()
     private var observer: Any?
 
@@ -112,6 +126,8 @@ final class PlayerService {
         elapsed = 0
         duration = 0
         lyrics = []
+        // 没歌了，一起听也就散了。留着名字会让界面上挂一个空的「和谁一起在听」。
+        endTogether()
     }
 
     func next() {
@@ -134,6 +150,25 @@ final class PlayerService {
     func seek(to seconds: Double) {
         player.seek(to: CMTime(seconds: seconds, preferredTimescale: 600))
         elapsed = seconds
+    }
+
+    // MARK: - 一起听
+
+    /// 邀请这个角色一起听。已经邀请了另一个人就直接换——同时跟两个人一起听没有意义。
+    ///
+    /// 换歌不打断邀请：一起听是一段关系，不是一首歌。
+    func invite(uid: UUID, name: String) {
+        partnerUID = uid
+        partnerName = name
+    }
+
+    func endTogether() {
+        partnerUID = nil
+        partnerName = nil
+    }
+
+    func isTogether(with uid: UUID) -> Bool {
+        partnerUID == uid
     }
 
     // MARK: - 截图

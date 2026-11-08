@@ -359,16 +359,16 @@ enum PromptBuilder {
             """)
         }
 
-        // 一起听。他正在放歌，两个人这会儿在同一个声音里。
+        // 一起听：他按过邀请，你们这会儿在同一条音轨上。
+        // 没有这个状态就一句都不写——一个人放歌不该变成角色知道的事，
+        // 跟别人一起听更不该让这个人知道。
         if let track = context.listeningNow {
             parts.append("""
-            【他正在听】
+            【你们在一起听】
             \(track.artist) - \(track.title)
-            他一边跟你聊天一边在放这首歌。你可以顺口提一句歌词或歌里的情绪，
-            当作你们在听同一首；但不要每轮都问「好听吗」，也不要装成自己刚发现。
+            是他邀请你一起听的，这会儿两边放的是同一首。你可以顺着歌词或者歌里的情绪接一句，
+            像两个人共用一副耳机；但不要每轮都问「好听吗」，也别装成自己刚发现这首歌。
             """)
-        } else if let track = context.currentTrack {
-            parts.append("【他上次在听】\(track.artist) - \(track.title)（现在没在放）")
         }
 
         if !context.location.isEmpty {

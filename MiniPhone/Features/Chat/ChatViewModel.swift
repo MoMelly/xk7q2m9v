@@ -189,9 +189,12 @@ final class ChatViewModel {
             ? UserCalendarBridge.upcomingLines()
             : []
 
-        // 这会儿真的在放的那首。暂停了就当没在听——「在听」是状态不是历史。
+        // 一起听：只有真的邀请了这个角色、而且这会儿在放，才把歌带进提示词。
+        // 一个人听歌不该让他知道；跟别人一起听，这个人更不该知道。
         let player = PlayerService.shared
-        let listeningNow = player.isPlaying ? player.track : nil
+        let listeningNow = player.isTogether(with: character.uid) && player.isPlaying
+            ? player.track
+            : nil
 
         let worldContext = world.context(
             for: names,

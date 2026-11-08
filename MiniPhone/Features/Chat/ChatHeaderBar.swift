@@ -18,6 +18,9 @@ struct ChatHeaderBar: View {
     var onOpenPhotos: () -> Void
     var onCall: (CallKind) -> Void
     var onCallHistory: () -> Void
+    /// 一起听。标题随邀请状态变（「一起听」/「结束一起听」）。
+    var togetherTitle: String
+    var onTogether: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -58,7 +61,9 @@ struct ChatHeaderBar: View {
                 ChatCallMenuItems(
                     onPhotos: onOpenPhotos,
                     onCall: onCall,
-                    onHistory: onCallHistory
+                    onHistory: onCallHistory,
+                    togetherTitle: togetherTitle,
+                    onTogether: onTogether
                 )
             }
 
@@ -105,12 +110,21 @@ struct ChatCallMenuItems: View {
     var onPhotos: () -> Void
     var onCall: (CallKind) -> Void
     var onHistory: () -> Void
+    /// 一起听。两处入口共用一份菜单，所以标题和动作都从外面传进来。
+    var togetherTitle: String
+    var onTogether: () -> Void
 
     var body: some View {
         Button {
             onPhotos()
         } label: {
             Label("发一张图", systemImage: "photo.on.rectangle")
+        }
+
+        Button {
+            onTogether()
+        } label: {
+            Label(togetherTitle, systemImage: "headphones")
         }
 
         Divider()

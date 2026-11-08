@@ -9,8 +9,6 @@ import SwiftUI
 /// 通知横幅在顶部，这个位置两边都不挡。
 struct MiniPlayerOverlay: View {
     let player: PlayerService
-    /// 一起听的那个人。空串就不显示那一行。
-    var companionName: String = ""
 
     /// 截图流水线要直接拍到歌词页，正常启动读不到这个键。
     @State private var expanded = UserDefaults.standard.string(forKey: "previewState") == "musicLyrics"
@@ -18,7 +16,7 @@ struct MiniPlayerOverlay: View {
     var body: some View {
         ZStack {
             if expanded {
-                LyricsPage(player: player, companionName: companionName) {
+                LyricsPage(player: player) {
                     expanded = false
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.94)))
@@ -154,10 +152,13 @@ struct CompactDisc: View {
 /// 现在封面缩成右上角一张唱片，正在放的时候它在转。
 struct LyricsPage: View {
     let player: PlayerService
-    var companionName: String = ""
     var onClose: () -> Void
 
     private var track: Track? { player.track }
+
+    /// 一起听的对象从播放器本身的邀请状态读。
+    /// 以前这里取「第一个角色」，等于没邀请也写个名字上去——那是假的。
+    private var companionName: String { player.partnerName ?? "" }
 
     var body: some View {
         ZStack {
@@ -241,7 +242,10 @@ struct LyricsPage: View {
                         .fill(Theme.IconTint.rose.opacity(0.95))
                         .frame(width: 5, height: 5)
 
-                    Text("和 \(companionName) 一起在听")
+                    // 暂停时写「一起在听」就是假话，只留「和谁一起听」。
+                    Text(player.isListeningTogether
+                         ? "和 \(companionName) 一起在听"
+                         : "和 \(companionName) 一起听")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(.white.opacity(0.62))
                 }

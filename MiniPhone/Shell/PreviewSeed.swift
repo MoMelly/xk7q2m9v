@@ -68,6 +68,11 @@ struct PreviewSeeder {
             track: track,
             lyrics: LyricsLoader.parse(Self.previewLRC)
         )
+        // 截图里要能看到「和谁一起在听」。真机上这一步来自聊天里的邀请，
+        // 冷启动点不到按钮，这里直接把状态摆好。
+        if let partner = companions.first {
+            PlayerService.shared.invite(uid: partner.uid, name: partner.name)
+        }
 #endif
     }
 
