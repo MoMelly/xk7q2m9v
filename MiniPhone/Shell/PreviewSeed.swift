@@ -182,10 +182,10 @@ struct PreviewSeeder {
             }
             try? context.save()
 
-            // 这一屏专门拍「一起听」的状态条：邀请 + 一首在放的歌。
-            // 不垫的话抓不到这条 UI —— 它只在邀请之后才出现。
+            // 这一屏专门拍「一起听」的状态条：垫一首在放的歌。
+            // 邀请不在这里做——这一屏打开的是哪个角色由外壳决定，
+            // 邀请必须落在同一个角色身上，交给 `ChatView.onAppear` 按状态名补。
             if state == "chatTogether" {
-                PlayerService.shared.invite(uid: character.uid, name: character.name)
 #if DEBUG
                 PlayerService.shared.stagePreview(
                     track: Track(

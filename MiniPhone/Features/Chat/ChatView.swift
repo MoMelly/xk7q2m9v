@@ -145,6 +145,10 @@ struct ChatView: View {
                 showDetail = true
             case "call":
                 callKind = .voice
+            case "chatTogether":
+                // 拍「一起听」状态条。这一屏打开的是谁由外壳挑，
+                // 邀请必须落在同一个人身上，所以放在这里而不是预置数据里。
+                player.invite(uid: character.uid, name: character.name)
             default:
                 break
             }
