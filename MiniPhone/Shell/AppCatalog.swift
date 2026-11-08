@@ -90,11 +90,7 @@ enum AppCatalog {
                  symbolTint: Color(red: 0.46, green: 0.32, blue: 0.14)),
         PhoneApp(id: "phonepeek", name: "TA 的手机", symbol: "iphone.gen3",
                  colors: [Color(red: 0.72, green: 0.74, blue: 0.86), Color(red: 0.44, green: 0.45, blue: 0.62)],
-                 destination: .scene(.phonePeek)),
-        PhoneApp(id: "settings", name: "设置", symbol: "gearshape.fill",
-                 colors: [Color(red: 0.86, green: 0.89, blue: 0.93), Color(red: 0.62, green: 0.67, blue: 0.74)],
-                 destination: .settings,
-                 symbolTint: Color(red: 0.20, green: 0.23, blue: 0.28))
+                 destination: .scene(.phonePeek))
     ]
 
     /// Dock 里的四个。信息放第一位，因为它是唯一每天都要点开的。

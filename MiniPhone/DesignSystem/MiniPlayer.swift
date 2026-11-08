@@ -138,12 +138,8 @@ struct LyricsPage: View {
 
             Spacer(minLength: 0)
 
-            Text("正在播放")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.white.opacity(0.55))
-
-            Spacer(minLength: 0)
-
+            // 中间原来写「正在播放」，正好落在灵动岛底下，只剩一条被切掉的字。
+            // 顶上有封面和曲名，这行字本来就是多余的。
             Color.clear.frame(width: 38, height: 38)
         }
         .padding(.horizontal, PhoneMetrics.Space.m)

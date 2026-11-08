@@ -77,7 +77,8 @@ struct PhoneShellView: View {
         default: destination = nil
         }
         guard let destination else { return nil }
-        return AppCatalog.home.first { $0.destination == destination }
+        // Dock 里的 App 不在桌面清单里了，找的时候两份合起来找。
+        return (AppCatalog.home + AppCatalog.dock).first { $0.destination == destination }
     }
 
     /// 夜间截图：状态名带 Night 后缀就切到夜间。

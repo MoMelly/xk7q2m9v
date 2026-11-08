@@ -17,17 +17,17 @@ struct PreviewSeeder {
 
     /// 今天的日程 + 当前心情 + 在放的那首。
     ///
-    /// 时间按「此刻往后一小时」起排，不管几点跑 CI，组件里都能显示出「还没到」的条目。
+    /// 时段写死成 9 / 14 / 19 / 22。早先按「跑 CI 那一刻往后一小时」排，
+    /// 流水线在凌晨两点跑，组件上就显出「02:00 在工作室改图」这种不像人写的安排。
     private func seedHomeWorld() {
-        let hour = Calendar.current.component(.hour, from: Date())
-        let slots = [(1, "在工作室改图", Mood.focused),
-                     (4, "去趟打印店取样张", Mood.calm),
-                     (7, "超市买菜", Mood.calm),
-                     (10, "回来把书看完", Mood.calm)]
-        let items = slots.map { offset, title, mood in
+        let slots = [(9, "在工作室改图", Mood.focused),
+                     (14, "去趟打印店取样张", Mood.calm),
+                     (19, "超市买菜", Mood.calm),
+                     (22, "回来把书看完", Mood.calm)]
+        let items = slots.map { hour, title, mood in
             ScheduleItem(
                 id: UUID(),
-                hour: min(hour + offset, 23),
+                hour: hour,
                 title: title,
                 mood: mood,
                 note: ""

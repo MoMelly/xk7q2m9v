@@ -35,11 +35,11 @@ struct CoupleScene: View {
 
     private var sparkCard: some View {
         VStack(spacing: 2) {
+            // 不用脉冲：那张截图正好抓到淡出的帧，火焰只剩一团白雾。
             Image(systemName: "flame.fill")
-                .font(.system(size: 30))
+                .font(.system(size: 32))
                 .foregroundStyle(.white)
                 .opacity(streak > 0 ? 1 : 0.3)
-                .symbolEffect(.pulse, isActive: activeToday)
 
             Text("\(streak)")
                 .font(.system(size: 52, weight: .bold, design: .rounded))
