@@ -8,17 +8,29 @@ import SwiftUI
 ///
 /// 数值跟着配色方案走：日间垫白多一点（否则压在浅底上发灰），
 /// 夜间只留一点（否则一块白板比灰还假）。
+///
+/// 白垫的多少再乘一档用户选的厚薄（`ThemeStore.glassFactor`）。
+/// 壁纸从浅到深都有人用，固定一个值总有一套不合适。
 struct FrostedSurface: ViewModifier {
     var cornerRadius: CGFloat
-    var tint: Color
-    var borderColor: Color
+    /// 日间的白垫比例，0~1。夜间按 `nightScale` 折。
+    var white: Double
+    var borderWhite: Double
     var shadow: Theme.ShadowStyle
+
+    /// 夜间白垫的折数。夜里再垫厚就是一整块白板。
+    private static let nightScale = 0.35
 
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         // 材质本身跟 colorScheme 走。外壳锁深色时，ultraThinMaterial 会算成暗色，
         // 垫多少白最后还是一片灰。这里把材质单独按浅色渲染，出来的才是透亮的毛玻璃。
-        let scheme: ColorScheme = ThemeStore.shared.isNight ? .dark : .light
+        let night = ThemeStore.shared.isNight
+        let scheme: ColorScheme = night ? .dark : .light
+        let scale = ThemeStore.shared.glassFactor
+        // 上限压在 0.92：再高就成不透明的白卡，壁纸白设了。
+        let fill = min(0.92, (night ? white * Self.nightScale : white) * scale)
+        let line = min(0.95, (night ? borderWhite * Self.nightScale : borderWhite) * scale)
 
         return content
             .background {
@@ -26,11 +38,11 @@ struct FrostedSurface: ViewModifier {
                     shape
                         .fill(.ultraThinMaterial)
                         .environment(\.colorScheme, scheme)
-                    shape.fill(tint)
+                    shape.fill(Color.white.opacity(fill))
                 }
             }
             .clipShape(shape)
-            .overlay(shape.strokeBorder(borderColor, lineWidth: 0.8))
+            .overlay(shape.strokeBorder(Color.white.opacity(line), lineWidth: 0.8))
             .shadow(color: shadow.color, radius: shadow.radius, y: shadow.y)
     }
 }
@@ -44,12 +56,11 @@ extension View {
         cornerRadius: CGFloat = PhoneMetrics.Radius.card,
         shadow: Theme.ShadowStyle = .none
     ) -> some View {
-        let night = ThemeStore.shared.isNight
-        return modifier(
+        modifier(
             FrostedSurface(
                 cornerRadius: cornerRadius,
-                tint: Color.white.opacity(night ? 0.12 : 0.34),
-                borderColor: Color.white.opacity(night ? 0.16 : 0.62),
+                white: 0.34,
+                borderWhite: 0.62,
                 shadow: shadow
             )
         )
@@ -60,12 +71,11 @@ extension View {
         cornerRadius: CGFloat = 26,
         shadow: Theme.ShadowStyle = .none
     ) -> some View {
-        let night = ThemeStore.shared.isNight
-        return modifier(
+        modifier(
             FrostedSurface(
                 cornerRadius: cornerRadius,
-                tint: Color.white.opacity(night ? 0.08 : 0.20),
-                borderColor: Color.white.opacity(night ? 0.14 : 0.54),
+                white: 0.20,
+                borderWhite: 0.54,
                 shadow: shadow
             )
         )

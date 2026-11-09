@@ -31,6 +31,8 @@ final class SettingsStore {
         static let videoWallpaper = "shell.videoWallpaper"
         static let refreshRules = "refresh.rules"
         static let refreshInterval = "refresh.interval"
+        static let passcode = "privacy.passcode"
+        static let discreetMode = "shell.discreetMode"
     }
 
     private static let keychainAccount = "llm.apiKey"
@@ -67,6 +69,13 @@ final class SettingsStore {
     /// 允许看「他的手机」里私密那一档。默认关：这一档本来就该先问一句。
     var allowPrivatePeek: Bool = false
     var videoWallpaperEnabled: Bool = false
+    /// 锁屏密码，四位数字。空串表示不设。
+    ///
+    /// 存在 UserDefaults 里，没有走钥匙串：它挡的是「别人拿起这台手机」，
+    /// 不是「别人拿到这台手机的文件」。真落到取证那一层，四位数字怎么存都挡不住。
+    var passcode: String = ""
+    /// 隐藏模式：公共场合一键把壁纸换成普通的、把情侣内容收起来。
+    var discreetMode: Bool = false
 
     /// 每个会自己更新的页面各自的开关与概率。
     var refreshRules: [RefreshRule] = RefreshRule.default
@@ -119,6 +128,8 @@ final class SettingsStore {
         allowPhoneLookups = defaults.bool(forKey: DefaultsKey.allowPhoneLookups)
         allowPrivatePeek = defaults.bool(forKey: DefaultsKey.allowPrivatePeek)
         videoWallpaperEnabled = defaults.bool(forKey: DefaultsKey.videoWallpaper)
+        passcode = defaults.string(forKey: DefaultsKey.passcode) ?? ""
+        discreetMode = defaults.bool(forKey: DefaultsKey.discreetMode)
         if let data = defaults.data(forKey: DefaultsKey.refreshRules),
            let decoded = try? JSONDecoder().decode([RefreshRule].self, from: data) {
             refreshRules = merged(decoded)
@@ -151,12 +162,16 @@ final class SettingsStore {
 
     /// 桌面壁纸。
     var homeSelection: WallpaperSelection {
-        WallpaperSelection(theme: wallpaperTheme, photoFileName: homeWallpaperPhoto)
+        // 隐藏模式：壁纸换成最普通的一套。
+        // 只换皮不够——一屏情侣组件和名字照样能被人看见，所以主屏那边也跟着收。
+        if discreetMode { return WallpaperSelection(theme: .graphite) }
+        return WallpaperSelection(theme: wallpaperTheme, photoFileName: homeWallpaperPhoto)
     }
 
     /// 锁屏壁纸。没单独设就复用桌面那份——不是复制一份值，
     /// 而是每次现取，这样桌面换了锁屏跟着换。
     var lockSelection: WallpaperSelection {
+        if discreetMode { return WallpaperSelection(theme: .graphite) }
         guard lockSeparate else { return homeSelection }
         return WallpaperSelection(
             theme: WallpaperTheme(rawValue: lockWallpaperRaw) ?? .midnight,
@@ -282,6 +297,20 @@ final class SettingsStore {
         persist()
     }
 
+    /// 设锁屏密码。只收数字，四位；传空串就是关掉。
+    func setPasscode(_ code: String) {
+        let digits = String(code.filter(\.isNumber).prefix(4))
+        guard digits != passcode else { return }
+        passcode = digits
+        persist()
+    }
+
+    func setDiscreetMode(_ on: Bool) {
+        guard discreetMode != on else { return }
+        discreetMode = on
+        persist()
+    }
+
     func persist() {
         let defaults = UserDefaults.standard
         defaults.set(baseURL, forKey: DefaultsKey.baseURL)
@@ -303,6 +332,8 @@ final class SettingsStore {
         defaults.set(allowPhoneLookups, forKey: DefaultsKey.allowPhoneLookups)
         defaults.set(allowPrivatePeek, forKey: DefaultsKey.allowPrivatePeek)
         defaults.set(videoWallpaperEnabled, forKey: DefaultsKey.videoWallpaper)
+        defaults.set(passcode, forKey: DefaultsKey.passcode)
+        defaults.set(discreetMode, forKey: DefaultsKey.discreetMode)
         if let data = try? JSONEncoder().encode(refreshRules) {
             defaults.set(data, forKey: DefaultsKey.refreshRules)
         }

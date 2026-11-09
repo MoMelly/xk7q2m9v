@@ -100,6 +100,43 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     }
 }
 
+/// 磨砂的厚薄。
+///
+/// 同一块底，白垫多一点就闷、少一点就飘。壁纸颜色深浅差很多，
+/// 固定一个值总有一套壁纸不合适，所以给三档让用户自己找。
+enum GlassDensity: String, CaseIterable, Identifiable {
+    case thin
+    case normal
+    case thick
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .thin: return "通透"
+        case .normal: return "标准"
+        case .thick: return "厚实"
+        }
+    }
+
+    var caption: String {
+        switch self {
+        case .thin: return "白垫得最少，壁纸颜色能整个透上来"
+        case .normal: return "默认。能读清字，也看得出底下是什么"
+        case .thick: return "白多一层，压花的壁纸上面字更清楚"
+        }
+    }
+
+    /// 乘在原来的白垫上。1 是不改。
+    var factor: Double {
+        switch self {
+        case .thin: return 0.68
+        case .normal: return 1
+        case .thick: return 1.45
+        }
+    }
+}
+
 /// 主题的唯一读写入口。
 ///
 /// 跟 `SettingsStore` 一样走 UserDefaults，`@Observable` 让改了立刻生效；
@@ -114,6 +151,7 @@ final class ThemeStore {
         static let customAccent = "theme.customAccent"
         static let iconStyle = "theme.iconStyle"
         static let appearance = "theme.appearance"
+        static let glassDensity = "theme.glassDensity"
     }
 
     var accentRaw: String = AccentTheme.berry.rawValue
@@ -121,6 +159,7 @@ final class ThemeStore {
     var customAccentHex: String = "#E93A56"
     var iconStyleRaw: String = IconStyle.glass.rawValue
     var appearanceRaw: String = AppearanceMode.day.rawValue
+    var glassDensityRaw: String = GlassDensity.normal.rawValue
 
     init() {
         let defaults = UserDefaults.standard
@@ -135,6 +174,9 @@ final class ThemeStore {
         }
         if let stored = defaults.string(forKey: DefaultsKey.appearance) {
             appearanceRaw = stored
+        }
+        if let stored = defaults.string(forKey: DefaultsKey.glassDensity) {
+            glassDensityRaw = stored
         }
     }
 
@@ -168,6 +210,13 @@ final class ThemeStore {
 
     var isNight: Bool { appearance == .night }
 
+    var glassDensity: GlassDensity {
+        GlassDensity(rawValue: glassDensityRaw) ?? .normal
+    }
+
+    /// 磨砂白垫要乘的系数。`FrostedSurface` 唯一取它的地方。
+    var glassFactor: Double { glassDensity.factor }
+
     // MARK: - 写入
 
     func select(_ theme: AccentTheme) {
@@ -191,12 +240,18 @@ final class ThemeStore {
         persist()
     }
 
+    func select(_ density: GlassDensity) {
+        glassDensityRaw = density.rawValue
+        persist()
+    }
+
     func persist() {
         let defaults = UserDefaults.standard
         defaults.set(accentRaw, forKey: DefaultsKey.accent)
         defaults.set(customAccentHex, forKey: DefaultsKey.customAccent)
         defaults.set(iconStyleRaw, forKey: DefaultsKey.iconStyle)
         defaults.set(appearanceRaw, forKey: DefaultsKey.appearance)
+        defaults.set(glassDensityRaw, forKey: DefaultsKey.glassDensity)
     }
 
     // MARK: - 色彩计算

@@ -51,6 +51,39 @@ struct BehaviorPage: View {
                         .padding(.horizontal, PhoneMetrics.Space.m)
                         .frame(minHeight: PhoneMetrics.Row.single)
                     }
+
+                    // 这两条是「别被人看见」，跟上面「别让他看见」不是一件事。
+                    GroupedSection(
+                        "屏幕与锁屏",
+                        footer: "隐藏模式会换掉壁纸，同时收起桌面组件和锁屏上那两块——只换皮的话，一眼还是能看出这台手机里有个人。控制中心里也有一个开关，公共场合从右上角拉下来就能切。"
+                    ) {
+                        NavigationLink {
+                            PasscodeSetupPage(settings: settings)
+                        } label: {
+                            GroupedRow(
+                                symbol: "lock.fill",
+                                symbolTint: Theme.IconTint.gray,
+                                title: "锁屏密码",
+                                value: settings.passcode.isEmpty ? "未设" : "四位数字",
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        RowDivider()
+
+                        Toggle(isOn: Binding(
+                            get: { settings.discreetMode },
+                            set: { settings.setDiscreetMode($0) }
+                        )) {
+                            Text("隐藏模式")
+                                .font(.system(size: PhoneMetrics.FontSize.body))
+                                .foregroundStyle(Theme.label)
+                        }
+                        .tint(Theme.tint)
+                        .padding(.horizontal, PhoneMetrics.Space.m)
+                        .frame(minHeight: PhoneMetrics.Row.single)
+                    }
                 }
                 .padding(.top, PhoneMetrics.Space.s)
                 .padding(.bottom, PhoneMetrics.Space.xl)

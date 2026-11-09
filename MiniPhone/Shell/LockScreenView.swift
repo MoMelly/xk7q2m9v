@@ -8,9 +8,16 @@ struct LockScreenView: View {
     let selection: WallpaperSelection
     let onUnlock: () -> Void
     var videoWallpaperEnabled: Bool = false
+    /// 设了密码就上滑先出键盘；空串表示没设。
+    var passcode: String = ""
+    /// 隐藏模式：锁屏上那两块（他的心情、没说出口的话）不显示。
+    var hidesWidgets: Bool = false
 
     @Environment(WorldStore.self) private var world
     @State private var dragOffset: CGFloat = 0
+    @State private var askingPasscode = false
+
+    private var hasPasscode: Bool { passcode.count == 4 }
 
     var body: some View {
         ZStack {
@@ -27,10 +34,12 @@ struct LockScreenView: View {
 
                 Spacer(minLength: 0)
 
-                LockScreenWidgets(
-                    moodLabel: world.primaryMood?.mood.label,
-                    voiceText: world.state.unresolvedVoices(limit: 1).first?.text
-                )
+                if !hidesWidgets {
+                    LockScreenWidgets(
+                        moodLabel: world.primaryMood?.mood.label,
+                        voiceText: world.state.unresolvedVoices(limit: 1).first?.text
+                    )
+                }
 
                 Spacer(minLength: 0).frame(height: 32)
 
@@ -42,6 +51,26 @@ struct LockScreenView: View {
             }
             .offset(y: dragOffset)
             .opacity(1 - min(0.85, -dragOffset / 340))
+
+            if askingPasscode {
+                // 键盘盖在整屏之上，解锁后连同一整层一起消失。
+                Color.black.opacity(0.28)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+
+                PasscodePad(length: 4, onComplete: { entered in
+                    guard entered == passcode else { return false }
+                    askingPasscode = false
+                    dragOffset = 0
+                    onUnlock()
+                    return true
+                }, onCancel: {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        askingPasscode = false
+                    }
+                })
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
         }
         .contentShape(Rectangle())
         .gesture(unlockGesture)
@@ -87,8 +116,15 @@ struct LockScreenView: View {
 
                 // 甩动速度也算进去，否则快速上滑会因为位移不够被判失败。
                 if travelled > PhoneMetrics.unlockDragThreshold || projected > 280 {
-                    onUnlock()
-                    dragOffset = 0
+                    if hasPasscode {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                            askingPasscode = true
+                            dragOffset = 0
+                        }
+                    } else {
+                        onUnlock()
+                        dragOffset = 0
+                    }
                 } else {
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
                         dragOffset = 0

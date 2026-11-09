@@ -14,6 +14,8 @@ struct HomeScreenView: View {
     var videoWallpaperEnabled: Bool = false
     /// 音乐是否正在放。组件上的波形跟着它动。
     var musicPlaying: Bool = false
+    /// 隐藏模式：三块组件都不显示。日程和「他在听什么」比壁纸更容易露馅。
+    var hidesWidgets: Bool = false
 
     var body: some View {
         ZStack {
@@ -30,9 +32,13 @@ struct HomeScreenView: View {
                 // 看着像被岛压住了。26 是文字基线下面还有一层留白的高度。
                 Spacer(minLength: 0).frame(height: 26)
 
-                widgetStack
+                if !hidesWidgets {
+                    widgetStack
 
-                Spacer(minLength: 0).frame(height: 24)
+                    Spacer(minLength: 0).frame(height: 24)
+                } else {
+                    Spacer(minLength: 0).frame(height: 28)
+                }
 
                 iconGrid
 

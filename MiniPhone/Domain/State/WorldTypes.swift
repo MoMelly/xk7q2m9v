@@ -433,7 +433,7 @@ struct WorldState: Codable {
         _ = try container.decodeIfPresent(String.self, forKey: .location)
         moods = try container.decodeIfPresent([String: MoodState].self, forKey: .moods) ?? [:]
         locations = try container.decodeIfPresent([String: String].self, forKey: .locations) ?? [:]
-        currentTrack = try container.decodeIfPresent(Track.self, forKey: .currentTrack) ?? ""
+        currentTrack = try container.decodeIfPresent(Track.self, forKey: .currentTrack)
         usage = try container.decodeIfPresent([AppUsageRecord].self, forKey: .usage) ?? []
         shopping = try container.decodeIfPresent([ShoppingItem].self, forKey: .shopping) ?? []
         forum = try container.decodeIfPresent([ForumPost].self, forKey: .forum) ?? []

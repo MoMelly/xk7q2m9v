@@ -48,6 +48,17 @@ final class PlayerService {
     private let player = AVPlayer()
     private var observer: Any?
 
+    /// 0~1。控制中心那条音量滑杆写它，写进来直接落到 AVPlayer 上。
+    ///
+    /// 不读系统音量：这个壳子本来就不出声地用着系统，去改系统音量会把微信语音一起改掉。
+    var volume: Double = 0.7 {
+        didSet {
+            let clamped = min(max(volume, 0), 1)
+            if clamped != volume { volume = clamped; return }
+            player.volume = Float(clamped)
+        }
+    }
+
     /// 0~1。总时长还没读到时给 0，进度条不画成满格。
     var progress: Double {
         guard duration > 0 else { return 0 }

@@ -26,6 +26,7 @@ struct ThemePage: View {
                     accentSection
                     iconSection
                     appearanceSection
+                    glassSection
                     wallpaperLink
                 }
                 .padding(.top, PhoneMetrics.Space.s)
@@ -238,6 +239,59 @@ struct ThemePage: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - 磨砂厚薄
+
+    /// 三档，每档给一块小样：同一张底垫上不同厚度的白，选之前就能看出来差在哪。
+    private var glassSection: some View {
+        GroupedSection(
+            "磨砂厚薄",
+            footer: "Dock、小组件、歌词页这些半透明的面都跟着这一档走。壁纸很花的时候调厚一点，字才压得住。"
+        ) {
+            HStack(spacing: PhoneMetrics.Space.s) {
+                ForEach(GlassDensity.allCases) { density in
+                    densityButton(density)
+                }
+            }
+            .padding(PhoneMetrics.Space.m)
+        }
+    }
+
+    private func densityButton(_ density: GlassDensity) -> some View {
+        let selected = theme.glassDensity == density
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                theme.select(density)
+            }
+        } label: {
+            VStack(spacing: 7) {
+                // 小样本身就是一块磨砂：底下放两个色块，白垫越厚盖得越多。
+                ZStack {
+                    HStack(spacing: 0) {
+                        Rectangle().fill(Theme.IconTint.rose)
+                        Rectangle().fill(Theme.IconTint.teal)
+                    }
+                    Color.white.opacity(min(0.9, 0.20 * density.factor * 1.6))
+                }
+                .frame(height: 46)
+                .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.block, style: .continuous))
+
+                Text(density.displayName)
+                    .font(.system(size: PhoneMetrics.FontSize.sub, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(selected ? Theme.brand : Theme.label)
+            }
+            .padding(6)
+            .background(
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .strokeBorder(selected ? Theme.brand : Theme.separator.opacity(0.6),
+                                  lineWidth: selected ? 1.6 : 0.8)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("磨砂\(density.displayName)")
     }
 
     // MARK: - 壁纸入口

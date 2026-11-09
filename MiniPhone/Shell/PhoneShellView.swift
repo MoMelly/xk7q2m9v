@@ -22,6 +22,9 @@ struct PhoneShellView: View {
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
     @State private var noticeTask: Task<Void, Never>?
+    /// 控制中心从右上角拉下来。
+    @State private var showControlCenter = false
+    private let controlCenter = ControlCenterStore.shared
     /// 播放器是单例，外壳只读不持有——退出 App 页面也接着放。
     private let player = PlayerService.shared
 
@@ -106,7 +109,9 @@ struct PhoneShellView: View {
                 LockScreenView(
                     selection: settings.lockSelection,
                     onUnlock: unlock,
-                    videoWallpaperEnabled: settings.videoWallpaperEnabled
+                    videoWallpaperEnabled: settings.videoWallpaperEnabled && !settings.discreetMode,
+                    passcode: settings.passcode,
+                    hidesWidgets: settings.discreetMode
                 )
                 .transition(.opacity)
             } else {
@@ -114,8 +119,9 @@ struct PhoneShellView: View {
                     selection: settings.homeSelection,
                     world: world,
                     onOpen: open,
-                    videoWallpaperEnabled: settings.videoWallpaperEnabled,
-                    musicPlaying: player.isPlaying
+                    videoWallpaperEnabled: settings.videoWallpaperEnabled && !settings.discreetMode,
+                    musicPlaying: player.isPlaying,
+                    hidesWidgets: settings.discreetMode
                 )
                 .transition(.opacity)
                 .onPreferenceChange(IconFramePreferenceKey.self) { frames in
@@ -152,7 +158,8 @@ struct PhoneShellView: View {
                     .zIndex(3)
             }
 
-            if !world.pendingNotices.isEmpty {
+            // 勿扰开着就不弹横幅：开关要是只改个颜色，那它就只是个装饰。
+            if !world.pendingNotices.isEmpty, !controlCenter.silent {
                 VStack(spacing: 0) {
                     NotificationStack(notices: notices, onDismiss: dismissNotice)
                         .padding(.top, PhoneMetrics.notificationTopInset)
@@ -160,6 +167,61 @@ struct PhoneShellView: View {
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .zIndex(4)
+            }
+
+            // 亮度：整屏盖一层黑，盖在所有东西之上但不吃点击。
+            // 控制中心本身要在它上面，否则拉下来看不清滑杆。
+            if controlCenter.brightness < 0.95 {
+                Color.black
+                    .opacity((1 - controlCenter.brightness) * 0.62)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .zIndex(4.5)
+            }
+
+            if showControlCenter {
+                Color.black.opacity(0.16)
+                    .ignoresSafeArea()
+                    .onTapGesture { closeControlCenter() }
+                    .zIndex(5)
+
+                VStack(spacing: 0) {
+                    ControlCenterPanel(
+                        world: world,
+                        settings: settings,
+                        onClose: closeControlCenter,
+                        onOpenSettings: {
+                            closeControlCenter()
+                            if let app = (AppCatalog.home + AppCatalog.dock)
+                                .first(where: { $0.destination == .settings }) {
+                                open(app)
+                            }
+                        }
+                    )
+                    .padding(.top, 8)
+                    Spacer(minLength: 0)
+                }
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(6)
+            }
+        }
+        // 右上角往下拉。只在桌面上留这条热区：进了 App 之后顶栏右上是它自己的按钮，
+        // 盖一条看不见的拖拽带上去，点「⋯」会变成拉控制中心。
+        .overlay(alignment: .topTrailing) {
+            if openedApp == nil, !showControlCenter {
+                Color.clear
+                    .frame(width: 132, height: 26)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 6)
+                            .onEnded { value in
+                                guard value.translation.height > 22 else { return }
+                                Haptics.tap()
+                                withAnimation(.spring(response: 0.36, dampingFraction: 0.86)) {
+                                    showControlCenter = true
+                                }
+                            }
+                    )
             }
         }
         .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isLocked)
@@ -178,6 +240,8 @@ struct PhoneShellView: View {
                 .sorted { ($0.lastMessageAt ?? .distantPast) > ($1.lastMessageAt ?? .distantPast) }
                 .first?.name ?? ""
             if !primary.isEmpty { world.primaryName = primary }
+            // 上次设的音量在启动时落到播放器上：它存在控制中心那边，播放器是无状态的。
+            player.volume = controlCenter.volume
             world.ensureToday(wakeHour: 7, sleepHour: 23)
             world.seedSceneContentIfNeeded()
             UserProfileBook.ensureDefault(in: context)
@@ -195,6 +259,14 @@ struct PhoneShellView: View {
         .onChange(of: world.pendingNotices) { _, pages in
             guard !pages.isEmpty else { return }
             scheduleNoticeDismiss()
+        }
+    }
+
+    // MARK: - 控制中心
+
+    private func closeControlCenter() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) {
+            showControlCenter = false
         }
     }
 
