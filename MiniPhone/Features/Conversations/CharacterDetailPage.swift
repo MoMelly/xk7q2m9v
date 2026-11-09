@@ -23,6 +23,8 @@ struct CharacterDetailPage: View {
     /// 拍一拍后缀的编辑框。
     @State private var showPatEditor = false
     @State private var patDraft = ""
+    /// 查手机。从他自己的详情页进来，直接开他这一台。
+    @State private var showPhone = false
 
     private var person: PersonMemory? {
         world.state.people.first { $0.name == character.name }
@@ -94,6 +96,23 @@ struct CharacterDetailPage: View {
                                 symbolTint: Theme.IconTint.purple,
                                 title: "记忆",
                                 value: factCount > 0 ? "\(factCount) 条" : nil,
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        RowDivider()
+
+                        // 查手机。桌面那个图标是按「最近说过话的人」开的，
+                        // 从这个人的详情页进来才是确定的「看他这一台」。
+                        Button {
+                            showPhone = true
+                        } label: {
+                            GroupedRow(
+                                symbol: "iphone.gen3",
+                                symbolTint: Theme.IconTint.gray,
+                                title: "\(character.name) 的手机",
+                                value: world.hasPhone(for: character.name) ? "已生成" : "还没打开",
                                 showsChevron: true
                             )
                         }
@@ -231,6 +250,14 @@ struct CharacterDetailPage: View {
         }
         .sheet(isPresented: $showEditor) {
             CharacterEditorView(character: character, onFinish: { showEditor = false })
+        }
+        .sheet(isPresented: $showPhone) {
+            CharacterPhoneScene(
+                world: world,
+                settings: settings,
+                initialOwner: character.name,
+                onClose: { showPhone = false }
+            )
         }
         .confirmationDialog("清空对话记录", isPresented: $showClearConfirm, titleVisibility: .visible) {
             Button("清空", role: .destructive) { clearHistory() }

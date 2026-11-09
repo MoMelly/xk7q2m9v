@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// 情侣空间。
 ///
@@ -6,13 +7,41 @@ import SwiftUI
 /// 不做签到按钮——真按一下就能加一天，这个数字就没有意义了；
 /// 想续火花只有一条路，去跟他说句话。
 ///
+/// 火花按角色各算一份：跟 A 说过话不该出现在跟 B 的火花里。
+/// 顶部那排名字就是切开这件事的开关。
+///
 /// 视觉上是一块大号液态玻璃：磨砂透出壁纸、左上角一层玫瑰色柔光、字走墨色。
 /// 上一版是一整块橙红渐变加白字，颜色太吵，像活动横幅而不是一件私人的东西。
 struct CoupleScene: View {
     let world: WorldStore
+    var initialOwner: String? = nil
     var onClose: () -> Void
 
-    private var state: CoupleState { world.state.couple }
+    @Query(sort: \Companion.sortIndex) private var companions: [Companion]
+    @State private var selectedName: String?
+
+    /// 有火花的候选人。西瓜皮的路人作者和内置小助手不算。
+    private var candidates: [Companion] {
+        companions.filter { !$0.isFeedOnly && $0.name != DefaultAssistant.name }
+    }
+
+    private var recentOwner: Companion? {
+        candidates
+            .sorted { ($0.lastMessageAt ?? .distantPast) > ($1.lastMessageAt ?? .distantPast) }
+            .first
+    }
+
+    private var partner: Companion? {
+        let wanted = selectedName ?? initialOwner
+        if let wanted, let hit = candidates.first(where: { $0.name == wanted }) {
+            return hit
+        }
+        return recentOwner
+    }
+
+    private var partnerName: String { partner?.name ?? "" }
+
+    private var state: CoupleState { world.coupleState(for: partnerName) }
     private var streak: Int { CoupleEngine.streak(state) }
     private var best: Int { CoupleEngine.best(state) }
     private var activeToday: Bool { CoupleEngine.isActiveToday(state) }
@@ -23,6 +52,14 @@ struct CoupleScene: View {
         AppScreen(title: "情侣空间", onClose: onClose) {
             ScrollView {
                 VStack(spacing: PhoneMetrics.Space.l) {
+                    NameChipStrip(
+                        names: candidates.map(\.name),
+                        selected: Binding(
+                            get: { partnerName },
+                            set: { selectedName = $0 }
+                        )
+                    )
+
                     sparkCard
                     heatmap
                     stats
@@ -128,6 +165,7 @@ struct CoupleScene: View {
 
     /// 三种状态说三种话。今天还没结束时不能说「断了」。
     private var statusLine: String {
+        guard !partnerName.isEmpty else { return "先在信息里建一个角色，才有火花可算" }
         if activeToday { return "今天已经续上了" }
         if onlyMine { return "你说过了，等他也开口" }
         if streak > 0 { return "今天还没说话，火花等在这儿" }

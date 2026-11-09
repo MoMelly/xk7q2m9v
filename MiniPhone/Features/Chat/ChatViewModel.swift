@@ -50,8 +50,8 @@ final class ChatViewModel {
         context.insert(userMessage)
         character.lastMessageAt = Date()
         save(context)
-        // 火花记的是「今天我说过话」。他那边开口在 `recordDay` 里记。
-        WorldStore.shared.markCoupleDay(fromMe: true)
+        // 火花记的是「今天我跟这个角色说过话」。别人那边不记。
+        WorldStore.shared.markCoupleDay(fromMe: true, partner: character.name)
 
         guard callMode else { return }
         await generateReply(
@@ -377,7 +377,7 @@ final class ChatViewModel {
 
         let log = meta?.dayLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         world.noteCharacterChat(named: character.name, summary: log)
-        world.markCoupleDay(fromMe: false)
+        world.markCoupleDay(fromMe: false, partner: character.name)
     }
 
     /// 状态块里带回来的增量统一写进 WorldStore。

@@ -1,32 +1,47 @@
 import Foundation
 
 extension WorldStore {
-    /// 取当前角色的那台手机。
+    /// 某个角色的那台手机。
     ///
-    /// 世界状态里只存一台，`owner` 对不上就当没有 —— 换了角色不会串台，
-    /// 也不会因为换人就把上一个人的内容删掉（换回去还能接着看）。
+    /// 每个角色一份，互不覆盖：同时聊着两个人，两台的聊天记录、相册、
+    /// 瞒着的事都各归各的。同名算同一个人。
     func phone(for characterName: String) -> CharacterPhone? {
-        guard let phone = state.phone, !phone.owner.isEmpty, phone.owner == characterName else {
-            return nil
-        }
-        return phone
+        guard !characterName.isEmpty else { return nil }
+        return state.phones.first { $0.owner == characterName }
     }
 
+    /// 生成过没有。界面用它决定顶栏是「更新」还是「生成」。
+    func hasPhone(for characterName: String) -> Bool {
+        guard let phone = phone(for: characterName) else { return false }
+        return !phone.isEmpty
+    }
+
+    /// 写回一台。按 owner 覆盖同一个人那份，不动别人的。
     func savePhone(_ phone: CharacterPhone) {
-        state.phone = phone
+        let owner = phone.owner
+        if let index = state.phones.firstIndex(where: { $0.owner == owner }) {
+            state.phones[index] = phone
+        } else {
+            state.phones.append(phone)
+        }
         state.updatedAt = Date()
+        save()
+    }
+
+    /// 删掉某个人那台。换角色不会自动删——删是一次明确的动作。
+    func deletePhone(for characterName: String) {
+        state.phones.removeAll { $0.owner == characterName }
         save()
     }
 
     /// 截图流水线用：垫一台已经生成好的手机，省掉一次真的模型调用。
     /// 只在带 `-previewState` 启动时写，正常启动读不到这个键。
     func seedPreviewPhone(owner: String) {
-        guard state.phone == nil else { return }
+        guard phone(for: owner) == nil else { return }
         guard var phone = CharacterPhoneParser.parse(Self.previewPhoneJSON, owner: owner) else { return }
         // 预备好的那份内容是写死的名字，截图里要跟当前角色对上，这里直接改归属。
         phone.owner = owner
-        state.phone = phone
-        save()
+        savePhone(phone)
     }
 
     private static let previewPhoneJSON = """

@@ -9,20 +9,30 @@ import SwiftData
 struct CharacterPhoneScene: View {
     let world: WorldStore
     @Bindable var settings: SettingsStore
+    /// 从聊天 / 角色详情进来时，直接看这个人的那台。
+    /// 从桌面图标进来不带，按最近说过话的那个人显示。
+    var initialOwner: String? = nil
     var onClose: () -> Void
 
     @Environment(\.modelContext) private var context
     @Query(sort: \Companion.sortIndex) private var companions: [Companion]
 
     @State private var errorText: String?
+    /// 顶部胶囊选的是谁。空表示还没选过，按默认规则挑。
+    @State private var selectedName: String?
 
     private var service: CharacterPhoneService { .shared }
 
-    /// 最近说过话的那个角色。查手机查的是「此刻在我旁边的那个人」，
-    /// 所以按最后一条消息时间挑。内置的小助手不算 —— 它不是谈恋爱的对象。
-    private var owner: Companion? {
-        let candidates = companions.filter { !$0.isFeedOnly && $0.name != DefaultAssistant.name }
-        let pool = candidates.isEmpty ? companions.filter { !$0.isFeedOnly } : candidates
+    /// 能查手机的候选人。西瓜皮的路人作者没有手机——他们不在「信息」里。
+    private var candidates: [Companion] {
+        companions.filter { !$0.isFeedOnly }
+    }
+
+    /// 没选过时的默认：最近说过话的那个。查手机查的通常是「此刻在我旁边的那个人」。
+    /// 内置的小助手不算——它不是谈恋爱的对象。
+    private var recentOwner: Companion? {
+        let dates = candidates.filter { $0.name != DefaultAssistant.name }
+        let pool = dates.isEmpty ? candidates : dates
         return pool
             .sorted { lhs, rhs in
                 (lhs.lastMessageAt ?? .distantPast) > (rhs.lastMessageAt ?? .distantPast)
@@ -30,9 +40,30 @@ struct CharacterPhoneScene: View {
             .first
     }
 
+    private var owner: Companion? {
+        let wanted = selectedName ?? initialOwner
+        if let wanted, let hit = candidates.first(where: { $0.name == wanted }) {
+            return hit
+        }
+        return recentOwner
+    }
+
     private var phone: CharacterPhone? {
         guard let owner else { return nil }
         return world.phone(for: owner.name)
+    }
+
+    /// 顶部胶囊。只有一个角色时不占地方。
+    /// 左右留白加在这里：组件本身不带内边距，嵌在别的容器里时不会双重缩进。
+    private var chipStrip: some View {
+        NameChipStrip(
+            names: candidates.map(\.name),
+            selected: Binding(
+                get: { owner?.name ?? "" },
+                set: { selectedName = $0 }
+            )
+        )
+        .padding(.horizontal, PhoneMetrics.Space.m)
     }
 
     /// 右上角的按钮：有内容才给「更新」，没有就不放（空态里有一整颗按钮）。
@@ -55,10 +86,14 @@ struct CharacterPhoneScene: View {
             trailingTitle: trailingTitle,
             trailingAction: trailingAction
         ) {
-            if let owner {
-                content(owner)
-            } else {
-                noCharacterState
+            VStack(spacing: 0) {
+                chipStrip
+
+                if let owner {
+                    content(owner)
+                } else {
+                    noCharacterState
+                }
             }
         }
         .alert(

@@ -388,10 +388,18 @@ struct WorldState: Codable {
     var refreshTurns: [String: Int] = [:]
     /// 各角色当天的时间轴，只保留今天的。
     var characterDays: [CharacterDay] = []
-    /// 他的手机里有什么。按角色名换一台，换人时旧的不清，但只有当前角色那台会被读到。
-    var phone: CharacterPhone?
-    /// 情侣空间的火花：记的是哪天两个人说过话。
-    var couple: CoupleState = CoupleState()
+    /// 每个角色各一台手机。
+    ///
+    /// 原来只存一台（`phone`），第二个角色生成时会把第一台覆盖掉——
+    /// 有多个角色的时候，查手机只能查到最近说话的那个。
+    /// 现在按 `owner` 存一份数组，谁的那台归谁。
+    var phones: [CharacterPhone] = []
+    /// 每段关系各一份火花，key 是角色名。
+    ///
+    /// 和手机同一个毛病：只存一份的话，跟 A 说的话会算进跟 B 的火花里。
+    var couples: [String: CoupleState] = [:]
+    /// 老存档里那唯一一份火花。迁移时归给第一个开口的角色，归完置空。
+    var legacyCouple: CoupleState?
     var updatedAt: Date = Date()
 
     init() {}
@@ -401,6 +409,8 @@ struct WorldState: Codable {
         case shopping, forum, shop, feed, lastRefreshAt, refreshTurns
         case characterDays, letters, updatedAt
         case feedInbox, feedActivity
+        case phones, couples
+        /// 旧字段，只读不写：解出老存档里的那一台 / 那一份。
         case phone, couple
     }
 
@@ -423,8 +433,18 @@ struct WorldState: Codable {
         letters = try container.decodeIfPresent([Letter].self, forKey: .letters) ?? []
         feedInbox = try container.decodeIfPresent([FeedInboxItem].self, forKey: .feedInbox) ?? []
         feedActivity = try container.decodeIfPresent([FeedActivity].self, forKey: .feedActivity) ?? []
-        phone = try container.decodeIfPresent(CharacterPhone.self, forKey: .phone)
-        couple = try container.decodeIfPresent(CoupleState.self, forKey: .couple) ?? CoupleState()
+        // 手机：老存档只有一台，搬进数组；新存档直接读数组。
+        let legacyPhone = try container.decodeIfPresent(CharacterPhone.self, forKey: .phone)
+        phones = try container.decodeIfPresent([CharacterPhone].self, forKey: .phones)
+            ?? legacyPhone.map { [$0] }
+            ?? []
+        // 火花：老存档只有一份，先挂在 legacyCouple 上，
+        // 等知道是谁了（下一次记火花时）再落到那个角色名下。
+        couples = try container.decodeIfPresent([String: CoupleState].self, forKey: .couples) ?? [:]
+        let legacy = try container.decodeIfPresent(CoupleState.self, forKey: .couple)
+        if couples.isEmpty, let legacy, !legacy.myDays.isEmpty || !legacy.theirDays.isEmpty {
+            legacyCouple = legacy
+        }
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
     }
 
@@ -448,8 +468,8 @@ struct WorldState: Codable {
         try container.encode(letters, forKey: .letters)
         try container.encode(feedInbox, forKey: .feedInbox)
         try container.encode(feedActivity, forKey: .feedActivity)
-        try container.encodeIfPresent(phone, forKey: .phone)
-        try container.encode(couple, forKey: .couple)
+        try container.encode(phones, forKey: .phones)
+        try container.encode(couples, forKey: .couples)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
 

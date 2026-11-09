@@ -8,9 +8,9 @@ import Foundation
 ///
 /// 每条都压到一句话：这块是给模型当底，不是让它照着念清单。
 extension WorldStore {
-    /// 他那台手机里的东西。只取本人那台：换角色时旧手机不清，认错人比失忆更糟。
+    /// 他那台手机里的东西。按名字取：同时聊着两个人也不会拿错手机。
     func phoneLines(for owner: String) -> [String] {
-        guard !owner.isEmpty, let phone = state.phone, phone.owner == owner else { return [] }
+        guard let phone = phone(for: owner) else { return [] }
         var lines: [String] = []
 
         for chat in phone.chats.prefix(3) where !chat.preview.isEmpty {

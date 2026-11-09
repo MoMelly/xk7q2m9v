@@ -93,7 +93,11 @@ struct PreviewSeeder {
     """
 
     /// 连续 41 天，再往前留一段更早的。火花算的是交集，两侧都要填。
+    ///
+    /// 火花按角色分开存，截图这一屏默认开的是最近说过话的人，
+    /// 所以种子必须挂在一个确定存在的角色名下——顺带把演示角色建出来。
     private func seedCouple() {
+        let partner = ensureDemoCompanion()?.name ?? "沈砚"
         var couple = CoupleState()
         let calendar = Calendar.current
         let today = Date()
@@ -109,7 +113,7 @@ struct PreviewSeeder {
         // 更早的一段，跟上面断着——用来验「最长连续」不是简单把总天数加起来。
         for offset in 45...47 { mark(offset) }
 
-        world.state.couple = couple
+        world.state.couples[partner] = couple
         world.save()
     }
 
