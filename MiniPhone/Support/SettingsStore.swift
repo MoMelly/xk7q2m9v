@@ -101,7 +101,8 @@ final class SettingsStore {
     private var billingByModel: [String: String] = [:]
 
     init() {
-        let defaults = UserDefaults.standard        if let storedBaseURL = defaults.string(forKey: DefaultsKey.baseURL) {
+        let defaults = UserDefaults.standard
+        if let storedBaseURL = defaults.string(forKey: DefaultsKey.baseURL) {
             baseURL = storedBaseURL
         }
         if let storedModel = defaults.string(forKey: DefaultsKey.model) {

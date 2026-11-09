@@ -9,6 +9,12 @@ struct GlassClock: View {
     let text: String
     var fontSize: CGFloat = PhoneMetrics.lockClockFontSize
 
+    /// 高光扫过的位置，-1 在左外侧，1 在右外侧。
+    ///
+    /// 静止的玻璃看起来就是一层毛玻璃贴纸；真的液态玻璃会有一道很慢的高光
+    /// 从左上划到右下。这个值只驱动那一道光，不碰字本身。
+    @State private var sweep: CGFloat = -1.2
+
     private var glyph: some View {
         Text(text)
             .font(.system(size: fontSize, weight: .medium, design: .rounded))
@@ -24,6 +30,13 @@ struct GlassClock: View {
             .opacity(0)
             .overlay { glassLayers }
             .accessibilityLabel(text)
+            .onAppear {
+                // 一轮六秒半，回位是一次性的瞬移而不是倒着划回去——
+                // 倒着划会看出是动画在循环，不是光在玻璃上走。
+                withAnimation(.linear(duration: 6.5).repeatForever(autoreverses: false)) {
+                    sweep = 1.2
+                }
+            }
     }
 
     private var glassLayers: some View {
@@ -62,9 +75,37 @@ struct GlassClock: View {
                         endPoint: .bottom
                     )
                 )
+
+            specular
         }
         .compositingGroup()
-        .shadow(color: .black.opacity(0.28), radius: 16, y: 6)
+        .shadow(color: .black.opacity(0.30), radius: 18, y: 7)
+        .shadow(color: .black.opacity(0.16), radius: 2, y: 1)
         .shadow(color: .white.opacity(0.18), radius: 1, y: -1)
+    }
+
+    /// 扫过去的那道光。
+    ///
+    /// 斜着切而不是横着扫：数字的笔画是竖的，横向扫会在笔画之间断成几截，
+    /// 看着像几条互不相干的亮线。
+    private var specular: some View {
+        glyph
+            .foregroundStyle(
+                LinearGradient(
+                    stops: [
+                        .init(color: .white.opacity(0), location: 0),
+                        .init(color: .white.opacity(0.55), location: 0.46),
+                        .init(color: .white.opacity(0.75), location: 0.5),
+                        .init(color: .white.opacity(0.55), location: 0.54),
+                        .init(color: .white.opacity(0), location: 1)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .offset(x: sweep * fontSize * 1.6)
+            .mask(glyph)
+            .blendMode(.plusLighter)
+            .allowsHitTesting(false)
     }
 }

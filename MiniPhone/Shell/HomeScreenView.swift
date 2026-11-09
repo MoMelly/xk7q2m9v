@@ -2,11 +2,12 @@ import SwiftUI
 
 /// 主屏。
 ///
-/// 从上到下三块：小组件、图标网格、Dock。图标现在 8 个（4+4），
-/// 上面留给三块组件——今日日程、心情、在听。
-/// 健康并进「TA 的手机」之后桌面正好两行，不再有半截空行。
+/// 从上到下三块：小组件、图标网格、Dock。
+/// 图标区现在分页、支持长按抖动、拖动换位、拖到一起建文件夹——
+/// 这些都在 `HomeBoard` 里，这一层只管把三块排好。
 ///
-/// 不做左右翻页：图标还没多到需要第二页，伪造一页空的反而更假。
+/// 分页只在放不下的时候才有第二页：默认八个 App 正好一屏，
+/// 翻过去是一整屏空的反而更假。
 struct HomeScreenView: View {
     let selection: WallpaperSelection
     let world: WorldStore
@@ -16,6 +17,10 @@ struct HomeScreenView: View {
     var musicPlaying: Bool = false
     /// 隐藏模式：三块组件都不显示。日程和「他在听什么」比壁纸更容易露馅。
     var hidesWidgets: Bool = false
+
+    @State private var layout = HomeLayout.load()
+    @State private var page = 0
+    @State private var editing = false
 
     var body: some View {
         ZStack {
@@ -43,6 +48,11 @@ struct HomeScreenView: View {
                 iconGrid
 
                 Spacer(minLength: 0)
+
+                if editing {
+                    doneEditingButton
+                        .padding(.bottom, 6)
+                }
 
                 pageDots
 
@@ -89,34 +99,50 @@ struct HomeScreenView: View {
     // MARK: - 图标网格
 
     private var iconGrid: some View {
-        LazyVGrid(columns: columns, spacing: PhoneMetrics.gridVerticalSpacing) {
-            ForEach(AppCatalog.home) { app in
-                Button {
-                    onOpen(app)
-                } label: {
-                    AppIconTile(app: app).iconFrame(app)
-                }
-                .buttonStyle(IconPressStyle())
-            }
+        HomeBoard(layout: $layout, page: $page, editing: $editing) { app in
+            onOpen(app)
         }
         .padding(.horizontal, 20)
     }
 
-    private var columns: [GridItem] {
-        Array(
-            repeating: GridItem(.flexible(), spacing: PhoneMetrics.gridHorizontalSpacing, alignment: .top),
-            count: PhoneMetrics.gridColumns
-        )
+    /// 编辑模式下的退出按钮。点空白也能退，但一个看得见的入口更稳。
+    private var doneEditingButton: some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.2)) { editing = false }
+        } label: {
+            Text("完成")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(iconLabelColor)
+                .padding(.horizontal, 18)
+                .frame(height: 30)
+                .background(Capsule().fill(.ultraThinMaterial))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.25), lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var iconLabelColor: Color {
+        ThemeStore.shared.isNight ? Color.white : Color(red: 0.16, green: 0.15, blue: 0.17)
     }
 
     // MARK: - 页面指示
 
+    /// 只有一页的时候不画点：一个点等于在说「这里还能翻」。
     private var pageDots: some View {
         HStack(spacing: 6) {
-            Circle()
-                .fill(ThemeStore.shared.isNight ? Color.white : Theme.IconSurface.pageDotDay)
-                .frame(width: 6, height: 6)
+            ForEach(Array(layout.pages.indices), id: \.self) { index in
+                Circle()
+                    .fill(dotColor(active: index == page))
+                    .frame(width: 6, height: 6)
+            }
         }
+        .opacity(layout.pages.count > 1 ? 1 : 0)
+        .animation(.easeOut(duration: 0.2), value: page)
+    }
+
+    private func dotColor(active: Bool) -> Color {
+        let base = ThemeStore.shared.isNight ? Color.white : Theme.IconSurface.pageDotDay
+        return active ? base : base.opacity(0.45)
     }
 
     // MARK: - Dock
