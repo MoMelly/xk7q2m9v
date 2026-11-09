@@ -10,6 +10,24 @@ struct LLMConfig: Equatable {
     var temperature: Double = 0.9
     /// 单次回复的硬上限。定得比目标长度宽，避免句子被砍断。
     var maxTokens: Int = 900
+    /// 备用 Key，按顺序试。空数组表示不轮换。
+    var fallbackKeys: [String] = []
+
+    /// 这一轮实际要试的 Key，主 Key 在前。
+    ///
+    /// 去重是必要的：用户很容易把同一把 Key 又粘进备用列表，
+    /// 那样失败时会对着同一个已经被拒的 Key 再试一次，白等一个往返。
+    var attemptKeys: [String] {
+        var seen: Set<String> = []
+        var result: [String] = []
+        for raw in [apiKey] + fallbackKeys {
+            let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty, !seen.contains(key) else { continue }
+            seen.insert(key)
+            result.append(key)
+        }
+        return result
+    }
 
     /// 硅基流动的 OpenAI 兼容端点。国内直连可用。
     static let defaultBaseURL = "https://api.siliconflow.cn/v1"
@@ -39,6 +57,21 @@ enum LLMError: LocalizedError {
             let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
             let preview = trimmed.count > 300 ? String(trimmed.prefix(300)) + "…" : trimmed
             return "请求失败（HTTP \(status)）\n\(preview)"
+        }
+    }
+
+    /// 这个错误换一把 Key 有没有意义。
+    ///
+    /// 只看 401 / 402 / 403 / 429：这四个是「这把 Key 不行 / 额度到头 / 被限流」。
+    /// 500 和超时换 Key 没用，那是服务端自己的事，重试只会把等待时间翻倍。
+    var isKeyRejection: Bool {
+        switch self {
+        case .missingKey:
+            return true
+        case .http(let status, _):
+            return [401, 402, 403, 429].contains(status)
+        case .invalidURL, .invalidResponse:
+            return false
         }
     }
 }

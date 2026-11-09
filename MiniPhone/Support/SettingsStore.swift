@@ -33,9 +33,17 @@ final class SettingsStore {
         static let refreshInterval = "refresh.interval"
         static let passcode = "privacy.passcode"
         static let discreetMode = "shell.discreetMode"
+        static let keyRotation = "llm.keyRotation"
     }
 
     private static let keychainAccount = "llm.apiKey"
+    private static let keychainExtras = "llm.apiKeys.extra"
+
+    /// 当前这一份设置。
+    ///
+    /// 客户端在深层的 Task 里跑，拿不到环境注入的实例；Key 轮换成功后
+    /// 要把「哪把成了」写回主位，只能从这里取。弱引用：设置归 App 持有。
+    static private(set) weak var current: SettingsStore?
 
     var baseURL: String = LLMConfig.defaultBaseURL
     var model: String = LLMConfig.defaultModel
@@ -76,6 +84,13 @@ final class SettingsStore {
     var passcode: String = ""
     /// 隐藏模式：公共场合一键把壁纸换成普通的、把情侣内容收起来。
     var discreetMode: Bool = false
+    /// 备用 Key。主 Key 被拒（额度用完、过期、被限流）时按顺序换。
+    ///
+    /// 和主 Key 一样只落钥匙串：一次请求里会连着拼出好几把 Key，
+    /// 存 UserDefaults 等于把它们抄进一份明文 plist。
+    var extraKeys: [String] = []
+    /// 主 Key 失败时要不要自动试备用的。默认开。
+    var keyRotation: Bool = true
 
     /// 每个会自己更新的页面各自的开关与概率。
     var refreshRules: [RefreshRule] = RefreshRule.default
@@ -86,8 +101,7 @@ final class SettingsStore {
     private var billingByModel: [String: String] = [:]
 
     init() {
-        let defaults = UserDefaults.standard
-        if let storedBaseURL = defaults.string(forKey: DefaultsKey.baseURL) {
+        let defaults = UserDefaults.standard        if let storedBaseURL = defaults.string(forKey: DefaultsKey.baseURL) {
             baseURL = storedBaseURL
         }
         if let storedModel = defaults.string(forKey: DefaultsKey.model) {
@@ -140,6 +154,15 @@ final class SettingsStore {
         if let storedKey = KeychainStore.string(for: Self.keychainAccount) {
             apiKey = storedKey
         }
+        if let raw = KeychainStore.string(for: Self.keychainExtras),
+           let data = raw.data(using: .utf8),
+           let decoded = try? JSONDecoder().decode([String].self, from: data) {
+            extraKeys = decoded
+        }
+        if defaults.object(forKey: DefaultsKey.keyRotation) != nil {
+            keyRotation = defaults.bool(forKey: DefaultsKey.keyRotation)
+        }
+        Self.current = self
     }
 
     var config: LLMConfig {
@@ -148,8 +171,58 @@ final class SettingsStore {
             model: model,
             apiKey: apiKey,
             temperature: temperature,
-            maxTokens: maxTokens
+            maxTokens: maxTokens,
+            fallbackKeys: keyRotation ? cleanExtras : []
         )
+    }
+
+    /// 去掉空的、去掉和主 Key 重复的。顺序不变：备用按用户排的顺序试。
+    private var cleanExtras: [String] {
+        let primary = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        var seen: Set<String> = primary.isEmpty ? [] : [primary]
+        return extraKeys.compactMap { raw in
+            let key = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !key.isEmpty, !seen.contains(key) else { return nil }
+            seen.insert(key)
+            return key
+        }
+    }
+
+    var allKeys: [String] {
+        let primary = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (primary.isEmpty ? [] : [primary]) + cleanExtras
+    }
+
+    /// 某个 Key 试通了，把它提到主位。
+    ///
+    /// 不把失败的那把留住：它可能只是这一次被限流，但留在列表里
+    /// 下一轮还会先被试一遍，每次都要白等一个往返。
+    func promoteKey(_ key: String) {
+        let clean = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, clean != apiKey else { return }
+        var rest = cleanExtras.filter { $0 != clean }
+        if !apiKey.isEmpty { rest.insert(apiKey, at: 0) }
+        apiKey = clean
+        extraKeys = Array(rest.prefix(5))
+        persist()
+    }
+
+    func addExtraKey(_ key: String) {
+        let clean = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, clean != apiKey, !extraKeys.contains(clean) else { return }
+        extraKeys = Array((extraKeys + [clean]).prefix(5))
+        persist()
+    }
+
+    func removeExtraKey(_ key: String) {
+        extraKeys.removeAll { $0 == key }
+        persist()
+    }
+
+    func setKeyRotation(_ on: Bool) {
+        guard keyRotation != on else { return }
+        keyRotation = on
+        persist()
     }
 
     var isConfigured: Bool {
@@ -338,6 +411,11 @@ final class SettingsStore {
             defaults.set(data, forKey: DefaultsKey.refreshRules)
         }
         defaults.set(refreshInterval, forKey: DefaultsKey.refreshInterval)
+        defaults.set(keyRotation, forKey: DefaultsKey.keyRotation)
         KeychainStore.set(apiKey, for: Self.keychainAccount)
+        if let data = try? JSONEncoder().encode(extraKeys),
+           let raw = String(data: data, encoding: .utf8) {
+            KeychainStore.set(raw, for: Self.keychainExtras)
+        }
     }
 }

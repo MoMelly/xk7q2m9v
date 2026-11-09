@@ -110,7 +110,7 @@ struct CharacterDetailPage: View {
                                 symbol: "gauge.with.dots.needle.67percent",
                                 symbolTint: Theme.IconTint.green,
                                 title: "状态面板",
-                                value: WorldStore.stage(of: world.affinity(for: character.name)).label,
+                                value: AffinityScale.stage(of: world.affinity(for: character.name)).label,
                                 showsChevron: true
                             )
                         }

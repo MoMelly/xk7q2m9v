@@ -309,7 +309,7 @@ enum PromptBuilder {
 
         // 关系刻度。只给语气，不给数字——写出 72 分，模型会开始表演「我们是 72 分的关系」。
         if let affinity = context.affinity {
-            let stage = WorldStore.stage(of: affinity)
+            let stage = AffinityScale.stage(of: affinity)
             parts.append("""
             【你们现在的关系】\(stage.label)
             \(stage.line)

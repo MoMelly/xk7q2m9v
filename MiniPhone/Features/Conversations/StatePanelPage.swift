@@ -16,7 +16,7 @@ struct StatePanelPage: View {
 
     private var mood: MoodState? { world.mood(for: character.name) }
     private var today: DaySchedule? { world.todaySchedule(for: character.name) }
-    private var stage: WorldStore.AffinityStage { WorldStore.stage(of: affinity) }
+    private var stage: AffinityScale.Stage { AffinityScale.stage(of: affinity) }
 
     private var variables: [(key: String, value: String)] {
         world.state.variables.sorted { $0.key < $1.key }
