@@ -147,6 +147,8 @@ final class StoryGameViewModel {
                 StoryLine(speaker: current.playerName, text: text, isNarration: false)
             )
             current.options = []
+            // 分支变量从这一步开始攒。存的是选择原文，分数由原文现算。
+            current.registerChoice(text)
         }
 
         isStreaming = true
@@ -218,6 +220,16 @@ final class StoryGameViewModel {
         return (text, collected)
     }
 
+    /// 玩家一路攒下来的倾向，翻译成一句给主持人的指示。
+    ///
+    /// 只给方向不给结局：写死「最后他走了」，故事就成了流程图；
+    /// 让它自然往那个方向偏，结局才像是玩家自己走出来的。
+    private func branchHint(_ session: StorySession) -> String {
+        guard let branch = session.dominantBranch else { return "" }
+        let tally = session.score(of: branch)
+        return "玩家到目前为止一直偏向「\(branch.label)」（这一路已经有 \(tally) 次选择落在这一档）。接下来的情节可以往这个方向偏，但不要替玩家宣布结果。"
+    }
+
     private func buildRequest(session: StorySession) -> [ChatMessage] {
         let personas = session.characterUIDs
             .compactMap { uid in rosterCache.first { $0.uid == uid } }
@@ -236,6 +248,7 @@ final class StoryGameViewModel {
         - 结尾给 2 到 3 个行动选项，放在最后一行，严格用这个格式：[选项:A|B|C]，每个选项不超过十五个字。
         - 不要替玩家决定行动；玩家可能不选选项、自己输入行动，照常演绎。
         - 剧情走向尊重玩家的选择，不要强行拉回预设。
+        \(branchHint(session))
         \(session.summary.isEmpty ? "" : "\n此前剧情摘要：\(session.summary)")
         """
 
@@ -270,6 +283,14 @@ final class StoryGameViewModel {
         current.options = []
         current.updatedAt = Date()
 
+        // 结局先算出来，下面写记忆要用。分支变量一路攒着，走到这里才有定论。
+        // 不再额外问模型一次：再要一段「结局正文」会让同一件事被讲两遍，
+        // 一个标签加一句收束就够了。
+        let ending = current.dominantBranch
+        if let ending {
+            current.endingLabel = ending.endingTitle
+        }
+
         if mode != .hidden, let tail = memoryTail(current) {
             for (index, uid) in current.characterUIDs.enumerated() {
                 guard let character = try? context.fetch(
@@ -285,7 +306,8 @@ final class StoryGameViewModel {
                 case .hidden:
                     continue
                 }
-                character.memorySummary = (character.memorySummary + "\n" + entry)
+                let endingNote = ending.map { "。最后是「\($0.endingTitle)」：\($0.endingLine)" } ?? ""
+                character.memorySummary = (character.memorySummary + "\n" + entry + endingNote)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 context.insert(character)
             }

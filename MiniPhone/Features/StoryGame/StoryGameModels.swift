@@ -41,6 +41,59 @@ struct StoryLine: Codable, Hashable {
     var isNarration: Bool
 }
 
+/// 玩家在故事里攒出来的倾向。
+///
+/// 三档而不是几十个变量：分支要能被玩家自己看出来，藏在后台的十维向量
+/// 只会让结局显得随机。每次做选择按词表给三档加分，谁高就是谁。
+enum StoryBranch: String, Codable, CaseIterable, Identifiable {
+    /// 靠近、照顾、退让。
+    case gentle
+    /// 直接、对抗、冒险。
+    case bold
+    /// 回避、旁观、沉默。
+    case evasive
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .gentle: return "靠过去"
+        case .bold: return "顶上去"
+        case .evasive: return "退开"
+        }
+    }
+
+    /// 结局名。三个档各一套说法，够用，也不用让模型再生成一次。
+    var endingTitle: String {
+        switch self {
+        case .gentle: return "留下的人"
+        case .bold: return "先开口的人"
+        case .evasive: return "走出去的人"
+        }
+    }
+
+    var endingLine: String {
+        switch self {
+        case .gentle: return "你一直在往对方那边靠，事情最后落在一个不吵不闹的地方。"
+        case .bold: return "你一路都在把话摆到桌面上，结局不温柔，但干净。"
+        case .evasive: return "你几次都选择了不接，故事停在一个没人说破的位置。"
+        }
+    }
+
+    /// 词表。命中一个加一分，不区分轻重——
+    /// 权重一细化就得开始调参，这一层不值得。
+    var keywords: [String] {
+        switch self {
+        case .gentle:
+            return ["抱", "安慰", "留", "陪", "等", "温", "笑", "拉", "握", "道谢", "轻轻", "原谅", "退让", "退一步", "说清"]
+        case .bold:
+            return ["走", "推", "砸", "喊", "冲", "拒", "顶", "反问", "质问", "挑明", "打断", "站起", "抢", "闯", "逼"]
+        case .evasive:
+            return ["不说", "沉默", "转身", "离开", "装", "避开", "借口", "岔开", "算了", "假装", "低头", "不管", "看着"]
+        }
+    }
+}
+
 /// 一局文游的完整存档。
 struct StorySession: Codable, Identifiable, Hashable {
     var id: UUID
@@ -62,6 +115,13 @@ struct StorySession: Codable, Identifiable, Hashable {
     var updatedAt: Date
     /// 结束后只读，不再续写。
     var isEnded: Bool
+    /// 玩家做过的每一个选择。分支变量就是从这里算出来的，
+    /// 存原文而不是只存分数：分数算错了还能重算，原文删了就没了。
+    var choices: [String]?
+    /// 三档倾向的分数。可选，老存档没有这个键也能解开。
+    var branchScore: [String: Int]?
+    /// 结束时的结局名。没结束是 nil。
+    var endingLabel: String?
 
     init(
         title: String,
@@ -136,5 +196,45 @@ extension JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(type, from: data)
+    }
+}
+
+extension StorySession {
+    /// 记一次选择，顺手把三档分数重算一遍。
+    ///
+    /// 每次重算而不是增量加：词表改了之后旧档的分也能跟上，
+    /// 不然老存档会永远停在改表之前的算法上。
+    mutating func registerChoice(_ text: String) {
+        var all = choices ?? []
+        all.append(text)
+        choices = all
+        branchScore = Self.score(all)
+    }
+
+    static func score(_ choices: [String]) -> [String: Int] {
+        var tally: [String: Int] = [:]
+        for branch in StoryBranch.allCases {
+            var value = 0
+            for choice in choices {
+                for keyword in branch.keywords where choice.contains(keyword) {
+                    value += 1
+                }
+            }
+            tally[branch.rawValue] = value
+        }
+        return tally
+    }
+
+    func score(of branch: StoryBranch) -> Int {
+        branchScore?[branch.rawValue] ?? 0
+    }
+
+    /// 目前最明显的那一档。一个选择都没有、或者谁都没命中时返回 nil。
+    var dominantBranch: StoryBranch? {
+        guard let branchScore,
+              let top = branchScore.max(by: { $0.value < $1.value }),
+              top.value > 0
+        else { return nil }
+        return StoryBranch(rawValue: top.key)
     }
 }

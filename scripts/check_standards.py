@@ -28,6 +28,7 @@ DATE_FORMATTER_ALLOWED = {
 COLOR_LITERAL_ALLOWED = {
     "MiniPhone/DesignSystem/Theme.swift",
     "MiniPhone/DesignSystem/CharacterPalette.swift",
+    "MiniPhone/DesignSystem/AppIconPalette.swift",
     "MiniPhone/Shell/AppCatalog.swift",
 }
 

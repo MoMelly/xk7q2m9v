@@ -113,18 +113,7 @@ struct CharacterBoardPage: View {
     }
 
     private var moodColors: [Color] {
-        switch mood?.mood {
-        case .glad, .excited:
-            return [Theme.mint, Theme.retroGreen.opacity(0.9)]
-        case .low, .tired:
-            return [Color(red: 0.32, green: 0.36, blue: 0.48), Color(red: 0.16, green: 0.18, blue: 0.26)]
-        case .annoyed:
-            return [Color(red: 0.62, green: 0.42, blue: 0.42), Color(red: 0.30, green: 0.20, blue: 0.24)]
-        case .focused:
-            return [Color(red: 0.30, green: 0.46, blue: 0.52), Theme.deepGreen]
-        default:
-            return [Theme.retroGreen, Theme.deepGreen]
-        }
+        MoodColor.backdrop(mood?.mood)
     }
 
     /// 没有头像图时的替身：一个首字加一圈光。

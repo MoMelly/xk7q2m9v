@@ -122,7 +122,7 @@ struct HomeScreenView: View {
     }
 
     private var iconLabelColor: Color {
-        ThemeStore.shared.isNight ? Color.white : Color(red: 0.16, green: 0.15, blue: 0.17)
+        ThemeStore.shared.isNight ? Color.white : Theme.IconSurface.labelDay
     }
 
     // MARK: - 页面指示

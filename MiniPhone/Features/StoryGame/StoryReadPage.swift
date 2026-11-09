@@ -103,9 +103,9 @@ struct StoryReadPage: View {
             Spacer(minLength: 0)
 
             if session.isEnded {
-                Text("已结束")
-                    .font(.system(size: PhoneMetrics.FontSize.caption))
-                    .foregroundStyle(AppSurface.light.secondaryLabel)
+                Text(session.endingLabel.map { "结局 · \($0)" } ?? "已结束")
+                    .font(.system(size: PhoneMetrics.FontSize.caption, weight: session.endingLabel == nil ? .regular : .medium))
+                    .foregroundStyle(session.endingLabel == nil ? AppSurface.light.secondaryLabel : Theme.brand)
             } else {
                 Button("结束") {
                     showEndDialog = true

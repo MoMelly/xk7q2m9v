@@ -10,6 +10,11 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    /// 行尾那行小字。UIKit 那头只有图标名，这里按调色板翻成中文。
+    private var iconName: String {
+        AppIconPalette.displayName(for: UIApplication.shared.alternateIconName)
+    }
+
     private func close() {
         if let onExit {
             onExit()
@@ -99,6 +104,20 @@ struct SettingsView: View {
                                 symbolTint: Theme.IconTint.pink,
                                 title: "主题",
                                 value: ThemeStore.shared.accentTheme.displayName,
+                                showsChevron: true
+                            )
+                        }
+
+                        RowDivider()
+
+                        rowLink {
+                            AppIconPage()
+                        } label: {
+                            GroupedRow(
+                                symbol: "app.badge.fill",
+                                symbolTint: Theme.IconTint.gray,
+                                title: "App 图标",
+                                value: iconName,
                                 showsChevron: true
                             )
                         }
