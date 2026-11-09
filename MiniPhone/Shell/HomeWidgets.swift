@@ -108,6 +108,8 @@ struct HomeTodayWidget: View {
 /// 两格方块。符号按心情换，底下补一句起因——只看「疲惫」不知道在累什么。
 struct HomeMoodWidget: View {
     let mood: MoodState?
+    /// 是谁的心情。多角色之后光写「他的心情」没人知道是哪个「他」。
+    var owner: String = ""
     let action: () -> Void
 
     /// 跟图标名同一套规则：设置里选过白/黑就听设置，自动档跟着日夜。
@@ -143,8 +145,8 @@ struct HomeMoodWidget: View {
     }
 
     private var subtitle: String {
-        guard let mood, !mood.reason.isEmpty else { return "他的心情" }
-        return mood.reason
+        if let mood, !mood.reason.isEmpty { return mood.reason }
+        return owner.isEmpty ? "他的心情" : "\(owner)的心情"
     }
 }
 

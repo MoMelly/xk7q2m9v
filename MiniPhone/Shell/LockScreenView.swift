@@ -28,7 +28,7 @@ struct LockScreenView: View {
                 Spacer(minLength: 0)
 
                 LockScreenWidgets(
-                    moodLabel: world.state.mood?.mood.label,
+                    moodLabel: world.primaryMood?.mood.label,
                     voiceText: world.state.unresolvedVoices(limit: 1).first?.text
                 )
 

@@ -152,13 +152,17 @@ struct CalendarScene: View {
 
     @ViewBuilder
     private var moodFooter: some View {
-        if let mood = world.state.mood {
+        if let mood = world.mood(for: world.primaryName) {
             HStack(spacing: PhoneMetrics.Space.s) {
                 Circle()
                     .fill(MoodColor.of(mood.mood))
                     .frame(width: 8, height: 8)
 
-                Text("现在 · \(mood.mood.label)")
+                // 心情是某个人的，不是这一天的。写清楚是谁，
+                // 否则放在「我的」安排下面会被读成「我现在的状态」。
+                Text(world.primaryName.isEmpty
+                     ? "现在 · \(mood.mood.label)"
+                     : "\(world.primaryName)现在 · \(mood.mood.label)")
                     .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .medium))
                     .foregroundStyle(Theme.label)
 

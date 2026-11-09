@@ -39,6 +39,9 @@ final class CharacterPhoneService {
         defer { generatingOwner = nil }
 
         let world = WorldStore.shared
+        // 他今天还没排过事就先排一份：手机里的内容要跟他今天在做什么对得上，
+        // 否则会写出「上午十点在开会」而他的日程里根本没这件事。
+        world.ensureCharacterDay(named: character.name)
         let request = [
             ChatMessage(role: .system, text: PromptBuilder.characterPhoneSystem),
             ChatMessage(
@@ -46,6 +49,9 @@ final class CharacterPhoneService {
                 text: PromptBuilder.characterPhonePrompt(
                     character: character,
                     state: world.state,
+                    today: world.todaySchedule(for: character.name),
+                    mood: world.mood(for: character.name),
+                    location: world.location(for: character.name),
                     userName: userName,
                     allowPrivate: allowPrivate
                 )

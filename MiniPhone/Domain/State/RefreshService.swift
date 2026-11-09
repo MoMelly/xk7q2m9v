@@ -61,6 +61,11 @@ final class RefreshService {
         let prompt = PromptBuilder.pageRefreshPrompt(
             page: page,
             state: state,
+            // 西瓜皮和购物是我自己看的页面，这里写的是「最近那个人的状态」，
+            // 只是给内容定个调子，不是说我本人现在这样。
+            mood: world.mood(for: world.primaryName),
+            location: world.location(for: world.primaryName),
+            schedule: world.todaySchedule(for: world.primaryName),
             existingTitles: Array(titles)
         )
 

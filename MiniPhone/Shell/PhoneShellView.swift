@@ -171,6 +171,13 @@ struct PhoneShellView: View {
                 ThemeStore.shared.appearanceRaw = AppearanceMode.night.rawValue
             }
             Self.applyPreviewTheme()
+            // 主屏和锁屏只有一块地方，挑人的规则跟「TA 的手机」默认打开谁一致：
+            // 最近说过话的那个。小助手不算——它不是谈恋爱的人。
+            let primary = companions
+                .filter { !$0.isFeedOnly && $0.name != DefaultAssistant.name }
+                .sorted { ($0.lastMessageAt ?? .distantPast) > ($1.lastMessageAt ?? .distantPast) }
+                .first?.name ?? ""
+            if !primary.isEmpty { world.primaryName = primary }
             world.ensureToday(wakeHour: 7, sleepHour: 23)
             world.seedSceneContentIfNeeded()
             UserProfileBook.ensureDefault(in: context)

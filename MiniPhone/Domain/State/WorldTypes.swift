@@ -365,10 +365,17 @@ struct ForumPost: Codable, Identifiable {
 struct WorldState: Codable {
     var version: Int = 1
     var people: [PersonMemory] = []
+    /// 我今天怎么过。这一份属于**这台手机的使用者**，不按角色分：
+    /// 日历里的「我的」页、主屏那块「今天」都是它。角色的日子在 `characterDays`。
     var schedule: DaySchedule?
-    var mood: MoodState?
+    /// 每个角色此刻的心情，key 是角色名。
+    ///
+    /// 原来只有一份，结果跟 A 聊完，A 的心情会出现在跟 B 的提示词里，
+    /// 锁屏和主屏组件也跟着换人。心情是「他此刻怎样」，只能挂在人身上。
+    var moods: [String: MoodState] = [:]
     var currentTrack: Track?
-    var location: String = ""
+    /// 每个角色此刻在哪，key 是角色名。原来也只有一份，和心情同一个毛病。
+    var locations: [String: String] = [:]
     var usage: [AppUsageRecord] = []
     var shopping: [ShoppingItem] = []
     var forum: [ForumPost] = []
@@ -405,13 +412,14 @@ struct WorldState: Codable {
     init() {}
 
     private enum CodingKeys: String, CodingKey {
-        case version, people, schedule, mood, currentTrack, location, usage
+        case version, people, schedule, currentTrack, usage
         case shopping, forum, shop, feed, lastRefreshAt, refreshTurns
         case characterDays, letters, updatedAt
         case feedInbox, feedActivity
         case phones, couples
-        /// 旧字段，只读不写：解出老存档里的那一台 / 那一份。
-        case phone, couple
+        case moods, locations
+        /// 旧字段，只读不写：解出老存档里的那一台手机 / 那一份火花 / 那一份心情 / 那一个地点。
+        case phone, couple, mood, location
     }
 
     init(from decoder: Decoder) throws {
@@ -419,9 +427,13 @@ struct WorldState: Codable {
         version = try container.decodeIfPresent(Int.self, forKey: .version) ?? 1
         people = try container.decodeIfPresent([PersonMemory].self, forKey: .people) ?? []
         schedule = try container.decodeIfPresent(DaySchedule.self, forKey: .schedule)
-        mood = try container.decodeIfPresent(MoodState.self, forKey: .mood)
-        currentTrack = try container.decodeIfPresent(Track.self, forKey: .currentTrack)
-        location = try container.decodeIfPresent(String.self, forKey: .location) ?? ""
+        // 老存档里的 mood / location 只有一份，没有归属，猜不出是谁的。
+        // 心情是半小时就会变的临时状态，与其瞎猜给一个人，不如让它自己重新长出来。
+        _ = try container.decodeIfPresent(MoodState.self, forKey: .mood)
+        _ = try container.decodeIfPresent(String.self, forKey: .location)
+        moods = try container.decodeIfPresent([String: MoodState].self, forKey: .moods) ?? [:]
+        locations = try container.decodeIfPresent([String: String].self, forKey: .locations) ?? [:]
+        currentTrack = try container.decodeIfPresent(Track.self, forKey: .currentTrack) ?? ""
         usage = try container.decodeIfPresent([AppUsageRecord].self, forKey: .usage) ?? []
         shopping = try container.decodeIfPresent([ShoppingItem].self, forKey: .shopping) ?? []
         forum = try container.decodeIfPresent([ForumPost].self, forKey: .forum) ?? []
@@ -454,9 +466,9 @@ struct WorldState: Codable {
         try container.encode(version, forKey: .version)
         try container.encode(people, forKey: .people)
         try container.encodeIfPresent(schedule, forKey: .schedule)
-        try container.encodeIfPresent(mood, forKey: .mood)
+        try container.encode(moods, forKey: .moods)
         try container.encodeIfPresent(currentTrack, forKey: .currentTrack)
-        try container.encode(location, forKey: .location)
+        try container.encode(locations, forKey: .locations)
         try container.encode(usage, forKey: .usage)
         try container.encode(shopping, forKey: .shopping)
         try container.encode(forum, forKey: .forum)

@@ -14,6 +14,9 @@ extension PromptBuilder {
     static func characterPhonePrompt(
         character: Companion,
         state: WorldState,
+        today: DaySchedule?,
+        mood: MoodState?,
+        location: String,
         userName: String?,
         allowPrivate: Bool,
         now: Date = Date()
@@ -33,15 +36,15 @@ extension PromptBuilder {
 
         lines.append("【此刻】")
         lines.append("现在是\(TimeFormat.full(now))。")
-        if !state.location.isEmpty {
-            lines.append("你在\(state.location)。")
+        if !location.isEmpty {
+            lines.append("你在\(location)。")
         }
-        if let mood = state.mood {
+        if let mood {
             lines.append("你心情：\(mood.mood.label)\(mood.reason.isEmpty ? "" : "（因为\(mood.reason)）")")
         }
-        if let schedule = state.schedule, !schedule.items.isEmpty {
-            let today = schedule.items.prefix(5).map { "\($0.timeText) \($0.title)" }
-            lines.append("你今天的安排：" + today.joined(separator: "、"))
+        if let today, !today.items.isEmpty {
+            let items = today.items.prefix(5).map { "\($0.timeText) \($0.title)" }
+            lines.append("你今天的安排：" + items.joined(separator: "、"))
         }
         lines.append("")
 

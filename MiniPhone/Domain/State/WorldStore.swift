@@ -27,6 +27,11 @@ final class WorldStore {
     /// setter 放开到 internal 是因为刷新流拆在另一个文件里，`private(set)`
     /// 在扩展里改不了；业务代码一律通过方法写，不要直接赋值。
     var state: WorldState
+    /// 主屏、锁屏这些「只有一块地方」的界面显示谁的状态。
+    ///
+    /// 这些地方没有角色上下文，只能挑一个人：取最近说过话的那个，
+    /// 跟「TA 的手机」默认打开谁同一套规则。外壳启动时告诉它。
+    var primaryName: String = ""
     /// 刚发生的刷新，界面弹一次就清掉。按页面记，用来配对应的图标。
     private(set) var pendingNotices: [RefreshPage] = []
 
@@ -99,22 +104,52 @@ final class WorldStore {
     // MARK: - 日程与心情
 
     /// 一天只生成一次。返回是否生成了新日程。
+    ///
+    /// 这一份是**我的**日程（日历里的「我的」、主屏那块「今天」）。
+    /// 角色的日子不在这里，走 `ensureCharacterDay`，各人各一份。
     @discardableResult
     func ensureToday(wakeHour: Int, sleepHour: Int, now: Date = Date()) -> Bool {
         let key = DayScheduleEngine.dateKey(now)
         guard state.schedule?.dateKey != key else { return false }
 
         state.schedule = DayScheduleEngine.generate(date: now, wakeHour: wakeHour, sleepHour: sleepHour)
-        if let base = DayScheduleEngine.scheduledMood(schedule: state.schedule, now: now) {
-            state.mood = MoodState(
-                mood: base,
-                reason: "按今天的日程",
-                updatedAt: now,
-                source: .schedule
-            )
-        }
         save()
         return true
+    }
+
+    // MARK: - 他的心情与位置
+
+    /// 某个角色此刻的心情。没聊过、也没排过日程就是 nil。
+    func mood(for name: String) -> MoodState? {
+        state.moods[name]
+    }
+
+    /// 主屏、锁屏上要显示的那一份。这些地方没有角色上下文，只能挑一个人。
+    var primaryMood: MoodState? { mood(for: primaryName) }
+
+    /// 某个角色此刻在哪。没写过就是空串。
+    func location(for name: String) -> String {
+        state.locations[name] ?? ""
+    }
+
+    func setLocation(_ text: String, for name: String) {
+        guard !name.isEmpty else { return }
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.isEmpty {
+            state.locations.removeValue(forKey: name)
+        } else {
+            state.locations[name] = clean
+        }
+        save()
+    }
+
+    /// 他今天的时间轴，包成 `DaySchedule` 给提示词和组件用。
+    ///
+    /// 角色的日子本来存在 `characterDays` 里，这里只是换个形状读出来，
+    /// 不再另外存一份——存两份迟早对不上。今天没生成过就是 nil。
+    func todaySchedule(for name: String) -> DaySchedule? {
+        guard !name.isEmpty, let day = characterDay(named: name) else { return nil }
+        return DaySchedule(dateKey: day.dateKey, items: day.items, generatedAt: day.generatedAt)
     }
 
     // MARK: - 角色日历
@@ -174,6 +209,16 @@ final class WorldStore {
         )
 
         state.characterDays.append(day)
+        // 第一次排他的日子时顺手给个基准心情：不然在他开口之前，
+        // 主屏和锁屏上那块一直是「还没定」，看着像没生成。
+        if state.moods[name] == nil {
+            state.moods[name] = MoodState(
+                mood: day.mood,
+                reason: "按他今天的安排",
+                updatedAt: day.generatedAt,
+                source: .schedule
+            )
+        }
         pruneCharacterDays()
         save()
         return day
@@ -214,9 +259,11 @@ final class WorldStore {
     }
 
     /// 事件开始时把心情拉回日程基准；聊天带来的转折不受此影响。
-    func refreshMoodFromSchedule(now: Date = Date()) {
-        guard let base = DayScheduleEngine.scheduledMood(schedule: state.schedule, now: now) else { return }
-        _ = updateMood(base, reason: "日程进入下一段", source: .schedule, at: now)
+    func refreshMoodFromSchedule(for name: String, now: Date = Date()) {
+        guard let base = DayScheduleEngine.scheduledMood(schedule: todaySchedule(for: name), now: now) else {
+            return
+        }
+        _ = updateMood(base, reason: "日程进入下一段", source: .schedule, for: name, at: now)
     }
 
     @discardableResult
@@ -224,17 +271,19 @@ final class WorldStore {
         _ mood: Mood,
         reason: String,
         source: MoodSource,
+        for name: String,
         at: Date = Date()
     ) -> Bool {
+        guard !name.isEmpty else { return false }
         guard DayScheduleEngine.shouldUpdateMood(
-            current: state.mood,
+            current: state.moods[name],
             to: mood,
             reason: reason,
             at: at,
             source: source
         ) else { return false }
 
-        state.mood = MoodState(mood: mood, reason: reason, updatedAt: at, source: source)
+        state.moods[name] = MoodState(mood: mood, reason: reason, updatedAt: at, source: source)
         save()
         return true
     }
@@ -494,10 +543,12 @@ final class WorldStore {
             summaries: summaries,
             facts: facts,
             voices: voices,
-            mood: state.mood,
-            schedule: state.schedule,
+            mood: mood(for: owner),
+            // 今天排了什么，排的是**他**的：我的日子在 `state.schedule` 里，
+            // 拿我的安排去生成他的手机内容，会出现「他在打工我的工」。
+            schedule: todaySchedule(for: owner),
             currentTrack: state.currentTrack,
-            location: state.location,
+            location: location(for: owner),
             deviceLines: deviceLines,
             usageLines: usage,
             days: days,

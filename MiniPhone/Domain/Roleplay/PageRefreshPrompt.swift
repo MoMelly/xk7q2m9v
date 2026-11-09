@@ -20,6 +20,9 @@ extension PromptBuilder {
     static func pageRefreshPrompt(
         page: RefreshPage,
         state: WorldState,
+        mood: MoodState? = nil,
+        location: String = "",
+        schedule: DaySchedule? = nil,
         noteCount: Int = 8,
         shopCount: Int = 8,
         existingTitles: [String] = [],
@@ -27,7 +30,10 @@ extension PromptBuilder {
     ) -> String {
         var blocks: [String] = []
 
-        blocks.append("【现在的世界】\n" + worldSummary(state, now: now))
+        blocks.append(
+            "【现在的世界】\n"
+            + worldSummary(mood: mood, location: location, schedule: schedule, now: now)
+        )
 
         switch page {
         case .feed:
@@ -100,20 +106,25 @@ extension PromptBuilder {
     ///
     /// 不给完整人设：刷新不需要知道「你是谁」，只需要知道现在几点、什么季节、
     /// 这个人大概在过什么日子，写出来的东西才不会像凭空生成的广告。
-    private static func worldSummary(_ state: WorldState, now: Date) -> String {
+    private static func worldSummary(
+        mood: MoodState?,
+        location: String,
+        schedule: DaySchedule?,
+        now: Date
+    ) -> String {
         var lines: [String] = []
         lines.append("现在：" + CharacterClock.fullDescription(now))
 
-        if let mood = state.mood {
+        if let mood {
             lines.append("心情：\(mood.mood.label)" + (mood.reason.isEmpty ? "" : "（\(mood.reason)）"))
         }
 
-        let location = state.location.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !location.isEmpty {
-            lines.append("地点：\(location)")
+        let place = location.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !place.isEmpty {
+            lines.append("地点：\(place)")
         }
 
-        if let schedule = state.schedule, !schedule.items.isEmpty {
+        if let schedule, !schedule.items.isEmpty {
             let near = schedule.items
                 .filter { $0.hour <= Calendar.current.component(.hour, from: now) }
                 .suffix(2)

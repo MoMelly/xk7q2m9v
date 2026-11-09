@@ -51,6 +51,8 @@ final class ChatViewModel {
         character.lastMessageAt = Date()
         save(context)
         // 火花记的是「今天我跟这个角色说过话」。别人那边不记。
+        // 同一步把主屏/锁屏的「主角」换成他：刚跟谁说完话，主页就该显示谁的状态。
+        WorldStore.shared.primaryName = character.name
         WorldStore.shared.markCoupleDay(fromMe: true, partner: character.name)
 
         guard callMode else { return }
@@ -195,6 +197,15 @@ final class ChatViewModel {
         let listeningNow = player.isTogether(with: character.uid) && player.isPlaying
             ? player.track
             : nil
+
+        // 他今天的时间轴要有，提示词里那块「今天的安排」才不是空的。
+        // 生成是本地算的，不花接口调用；同一天只会落一份。
+        world.ensureCharacterDay(
+            named: character.name,
+            wakeHour: character.wakeHour,
+            sleepHour: character.sleepHour,
+            replies: character.messages.filter { $0.role == .assistant }.count
+        )
 
         let worldContext = world.context(
             for: names,
@@ -392,7 +403,7 @@ final class ChatViewModel {
         let world = WorldStore.shared
 
         if let raw = meta.mood, let mood = Mood(rawValue: raw) {
-            world.updateMood(mood, reason: meta.moodReason ?? "", source: .chat)
+            world.updateMood(mood, reason: meta.moodReason ?? "", source: .chat, for: character.name)
         }
         if let voice = meta.voice {
             world.appendVoice(person: character.name, text: voice, source: .chat)

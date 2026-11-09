@@ -38,7 +38,13 @@ struct PreviewSeeder {
             items: items,
             generatedAt: Date()
         )
-        world.state.mood = MoodState(
+        // 心情挂在人身上：主屏那块显示的是「最近说过话的那个人」现在怎样。
+        // 这一屏没有真会话，落到演示角色头上，顺带把主屏要显示的人定下来。
+        let owner = world.primaryName.isEmpty
+            ? (ensureDemoCompanion()?.name ?? "沈砚")
+            : world.primaryName
+        world.primaryName = owner
+        world.state.moods[owner] = MoodState(
             mood: .tired,
             reason: "赶了两天的图，眼睛有点干",
             updatedAt: Date(),

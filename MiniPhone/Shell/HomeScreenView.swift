@@ -60,7 +60,7 @@ struct HomeScreenView: View {
             }
 
             HStack(spacing: HomeWidgetSize.gap) {
-                HomeMoodWidget(mood: world.state.mood) {
+                HomeMoodWidget(mood: world.primaryMood, owner: world.primaryName) {
                     openApp("messages")
                 }
                 HomeMusicWidget(track: world.state.currentTrack, playing: musicPlaying) {
