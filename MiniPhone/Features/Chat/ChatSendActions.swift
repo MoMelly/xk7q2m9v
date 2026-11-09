@@ -11,6 +11,26 @@ import UIKit
 /// 需要读的是页面级状态（草稿、正在引用的那条、面板开关），
 /// 所以这些都从 `private` 放开到模块内可见。
 extension ChatView {
+    /// 截图用：在当前会话里垫一个没拆的红包。
+    ///
+    /// 只在 `-previewState redPacket` 时由 `onAppear` 调。放在这里而不是主视图：
+    /// 主视图已经贴着行数上限，而且这段跟「发出去」是同一类事。
+    func seedPreviewPacket() {
+        guard !character.messages.contains(where: { $0.packetCents > 0 }) else { return }
+        let packet = StoredMessage(
+            characterUID: character.uid,
+            role: .user,
+            text: "给你发了个红包，13.14 元，附言「买杯热的」。",
+            createdAt: Date().addingTimeInterval(-90)
+        )
+        packet.packetCents = 1314
+        packet.packetNote = "买杯热的"
+        packet.packetOpened = false
+        packet.character = character
+        context.insert(packet)
+        try? context.save()
+    }
+
     // MARK: - 表情面板
 
     /// 表情也是消息：落成一条 `[表情:名字]`，跟打字发出去走同一条链路，

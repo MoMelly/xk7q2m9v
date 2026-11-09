@@ -104,6 +104,26 @@ final class ControlCenterStore {
     }
 }
 
+/// 蓝牙符号。系统符号库里不一定有这个，缺了就是一片空白，所以手画。
+///
+/// 一笔连成的折线：从右上角斜下来，中间竖到底再折回去，收尾在右下角。
+struct BluetoothGlyph: Shape {
+    func path(in rect: CGRect) -> Path {
+        func point(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + rect.width * x, y: rect.minY + rect.height * y)
+        }
+
+        var path = Path()
+        path.move(to: point(0.28, 0.30))
+        path.addLine(to: point(0.72, 0.70))
+        path.addLine(to: point(0.50, 1.00))
+        path.addLine(to: point(0.50, 0.00))
+        path.addLine(to: point(0.72, 0.30))
+        path.addLine(to: point(0.28, 0.70))
+        return path
+    }
+}
+
 /// 从右上角拉下来的那一整块。
 ///
 /// 形状照 iOS：一块大圆角磨砂，左上四个圆钮、右上音乐、下面两条横滑杆、底部一排快捷。
@@ -164,18 +184,32 @@ struct ControlCenterPanel: View {
                 store.toggle(item)
             }
         } label: {
-            Image(systemName: item.symbol)
-                .font(.system(size: 17, weight: .semibold))
-                // 亮起时是蓝底白字，这是系统控制中心的样子；外壳里其他蓝都是链接蓝。
-                .foregroundStyle(on ? Color.white : Theme.secondaryLabel)
+            glyph(item, on: on)
                 .frame(width: 50, height: 50)
                 .background(
-                    Circle().fill(on ? Theme.link : Color.white.opacity(0.16))
+                    Circle().fill(on ? Theme.link : Color.white.opacity(0.26))
                 )
         }
         .buttonStyle(.plain)
         .accessibilityLabel(item.title)
         .accessibilityValue(on ? "开" : "关")
+    }
+
+    /// 蓝牙那个符号在某些系统版本上根本不存在，`Image(systemName:)` 找不到时
+    /// 什么也不画——截图里就是一个空圈。所以这里自己画，不赌符号库里有。
+    @ViewBuilder
+    private func glyph(_ item: ControlCenterStore.Item, on: Bool) -> some View {
+        let ink = on ? Color.white : Theme.label.opacity(0.62)
+
+        if item == .bluetooth {
+            BluetoothGlyph()
+                .stroke(ink, style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round))
+                .frame(width: 14, height: 20)
+        } else {
+            Image(systemName: item.symbol)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(ink)
+        }
     }
 
     private func isOn(_ item: ControlCenterStore.Item) -> Bool {

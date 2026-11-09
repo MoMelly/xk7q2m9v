@@ -185,7 +185,9 @@ struct PhoneShellView: View {
             }
 
             if showControlCenter {
-                Color.black.opacity(0.16)
+                // 遮罩压到 0.3：0.16 的时候底下那排图标名跟面板底边挤在一起，
+                // 分不清是面板里的字还是桌面上的字。
+                Color.black.opacity(0.30)
                     .ignoresSafeArea()
                     .onTapGesture { closeControlCenter() }
                     .zIndex(5)

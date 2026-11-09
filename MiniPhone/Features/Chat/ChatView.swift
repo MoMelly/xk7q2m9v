@@ -151,6 +151,9 @@ struct ChatView: View {
                 // 拍「一起听」状态条。这一屏打开的是谁由外壳挑，
                 // 邀请必须落在同一个人身上，所以放在这里而不是预置数据里。
                 player.invite(uid: character.uid, name: character.name)
+            case "redPacket":
+                // 同理：这一屏打开的是谁由外壳挑，红包得挂在他身上才拍得到。
+                seedPreviewPacket()
             default:
                 break
             }
