@@ -67,6 +67,22 @@ struct SettingsView: View {
                                 showsChevron: true
                             )
                         }
+
+                        RowDivider()
+
+                        // 这一行是唯一的「花钱开关」，所以排在上面那组接口配置里，
+                        // 不放去外观那一组。
+                        rowLink {
+                            FeedImagePage(settings: settings)
+                        } label: {
+                            GroupedRow(
+                                symbol: "wand.and.stars",
+                                symbolTint: Theme.IconTint.teal,
+                                title: "西瓜皮配图",
+                                value: settings.feedImages ? "开" : "关",
+                                showsChevron: true
+                            )
+                        }
                     }
 
                     GroupedSection {

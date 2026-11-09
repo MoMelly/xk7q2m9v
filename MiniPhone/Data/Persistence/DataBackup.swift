@@ -304,7 +304,27 @@ enum DataBackup {
             }
             try? FileManager.default.copyItem(at: file, to: destination.appendingPathComponent(file.lastPathComponent))
         }
+
+        // 西瓜皮的 AI 配图也一起搬。库里的 `imageFile` 只是个文件名，
+        // 不搬文件的话恢复之后每一条都会退回文字封面，看着像「图全丢了」。
+        copyDirectory(FeedImageStorage.directory, to: folder.appendingPathComponent("feedImages", isDirectory: true))
         return folder
+    }
+
+    /// 整个目录拷进备份。没有这个目录就当没有，不算失败。
+    private static func copyDirectory(_ source: URL, to destination: URL) {
+        let files = (try? FileManager.default.contentsOfDirectory(
+            at: source,
+            includingPropertiesForKeys: nil
+        )) ?? []
+        guard !files.isEmpty else { return }
+        try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+        for file in files {
+            try? FileManager.default.copyItem(
+                at: file,
+                to: destination.appendingPathComponent(file.lastPathComponent)
+            )
+        }
     }
 
     // MARK: - 恢复
@@ -497,6 +517,19 @@ enum DataBackup {
                 )
             }
             extras.append("头像照片 \(files.count) 张")
+        }
+        let backupFeedImages = folder.appendingPathComponent("feedImages", isDirectory: true)
+        if let files = try? FileManager.default.contentsOfDirectory(
+            at: backupFeedImages,
+            includingPropertiesForKeys: nil
+        ), !files.isEmpty {
+            for file in files {
+                try? FileManager.default.copyItem(
+                    at: file,
+                    to: FeedImageStorage.directory.appendingPathComponent(file.lastPathComponent)
+                )
+            }
+            extras.append("配图 \(files.count) 张")
         }
         if payload.users != nil {
             extras.append("我的身份")

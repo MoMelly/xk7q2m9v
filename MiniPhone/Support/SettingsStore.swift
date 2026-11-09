@@ -35,6 +35,8 @@ final class SettingsStore {
         static let discreetMode = "shell.discreetMode"
         static let keyRotation = "llm.keyRotation"
         static let speakReplies = "voice.speakReplies"
+        static let feedImages = "feed.aiImages"
+        static let imageModel = "feed.imageModel"
     }
 
     private static let keychainAccount = "llm.apiKey"
@@ -94,6 +96,11 @@ final class SettingsStore {
     var keyRotation: Bool = true
     /// 收到回复就用系统音色念出来。默认关：公共场合外放很尴尬。
     var speakReplies: Bool = false
+    /// 西瓜皮笔记要不要调生图接口配一张真图。默认关：按张收费。
+    var feedImages: Bool = false
+    /// 生图用的模型名。默认给硅基流动那一套里最便宜的一档；
+    /// 换 OpenAI 端点时改成 `dall-e-3` 之类即可。
+    var imageModel: String = "Kwai-Kolors/Kolors"
 
     /// 每个会自己更新的页面各自的开关与概率。
     var refreshRules: [RefreshRule] = RefreshRule.default
@@ -167,6 +174,11 @@ final class SettingsStore {
             keyRotation = defaults.bool(forKey: DefaultsKey.keyRotation)
         }
         speakReplies = defaults.bool(forKey: DefaultsKey.speakReplies)
+        feedImages = defaults.bool(forKey: DefaultsKey.feedImages)
+        if let storedImageModel = defaults.string(forKey: DefaultsKey.imageModel),
+           !storedImageModel.isEmpty {
+            imageModel = storedImageModel
+        }
         Self.current = self
     }
 
@@ -418,6 +430,8 @@ final class SettingsStore {
         defaults.set(refreshInterval, forKey: DefaultsKey.refreshInterval)
         defaults.set(keyRotation, forKey: DefaultsKey.keyRotation)
         defaults.set(speakReplies, forKey: DefaultsKey.speakReplies)
+        defaults.set(feedImages, forKey: DefaultsKey.feedImages)
+        defaults.set(imageModel, forKey: DefaultsKey.imageModel)
         KeychainStore.set(apiKey, for: Self.keychainAccount)
         if let data = try? JSONEncoder().encode(extraKeys),
            let raw = String(data: data, encoding: .utf8) {

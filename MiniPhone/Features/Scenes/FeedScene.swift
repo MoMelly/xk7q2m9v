@@ -166,6 +166,11 @@ struct FeedScene: View {
             context.insert(opening)
             try? context.save()
         }
+        // 配图是另一件事：晚几秒出现不影响看内容，画完了滚动时会自己长出来。
+        // 开关关着、没填 Key、或者最近几条都已经有图时，这里一步就返回。
+        .task { @MainActor in
+            await FeedImageService.shared.fillMissing(settings: settings)
+        }
     }
 
     // MARK: - 顶部

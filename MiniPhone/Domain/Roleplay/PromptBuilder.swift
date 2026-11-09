@@ -503,4 +503,19 @@ enum PromptBuilder {
         parts.append("两三句话说清，最长不超过五行。")
         return parts.joined(separator: "\n\n")
     }
+
+    /// 西瓜皮那条笔记的配图。
+    ///
+    /// 明写「不要文字」：标题另外画在封面下面，让模型在图里再写一遍，
+    /// 双列里会看到两次一样的话，而且中文常常糊成一团。
+    /// 「不要正脸」也是同一个理由——1024 的随手拍里挤出一张脸，最像假图。
+    static func feedImagePrompt(title: String, body: String, tag: String) -> String {
+        let cleanTag = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        let subject = cleanTag.isEmpty ? title : "\(title)，\(cleanTag)"
+        return """
+        一张手机随手拍的照片，主题：\(subject)。场景描述：\(body)
+        风格：真实的生活照，自然光，轻微颗粒感，构图随意，像发在社交软件上的日常。
+        画面里不要出现任何文字、水印、logo；不要求出现人脸，如果出现人物就只拍背影或局部。
+        """
+    }
 }

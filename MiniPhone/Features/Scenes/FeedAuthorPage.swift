@@ -115,12 +115,7 @@ struct FeedAuthorPage: View {
                             Color.clear
                                 .aspectRatio(0.80, contentMode: .fit)
                                 .overlay {
-                                    NoteCover(
-                                        title: note.title,
-                                        body: note.body,
-                                        tag: note.tag,
-                                        seed: note.coverSeed
-                                    )
+                                    FeedCover(note: note)
                                 }
                                 .clipShape(
                                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.cover, style: .continuous)
