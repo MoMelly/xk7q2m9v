@@ -75,6 +75,21 @@ struct CharacterDetailPage: View {
                         RowDivider()
 
                         NavigationLink {
+                            CharacterBoardPage(character: character, world: world)
+                        } label: {
+                            GroupedRow(
+                                symbol: "person.crop.rectangle.fill",
+                                symbolTint: Theme.IconTint.rose,
+                                title: "看板",
+                                value: "点一下有反应",
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        RowDivider()
+
+                        NavigationLink {
                             CharacterDayPage(world: world, character: character)
                         } label: {
                             GroupedRow(
@@ -96,6 +111,23 @@ struct CharacterDetailPage: View {
                                 symbolTint: Theme.IconTint.purple,
                                 title: "记忆",
                                 value: factCount > 0 ? "\(factCount) 条" : nil,
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        RowDivider()
+
+                        NavigationLink {
+                            AnonymousBoxPage(character: character, world: world, settings: settings)
+                        } label: {
+                            GroupedRow(
+                                symbol: "questionmark.bubble.fill",
+                                symbolTint: Theme.IconTint.indigo,
+                                title: "匿名提问箱",
+                                value: world.questions(for: character.name).isEmpty
+                                    ? "还没人问"
+                                    : "\(world.questions(for: character.name).count) 个",
                                 showsChevron: true
                             )
                         }

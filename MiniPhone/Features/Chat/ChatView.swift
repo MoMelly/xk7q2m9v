@@ -163,7 +163,22 @@ struct ChatView: View {
         .onChange(of: showStickers) { _, _ in settleComposerIfNeeded() }
         .onChange(of: showPhotos) { _, _ in settleComposerIfNeeded() }
         .onChange(of: draft) { _, _ in settleComposerIfNeeded() }
-        .onChange(of: viewModel.isStreaming) { _, _ in settleComposerIfNeeded() }
+        .onChange(of: viewModel.isStreaming) { wasStreaming, isStreaming in
+            settleComposerIfNeeded()
+            // 一轮说完了才念。边流边念会一个字一个字往外蹦，听不清在说什么。
+            guard wasStreaming, !isStreaming, settings.speakReplies else { return }
+            guard let last = messages.last, last.role == .assistant, !last.text.isEmpty else { return }
+            SpeechService.shared.speak(last.text, as: character.name)
+        }
+        .onChange(of: SpeechService.shared.transcript) { _, text in
+            // 识别到一半就往输入框里填，说完直接发，不用再改一遍。
+            guard SpeechService.shared.isListening, !text.isEmpty else { return }
+            draft = text
+        }
+        .onDisappear {
+            SpeechService.shared.stopSpeaking()
+            SpeechService.shared.stopListening()
+        }
         .sheet(isPresented: $showDetail) {
             CharacterDetailPage(
                 character: character,
@@ -425,6 +440,32 @@ struct ChatView: View {
         .padding(.bottom, 8)
     }
 
+    /// 说话键。说话时不收键盘也不弹面板，只是把识别到的字往输入框里填。
+    private var micButton: some View {
+        let listening = SpeechService.shared.isListening
+
+        return Button {
+            let speech = SpeechService.shared
+            if speech.isListening {
+                speech.stopListening()
+            } else {
+                showStickers = false
+                showPhotos = false
+                speech.startListening()
+                isInputFocused = false
+            }
+        } label: {
+            Image(systemName: listening ? "waveform" : "mic")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(listening ? Theme.IconTint.pink : Theme.cream.opacity(0.72))
+                .frame(width: 30, height: 30)
+                .symbolEffect(.variableColor.iterative, isActive: listening)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help("说话输入")
+    }
+
     private var activeComposer: some View {
         HStack(spacing: 10) {
             // 微信那套：输入框左边的加号里放通话。拨号不再占桌面一格。
@@ -458,6 +499,8 @@ struct ChatView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+
+            micButton
 
             TextField("说点什么", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)

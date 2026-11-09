@@ -28,6 +28,10 @@
 	<string>读取你自己写在系统日历里的安排，好让角色知道你今天和明天在忙什么。</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>读取你自己写在系统日历里的安排，好让角色知道你今天和明天在忙什么。</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>按住说话时用麦克风收音，语音只在识别时经过系统，不落文件。</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>把你说的话转成文字填进输入框。识别在系统自带的识别器里做，不走第三方。</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIRequiredDeviceCapabilities</key>

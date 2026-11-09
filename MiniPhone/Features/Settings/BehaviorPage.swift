@@ -54,6 +54,26 @@ struct BehaviorPage: View {
 
                     // 这两条是「别被人看见」，跟上面「别让他看见」不是一件事。
                     GroupedSection(
+                        "语音",
+                        footer: "念和听都走系统自带的音色与识别器，不打包任何模型。同一个角色每次都是同一个嗓门，按名字挑音色。"
+                    ) {
+                        Toggle(isOn: Binding(
+                            get: { settings.speakReplies },
+                            set: { value in
+                                settings.speakReplies = value
+                                settings.persist()
+                            }
+                        )) {
+                            Text("收到回复就念出来")
+                                .font(.system(size: PhoneMetrics.FontSize.body))
+                                .foregroundStyle(Theme.label)
+                        }
+                        .tint(Theme.tint)
+                        .padding(.horizontal, PhoneMetrics.Space.m)
+                        .frame(minHeight: PhoneMetrics.Row.single)
+                    }
+
+                    GroupedSection(
                         "屏幕与锁屏",
                         footer: "隐藏模式会换掉壁纸，同时收起桌面组件和锁屏上那两块——只换皮的话，一眼还是能看出这台手机里有个人。控制中心里也有一个开关，公共场合从右上角拉下来就能切。"
                     ) {

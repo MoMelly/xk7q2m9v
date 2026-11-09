@@ -34,6 +34,7 @@ final class SettingsStore {
         static let passcode = "privacy.passcode"
         static let discreetMode = "shell.discreetMode"
         static let keyRotation = "llm.keyRotation"
+        static let speakReplies = "voice.speakReplies"
     }
 
     private static let keychainAccount = "llm.apiKey"
@@ -91,6 +92,8 @@ final class SettingsStore {
     var extraKeys: [String] = []
     /// 主 Key 失败时要不要自动试备用的。默认开。
     var keyRotation: Bool = true
+    /// 收到回复就用系统音色念出来。默认关：公共场合外放很尴尬。
+    var speakReplies: Bool = false
 
     /// 每个会自己更新的页面各自的开关与概率。
     var refreshRules: [RefreshRule] = RefreshRule.default
@@ -163,6 +166,7 @@ final class SettingsStore {
         if defaults.object(forKey: DefaultsKey.keyRotation) != nil {
             keyRotation = defaults.bool(forKey: DefaultsKey.keyRotation)
         }
+        speakReplies = defaults.bool(forKey: DefaultsKey.speakReplies)
         Self.current = self
     }
 
@@ -413,6 +417,7 @@ final class SettingsStore {
         }
         defaults.set(refreshInterval, forKey: DefaultsKey.refreshInterval)
         defaults.set(keyRotation, forKey: DefaultsKey.keyRotation)
+        defaults.set(speakReplies, forKey: DefaultsKey.speakReplies)
         KeychainStore.set(apiKey, for: Self.keychainAccount)
         if let data = try? JSONEncoder().encode(extraKeys),
            let raw = String(data: data, encoding: .utf8) {

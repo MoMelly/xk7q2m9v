@@ -234,6 +234,22 @@ struct NoteComment: Codable, Identifiable, Hashable {
     var isCharacter: Bool
 }
 
+/// 匿名提问箱里的一问一答。
+///
+/// 关键在「匿名」：问题不带署名，角色不知道是谁问的，答的时候也就没有
+/// 「对谁」这个前提。这跟聊天是两种东西——聊天里他一直在应付你，
+/// 提问箱里他是在对一个看不见的人说话，会更坦率一点。
+struct AnonymousQuestion: Codable, Identifiable, Hashable {
+    var id: UUID
+    var characterName: String
+    /// 提问箱自己编的代号，比如「匿名 3 号」。用来区分不同的问题，不代表谁。
+    var asker: String
+    var text: String
+    var answer: String
+    var askedAt: Date
+    var answeredAt: Date?
+}
+
 /// 一封写给你的信。
 ///
 /// 不是聊天记录的长版本：信是一次写完的、有开头和落款、不会秒回。
@@ -418,6 +434,8 @@ struct WorldState: Codable {
     /// 有些事实既不属于哪个角色、也不适合塞进设定集：天气、地点、今天是几号、
     /// 「我们第一次见面是在三月」。它们要的是能被引用，不是被归类。
     var variables: [String: String] = [:]
+    /// 匿名提问箱里的一问一答，新的在前。
+    var questions: [AnonymousQuestion] = []
     var updatedAt: Date = Date()
 
     init() {}
@@ -429,7 +447,7 @@ struct WorldState: Codable {
         case feedInbox, feedActivity
         case phones, couples
         case moods, locations
-        case affinity, variables
+        case affinity, variables, questions
         /// 旧字段，只读不写：解出老存档里的那一台手机 / 那一份火花 / 那一份心情 / 那一个地点。
         case phone, couple, mood, location
     }
@@ -472,6 +490,7 @@ struct WorldState: Codable {
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
         affinity = try container.decodeIfPresent([String: Int].self, forKey: .affinity) ?? [:]
         variables = try container.decodeIfPresent([String: String].self, forKey: .variables) ?? [:]
+        questions = try container.decodeIfPresent([AnonymousQuestion].self, forKey: .questions) ?? []
     }
 
     /// 归档编码要跟着手写解码一起走，两边字段名对不上会静默丢数据。
@@ -498,6 +517,7 @@ struct WorldState: Codable {
         try container.encode(couples, forKey: .couples)
         try container.encode(affinity, forKey: .affinity)
         try container.encode(variables, forKey: .variables)
+        try container.encode(questions, forKey: .questions)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
 

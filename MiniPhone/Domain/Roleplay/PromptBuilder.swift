@@ -469,4 +469,38 @@ enum PromptBuilder {
     - 用「用户」「TA」指代双方，不要编造没出现过的内容。
     - 三百字以内，一段话，不要分点。
     """
+
+    // MARK: - 匿名提问箱
+
+    static let anonymousAnswerSystem = """
+    你在替一个角色回答一条匿名提问。
+    用第一人称，就像随口答的那样；不用客套，不用「这个问题很好」。
+    不写旁白、不加标题、不用 Markdown。
+    不要问对方是谁，也不要猜是谁问的——提问箱里本来就是看不见人的。
+    不要提到自己在被谁要求回答。
+    """
+
+    /// 匿名作答的正文。记忆照给，但明确说「你不知道这些事是谁告诉你的」——
+    /// 否则模型会把「跟你聊天时记住的事」和「这个匿名的人」混成一件事。
+    static func anonymousAnswerPrompt(
+        character: Companion,
+        memoryLines: [String],
+        question: String
+    ) -> String {
+        var parts: [String] = []
+        let persona = character.persona.trimmingCharacters(in: .whitespacesAndNewlines)
+        parts.append("【你是谁】\n" + (persona.isEmpty ? "角色名：\(character.name)。" : persona))
+
+        if !memoryLines.isEmpty {
+            parts.append("""
+            【你记得的事】
+            \(memoryLines.joined(separator: "\n"))
+            这些都发生过。但提问的人是谁你不知道——可以提这些事，不要说「你上次」。
+            """)
+        }
+
+        parts.append("【问题】\n\(question)")
+        parts.append("两三句话说清，最长不超过五行。")
+        return parts.joined(separator: "\n\n")
+    }
 }

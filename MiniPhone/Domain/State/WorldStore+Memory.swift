@@ -149,4 +149,64 @@ extension WorldStore {
         state.characterDays[index].summary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
         save()
     }
+
+    // MARK: - 匿名提问箱
+
+    func questions(for name: String) -> [AnonymousQuestion] {
+        state.questions
+            .filter { $0.characterName == name }
+            .sorted { $0.askedAt > $1.askedAt }
+    }
+
+    /// 投一个问题进去。返回它的 id，用来之后把答案填回来。
+    ///
+    /// 代号按这个角色收到过的第几个问题来编，不是全站计数：
+    /// 「匿名 3 号」出现在他的页面上才有意义，跨角色计数只会编到几百号。
+    @discardableResult
+    func appendQuestion(characterName: String, text: String) -> UUID? {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return nil }
+        let count = state.questions.filter { $0.characterName == characterName }.count
+        let item = AnonymousQuestion(
+            id: UUID(),
+            characterName: characterName,
+            asker: "匿名 \(count + 1) 号",
+            text: clean,
+            answer: "",
+            askedAt: Date(),
+            answeredAt: nil
+        )
+        state.questions.insert(item, at: 0)
+        if state.questions.count > 80 {
+            state.questions.removeLast(state.questions.count - 80)
+        }
+        save()
+        return item.id
+    }
+
+    /// 填上回答，同时把这一问一答记进他的记忆。
+    ///
+    /// 记忆里不写「匿名 3 号问的」——他自己也不知道是谁问的，
+    /// 写进去会让他以为记得有这么一个人。
+    func answerQuestion(id: UUID, answer: String) {
+        guard let index = state.questions.firstIndex(where: { $0.id == id }) else { return }
+        let clean = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        state.questions[index].answer = clean
+        state.questions[index].answeredAt = clean.isEmpty ? nil : Date()
+        let name = state.questions[index].characterName
+        let question = state.questions[index].text
+        save()
+
+        guard !clean.isEmpty else { return }
+        recordFact(
+            person: name,
+            text: "有人在提问箱里问「\(question)」，我答：\(clean)",
+            sourceName: "匿名提问箱"
+        )
+    }
+
+    func deleteQuestion(id: UUID) {
+        state.questions.removeAll { $0.id == id }
+        save()
+    }
 }

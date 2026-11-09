@@ -70,7 +70,7 @@ struct HomeBoard: View {
             ForEach(Array(slots.enumerated()), id: \.element.id) { position, slot in
                 slotView(slot, editing: editing, jigglePhase: position)
                     .frame(width: metrics.cellWidth, height: metrics.cellHeight)
-                    .offset(metrics.origin(at: position))
+                    .offset(x: metrics.origin(at: position).x, y: metrics.origin(at: position).y)
                     .zIndex(dragging == slot.id ? 10 : 0)
                     .scaleEffect(dragging == slot.id ? 1.12 : 1)
                     .offset(dragging == slot.id ? dragOffset(from: metrics, position: position) : .zero)
