@@ -17,6 +17,8 @@ struct FrostedSurface: ViewModifier {
     var white: Double
     var borderWhite: Double
     var shadow: Theme.ShadowStyle
+    /// 材质的粗细。默认最薄那档，浮层可以调粗一档来压住背后的东西。
+    var material: Material = .ultraThinMaterial
 
     /// 夜间白垫的折数。夜里再垫厚就是一整块白板。
     private static let nightScale = 0.35
@@ -36,7 +38,7 @@ struct FrostedSurface: ViewModifier {
             .background {
                 ZStack {
                     shape
-                        .fill(.ultraThinMaterial)
+                        .fill(material)
                         .environment(\.colorScheme, scheme)
                     shape.fill(Color.white.opacity(fill))
                 }
@@ -77,6 +79,23 @@ extension View {
                 white: 0.20,
                 borderWhite: 0.54,
                 shadow: shadow
+            )
+        )
+    }
+
+    /// 浮层用的磨砂（控制中心这一类）：材质调粗一档。
+    ///
+    /// 控制中心盖在桌面上，下面是图标和图标名。用最薄那档时，底下的字会
+    /// 透上来，看着像面板里多了一行字。换 `.regularMaterial` 就只留一团色，
+    /// 不抢面板里的内容。
+    func frostedSheet(cornerRadius: CGFloat = 40) -> some View {
+        modifier(
+            FrostedSurface(
+                cornerRadius: cornerRadius,
+                white: 0.24,
+                borderWhite: 0.50,
+                shadow: .none,
+                material: .regularMaterial
             )
         )
     }

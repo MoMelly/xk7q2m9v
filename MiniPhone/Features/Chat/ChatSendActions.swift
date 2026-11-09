@@ -16,12 +16,27 @@ extension ChatView {
     /// 只在 `-previewState redPacket` 时由 `onAppear` 调。放在这里而不是主视图：
     /// 主视图已经贴着行数上限，而且这段跟「发出去」是同一类事。
     func seedPreviewPacket() {
-        guard !character.messages.contains(where: { $0.packetCents > 0 }) else { return }
+        // 截图里只留开场白和这个红包：截图流水线里前面几十个状态已经把同一个
+        // 会话聊满了，红包会被挤到屏幕外面，拍不到。这一段只在带
+        // `-previewState` 启动时走，正常使用读不到这个键。
+        for message in character.messages {
+            context.delete(message)
+        }
+
+        let hello = StoredMessage(
+            characterUID: character.uid,
+            role: .assistant,
+            text: character.greeting.isEmpty ? "在的。" : character.greeting,
+            createdAt: Date().addingTimeInterval(-300)
+        )
+        hello.character = character
+        context.insert(hello)
+
         let packet = StoredMessage(
             characterUID: character.uid,
             role: .user,
             text: "给你发了个红包，13.14 元，附言「买杯热的」。",
-            createdAt: Date().addingTimeInterval(-90)
+            createdAt: Date().addingTimeInterval(-60)
         )
         packet.packetCents = 1314
         packet.packetNote = "买杯热的"

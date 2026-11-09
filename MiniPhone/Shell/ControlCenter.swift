@@ -150,11 +150,7 @@ struct ControlCenterPanel: View {
             shortcuts
         }
         .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 40, style: .continuous)
-                .fill(Color.black.opacity(0.18))
-        )
-        .frostedCard(cornerRadius: 40)
+        .frostedSheet(cornerRadius: 40)
         .padding(.horizontal, 10)
     }
 
