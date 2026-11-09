@@ -35,10 +35,21 @@ blobs = {
     if entry["type"] == "blob" and entry["path"].startswith("shots/")
 }
 
+# 只比「文件在不在」是不够的：上一轮的图会一直留着，
+# 页面明明改过，本地看到的还是老截图。所以按 blob sha 存一份索引，
+# 内容变了才重下。
+index_path = OUT.parent / "shots.sha.json"
+try:
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+except Exception:  # noqa: BLE001
+    index = {}
+
 failed = []
+refreshed = 0
 for name in names:
     target = OUT / name
-    if target.exists() and target.stat().st_size > 10_000:
+    sha = blobs.get(name)
+    if target.exists() and target.stat().st_size > 10_000 and sha and index.get(name) == sha:
         continue
     try:
         sha = blobs[name]
@@ -47,6 +58,9 @@ for name in names:
         if len(data) < 1024:
             raise RuntimeError(f"too small: {len(data)}")
         target.write_bytes(data)
+        if sha:
+            index[name] = sha
+        refreshed += 1
     except subprocess.CalledProcessError as error:
         failed.append(name)
         print("fail", name, error.returncode)
@@ -54,4 +68,5 @@ for name in names:
         failed.append(f"{name}: {error}")
         print("fail", name, error)
 
-print("have", len(list(OUT.glob('*.png'))), "failed", failed)
+index_path.write_text(json.dumps(index, indent=1, sort_keys=True), encoding="utf-8")
+print("on branch", len(names), "refreshed", refreshed, "failed", failed)

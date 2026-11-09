@@ -95,23 +95,18 @@ struct HomeBoard: View {
         switch slot {
         case .app(let appID):
             if let app = app(id: appID) {
-                VStack(spacing: 5) {
-                    Button {
-                        guard !editing else { return }
-                        onOpen(app)
-                    } label: {
-                        AppIconTile(app: app).iconFrame(app)
-                    }
-                    .buttonStyle(IconPressStyle())
-                    .allowsHitTesting(!editing)
-                    .overlay(alignment: .topLeading) {
-                        if editing { removeBadge { remove(appID) } }
-                    }
-
-                    Text(app.name)
-                        .font(.system(size: 11))
-                        .foregroundStyle(iconLabelColor)
-                        .lineLimit(1)
+                // 名字由 `AppIconTile` 自己画：它还要按 `HomeTextInk` 决定黑白
+                // 和那圈描边阴影。这里再补一行就是两个名字叠在同一个位置。
+                Button {
+                    guard !editing else { return }
+                    onOpen(app)
+                } label: {
+                    AppIconTile(app: app).iconFrame(app)
+                }
+                .buttonStyle(IconPressStyle())
+                .allowsHitTesting(!editing)
+                .overlay(alignment: .topLeading) {
+                    if editing { removeBadge { remove(appID) } }
                 }
                 .jiggle(editing, phase: jigglePhase)
             }
@@ -311,14 +306,17 @@ struct PhoneBoardMetrics {
         (size.width - CGFloat(columns - 1) * hSpacing) / CGFloat(columns)
     }
 
-    var cellHeight: CGFloat {
-        PhoneMetrics.iconSize + 18
-    }
+    /// 图标 + 间距 + 一行名字。名字是 11pt，行高约 13；
+    /// 留 20 而不是刚好 18，是给 `minimumScaleFactor` 和那圈描边阴影一点余量——
+    /// 少了这 2pt，第二行图标会压到上一行名字上。
+    private static let labelAllowance: CGFloat = 20
+
+    var cellHeight: CGFloat { PhoneMetrics.iconSize + Self.labelAllowance }
 
     /// 两行。上面还有三块组件，三行会顶到 Dock。
     static let rows = 2
     static var boardHeight: CGFloat {
-        let cell = PhoneMetrics.iconSize + 18
+        let cell = PhoneMetrics.iconSize + labelAllowance
         return cell * CGFloat(rows) + PhoneMetrics.gridVerticalSpacing * CGFloat(rows - 1)
     }
 

@@ -29,6 +29,14 @@ struct StoryGameScene: View {
                 }
             }
         }
+        .onAppear {
+            // 截图：`storyEnd` 直接进阅读页，拍「结局 · xxx」那一行。
+            // 正常启动读不到这个键；存档列表点进去也是同一条路。
+            guard UserDefaults.standard.string(forKey: "previewState") == "storyEnd",
+                  viewModel.session == nil,
+                  let archived = StoryArchive.loadAll().first else { return }
+            viewModel.session = archived
+        }
     }
 
     private var archiveList: some View {

@@ -278,9 +278,44 @@ struct PreviewSeeder {
         case "feedInbox", "feedChat", "feedShare", "feedCard":
             seedInbox()
 
+        case "storyGame", "storyEnd":
+            seedStory()
+
         default:
             break
         }
+    }
+
+    /// 一局已经走完的文游。
+    ///
+    /// `storyGame` 只看存档列表，`storyEnd` 会直接进阅读页——
+    /// 那边只有「已经结束」的档才显示结局名，所以两种状态共用同一份数据。
+    private func seedStory() {
+        guard StoryArchive.loadAll().isEmpty else { return }
+
+        var story = StorySession(
+            title: "雨停之前",
+            premise: "连着下了一周的雨，你们困在同一栋楼里，第二天就要各走各的。",
+            characterUIDs: [],
+            characterNames: ["沈砚"],
+            playerName: "我"
+        )
+        story.lines = [
+            StoryLine(speaker: nil, text: "雨还在下。楼梯间的灯忽明忽暗，他靠在窗边，没说话。", isNarration: true),
+            StoryLine(speaker: "沈砚", text: "你也没走？", isNarration: false),
+            StoryLine(speaker: "我", text: "我在等雨小一点。", isNarration: false),
+            StoryLine(speaker: "沈砚", text: "那大概要等很久。", isNarration: false),
+            StoryLine(speaker: nil, text: "他把窗推开一条缝，风把雨声放大了一档。", isNarration: true)
+        ]
+        story.summary = "两个人在雨里困了一晚，谁也没先说走。"
+        story.choices = ["陪他等一会儿", "问他明天几点走", "什么也没说"]
+        story.branchScore = StorySession.score(story.choices ?? [])
+        story.isEnded = true
+        story.endingLabel = story.dominantBranch?.endingTitle
+        // 时间是往前推的：存档列表按 updatedAt 倒序，刚玩完的那局要排第一。
+        story.createdAt = Date().addingTimeInterval(-5_400)
+        story.updatedAt = Date().addingTimeInterval(-600)
+        StoryArchive.save(story)
     }
 
     /// 私信/转帖的演示数据：角色、两类来件、活动索引、开场白消息一次配齐。
