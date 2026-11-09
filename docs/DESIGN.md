@@ -237,7 +237,7 @@ SF Pro。现有 `Theme.serif` 不用于系统 App 的界面标题，只留给信
 | 规范脚本 | `check_standards.py::check_design_gates` 已实现：`Features/Scenes/`、`Features/Settings/` 出现 `.shadow(`、`.whiteCard()`、`cornerRadius: <数字>` 直接判违规。外壳（`Shell/`）不在此列——锁屏和玻璃组件的投影是设计需要 |
 | 颜色白名单 | `Color(red:green:blue:)` 只允许出现在 `DesignSystem/Theme.swift`、`CharacterPalette.swift`、`MoodColor.swift`、`AppIconPalette.swift` 与 `Shell/AppCatalog.swift`。`AppIconPalette` 进来是因为它是图标本身的色值，和出图脚本一一对应，不是主题色 |
 | 截图验收 | 每次改动后 CI 出对应页面截图，逐张对照 §6；截图清单由 `fetch_artifacts.py` 动态取 |
-| 截图状态 | `lock`、`home`、`chat`、`chatDetail`、`chatGlass`、`chatMine`、`chatEditor`、`moments`、`settings`、`calendar`、`notes`、`music`、`health`、`market`、`feed`、`feedProfile`、`feedInbox`、`feedChat`、`feedShare`、`feedCard`、`letters`。`chatDetail` 直开一段会话、`chatMine` 直开第四格、`chatEditor` 直开新建角色页、`feedProfile` 直开我的主页、`feedChat` / `feedShare` 直开两类对话页、`feedCard` 直开带帖子小卡片的私聊，只在带 `-previewState` 时生效，正常启动不写演示数据 |
+| 截图状态 | `lock`、`home`、`chat`、`chatDetail`、`chatGlass`、`chatMine`、`chatEditor`、`moments`、`settings`、`calendar`、`notes`、`music`、`health`、`market`、`feed`、`feedProfile`、`feedInbox`、`feedChat`、`feedShare`、`feedCard`、`letters`。`chatDetail` 直开一段会话、`chatMine` 直开第四格、`chatEditor` 直开新建角色页、`feedProfile` 直开我的主页、`feedChat` / `feedShare` 直开两类对话页、`feedCard` 直开带帖子小卡片的私聊、`board` 直开角色看板、`storyEnd` 直开一局已结束的文游（看「结局 · xxx」那一行），只在带 `-previewState` 时生效，正常启动不写演示数据 |
 | 真机校准 | §4 的数值以 15 Pro Max 真机截图为准；有出入先改 token，不改各页面 |
 
 ---
