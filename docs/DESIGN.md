@@ -166,6 +166,11 @@ SF Pro。现有 `Theme.serif` 不用于系统 App 的界面标题，只留给信
 | `PasscodePad` | — | 锁屏四位数字键盘，错了整块抖一下清空 |
 | `RedPacketBubble` / `RedPacketSheet` | — | 红包卡与金额面板；金额存「分」，拆了才显示 |
 | `Haptics` | 各处自己 new 生成器 | 三档：`tap` / `select` / `warn`，不提供参数 |
+| `FeedCover` | 四处各写一遍的 `NoteCover` | 有 AI 配图就显示图（`scaledToFill` 居中裁），没有就回落文字封面；尺寸由调用方给 |
+| `AppIconPalette` | 设置页里散落的图标配色 | 图标本身的颜色单独一处，和 `scripts/make_alt_icons.py` 同一组值；它是「桌面那一格的颜色」，不是主题色 |
+| `MoodColor.backdrop(_:)` | 看板自己写的一套渐变 | `MoodColor.of(_:)` 是 1pt 色条的实色，`backdrop` 是铺满一屏的底，两回事 |
+| `HomeBoard` / `HomeFolderViews` | 死的 `LazyVGrid` | 分页、长按抖动、拖拽换位、合并成文件夹；布局存 `HomeLayout`（UserDefaults） |
+| `FeedImageService` | — | 配图的开关、预算（一次两张）、失败退避都在这里；页面只负责显示 |
 
 **禁止**：
 
@@ -230,6 +235,7 @@ SF Pro。现有 `Theme.serif` 不用于系统 App 的界面标题，只留给信
 | 项 | 做法 |
 |---|---|
 | 规范脚本 | `check_standards.py::check_design_gates` 已实现：`Features/Scenes/`、`Features/Settings/` 出现 `.shadow(`、`.whiteCard()`、`cornerRadius: <数字>` 直接判违规。外壳（`Shell/`）不在此列——锁屏和玻璃组件的投影是设计需要 |
+| 颜色白名单 | `Color(red:green:blue:)` 只允许出现在 `DesignSystem/Theme.swift`、`CharacterPalette.swift`、`MoodColor.swift`、`AppIconPalette.swift` 与 `Shell/AppCatalog.swift`。`AppIconPalette` 进来是因为它是图标本身的色值，和出图脚本一一对应，不是主题色 |
 | 截图验收 | 每次改动后 CI 出对应页面截图，逐张对照 §6；截图清单由 `fetch_artifacts.py` 动态取 |
 | 截图状态 | `lock`、`home`、`chat`、`chatDetail`、`chatGlass`、`chatMine`、`chatEditor`、`moments`、`settings`、`calendar`、`notes`、`music`、`health`、`market`、`feed`、`feedProfile`、`feedInbox`、`feedChat`、`feedShare`、`feedCard`、`letters`。`chatDetail` 直开一段会话、`chatMine` 直开第四格、`chatEditor` 直开新建角色页、`feedProfile` 直开我的主页、`feedChat` / `feedShare` 直开两类对话页、`feedCard` 直开带帖子小卡片的私聊，只在带 `-previewState` 时生效，正常启动不写演示数据 |
 | 真机校准 | §4 的数值以 15 Pro Max 真机截图为准；有出入先改 token，不改各页面 |

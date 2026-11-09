@@ -56,7 +56,7 @@ struct ImageGenClient {
     private func once(prompt: String, key: String) async throws -> UIImage {
         do {
             return try await send(prompt: prompt, key: key, openAIStyle: false)
-        } catch let LLMError.http(status, body) where status == 400 {
+        } catch LLMError.http(let status, let body) where status == 400 {
             // 参数不认识才算「换一种写法」，别的 400（比如内容被拒）重试也没用。
             let lower = body.lowercased()
             guard lower.contains("unknown") || lower.contains("unrecognized")
