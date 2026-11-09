@@ -178,6 +178,34 @@ struct PreviewSeeder {
             )
 #endif
 
+        case "redPacket":
+            // 拍红包卡。不垫一条的话聊天里没有能拆的东西，这一屏拍不到。
+            // 角色那一侧不建会话：这一屏只是要看卡长什么样。
+            let packetChar = ensureDemoCompanion()
+            if let packetChar {
+                let greeting = StoredMessage(
+                    characterUID: packetChar.uid,
+                    role: .assistant,
+                    text: packetChar.greeting.isEmpty ? "在的。" : packetChar.greeting,
+                    createdAt: Date().addingTimeInterval(-600)
+                )
+                greeting.character = packetChar
+                context.insert(greeting)
+
+                let packet = StoredMessage(
+                    characterUID: packetChar.uid,
+                    role: .user,
+                    text: "给你发了个红包，13.14 元，附言「买杯热的」。",
+                    createdAt: Date().addingTimeInterval(-120)
+                )
+                packet.packetCents = 1314
+                packet.packetNote = "买杯热的"
+                packet.packetOpened = true
+                packet.character = packetChar
+                context.insert(packet)
+                try? context.save()
+            }
+
         case "chatDetail", "chatStickers", "chatPhoto", "charDetail", "call":
             guard companions.isEmpty else { return }
             let character = Companion(

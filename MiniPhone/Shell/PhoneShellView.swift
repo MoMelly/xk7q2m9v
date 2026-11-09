@@ -23,7 +23,7 @@ struct PhoneShellView: View {
     @State private var toastTask: Task<Void, Never>?
     @State private var noticeTask: Task<Void, Never>?
     /// 控制中心从右上角拉下来。
-    @State private var showControlCenter = false
+    @State private var showControlCenter = PhoneShellView.previewControlCenter
     private let controlCenter = ControlCenterStore.shared
     /// 播放器是单例，外壳只读不持有——退出 App 页面也接着放。
     private let player = PlayerService.shared
@@ -45,12 +45,17 @@ struct PhoneShellView: View {
         previewState == "lock"
     }
 
+    /// 截图：直接落到控制中心展开的样子。
+    private static var previewControlCenter: Bool {
+        previewState == "controlCenter"
+    }
+
     /// 这些状态要直接进某个角色的聊天页，跳过会话列表。
     /// 单列一份是因为后面还有弹层要判断同一组名字，散在多处容易漏。
     private static var opensChatDirectly: Bool {
         switch previewState {
         case "chatDetail", "chatStickers", "chatPhoto", "chatDynamic", "chatGlass", "charDetail", "call",
-             "chatTogether":
+             "chatTogether", "redPacket":
             return true
         default:
             return false
@@ -75,7 +80,7 @@ struct PhoneShellView: View {
         case "couple": destination = .scene(.couple)
         case "storyGame": destination = .scene(.storyGame)
         case "chatDetail", "chatMine", "chatEditor", "chatStickers", "chatPhoto", "chatDynamic", "chatGlass", "avatarPicker",
-             "charDetail", "call", "chatTogether": destination = .chat
+             "charDetail", "call", "chatTogether", "redPacket": destination = .chat
         case "chatNight": destination = .chat
         default: destination = nil
         }

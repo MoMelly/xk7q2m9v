@@ -113,12 +113,22 @@ struct ChatCallMenuItems: View {
     /// 一起听。两处入口共用一份菜单，所以标题和动作都从外面传进来。
     var togetherTitle: String
     var onTogether: () -> Void
+    /// 发红包。只有输入栏那个「+」给，电话菜单里不给——那儿是通话的地方。
+    var onPacket: (() -> Void)? = nil
 
     var body: some View {
         Button {
             onPhotos()
         } label: {
             Label("发一张图", systemImage: "photo.on.rectangle")
+        }
+
+        if let onPacket {
+            Button {
+                onPacket()
+            } label: {
+                Label("发红包", systemImage: "yensign.circle.fill")
+            }
         }
 
         Button {

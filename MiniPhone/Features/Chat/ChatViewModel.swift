@@ -32,7 +32,9 @@ final class ChatViewModel {
         callMode: Bool = false,
         imageSeed: Int = 0,
         quoteSpeaker: String = "",
-        quoteText: String = ""
+        quoteText: String = "",
+        packetCents: Int = 0,
+        packetNote: String = ""
     ) async {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         // 发图可以一个字都不写，所以空文本在有图时也算一条消息。
@@ -46,6 +48,8 @@ final class ChatViewModel {
         )
         userMessage.quoteSpeaker = quoteSpeaker
         userMessage.quoteText = quoteText
+        userMessage.packetCents = packetCents
+        userMessage.packetNote = packetNote
         userMessage.character = character
         context.insert(userMessage)
         character.lastMessageAt = Date()

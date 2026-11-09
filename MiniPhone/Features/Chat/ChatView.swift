@@ -11,13 +11,13 @@ struct ChatView: View {
     let settings: SettingsStore
     var onExit: () -> Void
 
-    @Environment(\.modelContext) private var context
+    @Environment(\.modelContext) var context
     @Query private var messages: [StoredMessage]
     /// 拍一拍要用名字：「小绿 拍了拍 陆沉 的脑门」。
     @Query(sort: \UserProfile.createdAt, order: .forward) private var profiles: [UserProfile]
 
-    @State private var viewModel = ChatViewModel()
-    @State private var draft = ""
+    @State var viewModel = ChatViewModel()
+    @State var draft = ""
     @State private var showDetail = false
     @State private var showCalls = false
     @State private var showVoices = false
@@ -25,18 +25,20 @@ struct ChatView: View {
     @State private var pinnedTarget: UUID?
     @State private var callKind: CallKind?
     /// 表情面板展开状态。输入栏那颗按钮切换它，不抢键盘。
-    @State private var showStickers = false
+    @State var showStickers = false
     /// 发图面板。和表情面板互斥，同时开两个会把输入栏顶到看不见。
-    @State private var showPhotos = false
-    @FocusState private var isInputFocused: Bool
+    @State var showPhotos = false
+    /// 发红包的金额面板。
+    @State var showPacket = false
+    @FocusState var isInputFocused: Bool
     /// 输入栏的完整态开关。默认收成一条安静的提示条——页面上摆一个
     /// 等着打字的输入框，看上去就像对话正在进行到一半；点一下才醒。
     @State private var isComposerActive = false
 
     /// 正在引用的那条。发出去时带在消息上，发完清空。
-    @State private var quoting: StoredMessage?
+    @State var quoting: StoredMessage?
     /// 正在改的那条。不为空时发送键改成「覆写」而不是「新增」。
-    @State private var editingTarget: StoredMessage?
+    @State var editingTarget: StoredMessage?
 
     init(character: Companion, settings: SettingsStore, onExit: @escaping () -> Void) {
         self.character = character
@@ -49,7 +51,7 @@ struct ChatView: View {
         )
     }
 
-    private var canSend: Bool {
+    var canSend: Bool {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !viewModel.isStreaming
     }
 
@@ -173,6 +175,15 @@ struct ChatView: View {
         }
         .sheet(isPresented: $showVoices) {
             CharacterVoicesSheet(name: character.name) { showVoices = false }
+        }
+        .sheet(isPresented: $showPacket) {
+            RedPacketSheet(
+                onSend: { cents, note in sendPacket(cents: cents, note: note) },
+                onCancel: { showPacket = false }
+            )
+            .presentationDetents([.height(470)])
+            .presentationBackground(Theme.cardSurface)
+            .presentationDragIndicator(.hidden)
         }
         .sheet(isPresented: $showCalls) {
             CallScene(world: WorldStore.shared, onClose: { showCalls = false })
@@ -324,7 +335,11 @@ struct ChatView: View {
             isRecalled: message.isRecalled,
             quoteSpeaker: message.quoteSpeaker,
             quoteText: message.quoteText,
-            isEdited: message.editedAt != nil
+            isEdited: message.editedAt != nil,
+            packetCents: message.packetCents,
+            packetNote: message.packetNote,
+            packetOpened: message.packetOpened,
+            onOpenPacket: { openPacket(message) }
         )
         .chatMessageMenu(
             for: message,
@@ -419,7 +434,8 @@ struct ChatView: View {
                     onCall: { callKind = $0 },
                     onHistory: { showCalls = true },
                     togetherTitle: isTogether ? "结束一起听" : "一起听",
-                    onTogether: toggleTogether
+                    onTogether: toggleTogether,
+                    onPacket: { showPacket = true }
                 )
             }
 
@@ -515,69 +531,6 @@ struct ChatView: View {
             withAnimation(.easeInOut(duration: 0.18)) {
                 isComposerActive = false
             }
-        }
-    }
-
-    // MARK: - 表情面板
-
-    /// 表情也是消息：落成一条 `[表情:名字]`，跟打字发出去走同一条链路，
-    /// 这样记忆、重试、导出都不用为它单独开一条路。
-    private func sendSticker(_ item: StickerItem) {
-        guard !viewModel.isStreaming else { return }
-        showStickers = false
-        Task {
-            await viewModel.send(
-                "[表情:\(item.name)]",
-                character: character,
-                context: context,
-                settings: settings
-            )
-        }
-    }
-
-    // MARK: - 发图面板
-
-    private func sendPhoto(_ subject: MockPhotoSubject) {
-        guard !viewModel.isStreaming else { return }
-        showPhotos = false
-        isInputFocused = false
-        Task {
-            await viewModel.send(
-                subject.title,
-                character: character,
-                context: context,
-                settings: settings,
-                imageSeed: subject.seed
-            )
-        }
-    }
-
-    private func submit() {
-        guard canSend else { return }
-        let text = draft
-        draft = ""
-
-        // 编辑态下发送 = 覆写那一条，不新起一条。
-        if let target = editingTarget {
-            target.text = text
-            target.editedAt = Date()
-            editingTarget = nil
-            try? context.save()
-            return
-        }
-
-        let quoted = quoting
-        quoting = nil
-
-        Task {
-            await viewModel.send(
-                text,
-                character: character,
-                context: context,
-                settings: settings,
-                quoteSpeaker: quoted.map { $0.role == .user ? "我" : character.name } ?? "",
-                quoteText: quoted?.text ?? ""
-            )
         }
     }
 

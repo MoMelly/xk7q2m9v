@@ -39,6 +39,10 @@ enum DataBackup {
             var quoteSpeaker: String?
             var quoteText: String?
             var editedAt: Date?
+            /// v5 新增。红包：金额（分）、封面上那句话、拆没拆。
+            var packetCents: Int?
+            var packetNote: String?
+            var packetOpened: Bool?
         }
 
         struct Char: Codable {
@@ -174,7 +178,10 @@ enum DataBackup {
                                     isPinned: $0.isPinned ? true : nil,
                                     quoteSpeaker: $0.quoteSpeaker.isEmpty ? nil : $0.quoteSpeaker,
                                     quoteText: $0.quoteText.isEmpty ? nil : $0.quoteText,
-                                    editedAt: $0.editedAt
+                                    editedAt: $0.editedAt,
+                                    packetCents: $0.packetCents == 0 ? nil : $0.packetCents,
+                                    packetNote: $0.packetNote.isEmpty ? nil : $0.packetNote,
+                                    packetOpened: $0.packetOpened ? true : nil
                                 )
                             },
                         signature: character.signature,
@@ -373,6 +380,9 @@ enum DataBackup {
                 stored.isPinned = message.isPinned ?? false
                 stored.quoteSpeaker = message.quoteSpeaker ?? ""
                 stored.quoteText = message.quoteText ?? ""
+                stored.packetCents = message.packetCents ?? 0
+                stored.packetNote = message.packetNote ?? ""
+                stored.packetOpened = message.packetOpened ?? false
                 stored.editedAt = message.editedAt
                 stored.character = character
                 context.insert(stored)

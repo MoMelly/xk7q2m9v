@@ -101,6 +101,17 @@ enum Theme {
         static let rose = Color(red: 0.90, green: 0.42, blue: 0.58)
     }
 
+    /// 红包封面。
+    ///
+    /// 不用品牌色：品牌红是这套界面的主色，红包再用同一个红，
+    /// 聊天里就分不清「这是谁的颜色」了。这里取更橙一点的那支，
+    /// 一眼看得出是个物件，不是一段文字。
+    enum Packet {
+        static let top = Color(red: 0.96, green: 0.46, blue: 0.34)
+        static let bottom = Color(red: 0.82, green: 0.16, blue: 0.20)
+        static let gold = Color(red: 0.99, green: 0.86, blue: 0.58)
+    }
+
     /// 「西瓜皮」自己的那套色。
     ///
     /// 底色还是社交产品惯用的红，但图标和默认头像用真西瓜：绿皮、白瓤、红瓤、黑籽。

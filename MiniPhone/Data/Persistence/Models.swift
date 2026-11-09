@@ -186,6 +186,15 @@ final class StoredMessage {
     /// 置顶。置顶的消息在顶栏留一条，点一下能滚回去。
     var isPinned: Bool = false
 
+    /// 红包。0 表示这条不是红包。
+    ///
+    /// 存「分」而不是「元」：金额要参与显示和求和，浮点一路上会掉一分钱。
+    var packetCents: Int = 0
+    /// 红包封面上的那句话。
+    var packetNote: String = ""
+    /// 拆没拆。拆了才显示金额，跟真机一样。
+    var packetOpened: Bool = false
+
     var createdAt: Date = Date()
 
     var character: Companion?

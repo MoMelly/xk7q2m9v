@@ -25,6 +25,12 @@ struct MessageBubble: View {
     var quoteText: String = ""
     /// 改过。气泡底部标一行「已编辑」。
     var isEdited: Bool = false
+    /// 红包：金额（分）。0 表示不是红包。
+    var packetCents: Int = 0
+    var packetNote: String = ""
+    var packetOpened: Bool = false
+    /// 点开红包。不给就只显示、不响应。
+    var onOpenPacket: (() -> Void)? = nil
 
     var body: some View {
         if isRecalled {
@@ -89,7 +95,17 @@ struct MessageBubble: View {
                 photoBubble
             }
 
-            if !parsed.body.isEmpty {
+            // 红包自己就是一张卡。正文（那句「给你发了个红包」）不进气泡——
+            // 那是给模型看的，人看的是这张卡。
+            if packetCents > 0 {
+                RedPacketBubble(
+                    cents: packetCents,
+                    note: packetNote,
+                    isOpened: packetOpened,
+                    isMine: isUser,
+                    onOpen: { onOpenPacket?() }
+                )
+            } else if !parsed.body.isEmpty {
                 textBubble
             }
 
