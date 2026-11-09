@@ -143,7 +143,9 @@ struct ChatView: View {
             case "chatPhoto":
                 showPhotos = true
                 isComposerActive = true
-            case "charDetail":
+            case "charDetail", "board":
+                // board 是再往下压一层的看板，截图流水线没有手势可用，
+                // 先把详情页打开，由它自己决定要不要直接落到看板。
                 showDetail = true
             case "call":
                 callKind = .voice

@@ -52,7 +52,20 @@ struct CharacterDetailPage: View {
         return open == total ? "全部 \(total) 个" : "\(open) / \(total)"
     }
 
+    /// 截图：直接落到看板那一层。看板藏在详情里两级，冷启动点不到。
+    private var showsBoardDirectly: Bool {
+        UserDefaults.standard.string(forKey: "previewState") == "board"
+    }
+
     var body: some View {
+        if showsBoardDirectly {
+            CharacterBoardPage(character: character, world: world)
+        } else {
+            detailBody
+        }
+    }
+
+    private var detailBody: some View {
         AppScreen(title: "详情", onClose: onClose) {
             ScrollView {
                 VStack(spacing: PhoneMetrics.Space.section) {
