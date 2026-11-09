@@ -432,10 +432,11 @@ final class ReadingBook {
     }
 }
 
-/// 设定集条目（世界书的简化版）：命中关键词才注入提示词。
+/// 设定集条目（世界书）。
 ///
-/// `alwaysOn` 是不靠关键词的那一档：住处、工作、家里有谁这类基本盘，
-/// 用户不会每句话都提到关键词，但角色必须一直知道。默认关，老的条目保持原样。
+/// 三条触发路径：常驻、条件、关键词。见 `WorldTrigger`。
+/// 老存档只有「常驻 / 关键词」两档，落库时 `alwaysOn` 有值、`kindRaw` 是空的，
+/// 所以 `kind` 的读法带反推，不需要写迁移脚本。
 @Model
 final class WorldEntry {
     var uid: UUID = UUID()
@@ -444,24 +445,108 @@ final class WorldEntry {
     var keywords: String = ""
     var content: String = ""
     var enabled: Bool = true
-    /// 常驻：每轮都进提示词，不看关键词。
+    /// 老字段，只在新版本里跟着 `kind` 一起写，不再单独读。
+    /// 留着是为了让旧版本 App 打开同一份数据时还认得出来。
     var alwaysOn: Bool = false
+
+    /// `WorldTrigger` 的原始值。空表示老存档，按 `alwaysOn` 反推。
+    var kindRaw: String = ""
+    /// 1–10。同一组里大的先出现，档位之间差得不多，不要指望它救回一个写坏了的条目。
+    var priority: Int = 5
+    /// `WorldPosition` 的原始值。空当 `.front`——老条目都在中段，前置最接近原来的位置。
+    var positionRaw: String = ""
+
+    /// 条件维度，可叠加。全空的条件条目按常驻处理：
+    /// 写不出条件却存成「永远不命中」是最糟的一种，用户看不出为什么它没生效。
+    var condPhases: String = ""
+    var condMoods: String = ""
+    /// 地点包含这个词时成立。空表示不限地点。
+    var condLocation: String = ""
+    /// 认识满几天才成立。0 表示不限。
+    var condMinDays: Int = 0
+
     var createdAt: Date = Date()
 
-    init(characterUID: UUID?, keywords: String, content: String, alwaysOn: Bool = false) {
+    init(
+        characterUID: UUID?,
+        keywords: String,
+        content: String,
+        kind: WorldTrigger = .keyword,
+        priority: Int = 5,
+        position: WorldPosition = .front
+    ) {
         self.uid = UUID()
         self.characterUID = characterUID
         self.keywords = keywords
         self.content = content
         self.enabled = true
-        self.alwaysOn = alwaysOn
+        self.alwaysOn = (kind == .constant)
+        self.kindRaw = kind.rawValue
+        self.priority = priority
+        self.positionRaw = position.rawValue
         self.createdAt = Date()
     }
+
+    // MARK: - 分类
+
+    var kind: WorldTrigger {
+        get {
+            if let parsed = WorldTrigger(rawValue: kindRaw) { return parsed }
+            return alwaysOn ? .constant : .keyword
+        }
+        set {
+            kindRaw = newValue.rawValue
+            // 老字段跟着走，旧包打开还认得。
+            alwaysOn = (newValue == .constant)
+        }
+    }
+
+    var position: WorldPosition {
+        get { WorldPosition(rawValue: positionRaw) ?? .front }
+        set { positionRaw = newValue.rawValue }
+    }
+
+    var isGlobal: Bool { characterUID == nil }
+
+    // MARK: - 关键词
 
     var keywordList: [String] {
         keywords
             .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" || $0 == " " })
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
+    }
+
+    // MARK: - 条件
+
+    var phaseList: [DayPhase] {
+        condPhases
+            .split(separator: ",")
+            .compactMap { DayPhase(rawValue: $0.trimmingCharacters(in: .whitespaces)) }
+    }
+
+    var moodList: [Mood] {
+        condMoods
+            .split(separator: ",")
+            .compactMap { Mood(rawValue: $0.trimmingCharacters(in: .whitespaces)) }
+    }
+
+    var locationNeedle: String {
+        condLocation.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// 有没有真的写了条件。空条件的条件条目按常驻走。
+    var hasCondition: Bool {
+        !phaseList.isEmpty || !moodList.isEmpty || !locationNeedle.isEmpty || condMinDays > 0
+    }
+
+    /// 条件的人话描述，列表和提示词都用它。
+    var conditionSummary: String {
+        var parts: [String] = []
+        if !phaseList.isEmpty { parts.append(phaseList.map(\.label).joined(separator: "、")) }
+        if !moodList.isEmpty { parts.append(moodList.map(\.label).joined(separator: "、") + "的时候") }
+        if !locationNeedle.isEmpty { parts.append("在\(locationNeedle)") }
+        if condMinDays > 0 { parts.append("认识满 \(condMinDays) 天") }
+        return parts.isEmpty ? "没有条件" : parts.joined(separator: " · ")
     }
 }

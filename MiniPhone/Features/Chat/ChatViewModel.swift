@@ -393,6 +393,9 @@ final class ChatViewModel {
         let log = meta?.dayLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         world.noteCharacterChat(named: character.name, summary: log)
         world.markCoupleDay(fromMe: false, partner: character.name)
+        // 说过一轮就往前挪一格。模型给了具体的心情转折也不额外加，
+        // 否则「聊得开心」比「天天来」涨得快，好感度会集中爆发在几次长对话里。
+        world.bumpAffinity(for: character.name, by: 1)
     }
 
     /// 状态块里带回来的增量统一写进 WorldStore。

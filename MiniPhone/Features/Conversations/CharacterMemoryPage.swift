@@ -1,220 +1,178 @@
 import SwiftUI
 
-/// 角色的记忆，只读。
+/// 角色的记忆。
 ///
-/// 这里放的每一行都是对话里自己长出来的，不是手填的字段——
-/// 所以能看、能删掉整份，但不能在这里改一句「他应该记得我喜欢猫」，
-/// 那会让记忆和实际发生过的事对不上。
+/// 事实、概括、心事、日子四类摊成同一个流，靠上面的筛选分开看。
+/// 之前是三个分区各写一套行、一套排版，改一句话得去三处；
+/// 现在只有一种条目，点开就是同一个编辑器。
 struct CharacterMemoryPage: View {
     let character: Companion
     let world: WorldStore
+
+    @State private var filter: MemoryItem.Kind?
+    @State private var editing: MemoryItem?
 
     private var person: PersonMemory? {
         world.state.people.first { $0.name == character.name }
     }
 
-    private var facts: [PersonFact] {
-        (person?.facts ?? []).sorted { $0.createdAt > $1.createdAt }
+    private var all: [MemoryItem] {
+        MemoryItem.collect(
+            person: person,
+            days: world.characterDays(named: character.name, limit: 30)
+        )
     }
 
-    private var openVoices: [InnerVoiceEntry] {
-        (person?.voices ?? [])
-            .filter { !$0.isResolved }
-            .sorted { $0.createdAt > $1.createdAt }
-    }
-
-    private var resolvedVoices: [InnerVoiceEntry] {
-        (person?.voices ?? [])
-            .filter(\.isResolved)
-            .sorted { $0.createdAt > $1.createdAt }
-    }
-
-    private var days: [CharacterDay] {
-        world.characterDays(named: character.name, limit: 14)
+    private var shown: [MemoryItem] {
+        guard let filter else { return all }
+        return all.filter { $0.kind == filter }
     }
 
     var body: some View {
         AppPage(title: "记忆") {
             ScrollView {
-                VStack(spacing: PhoneMetrics.Space.section) {
-                    summarySection
+                VStack(spacing: PhoneMetrics.Space.l) {
+                    filterStrip
 
                     GroupedSection(
-                        "记得的事",
-                        footer: facts.isEmpty
-                            ? "还没记住具体的事。多聊几次，值得留下的会自己进来。"
-                            : "每一轮都会带上这些，和你最近说的话更相关的排前面。记错了就长按删掉——留着错的，之后每轮都跟着错。"
+                        nil,
+                        footer: "点一条可以改文字。模型记错了人名就改这里——留着错的，之后每轮都跟着错。"
                     ) {
-                        if facts.isEmpty {
-                            placeholder("还没有")
+                        if shown.isEmpty {
+                            placeholder(all.isEmpty ? "还没有任何记忆。多聊几次，值得留下的会自己进来。" : "这个分类下暂时没有。")
                         } else {
-                            ForEach(facts) { fact in
-                                GroupedRow(
-                                    title: fact.text,
-                                    subtitle: "\(fact.sourceName) · \(TimeFormat.callTime(fact.createdAt))"
-                                )
-                                .padding(.vertical, PhoneMetrics.Space.xs)
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        world.deleteFact(person: character.name, id: fact.id)
-                                    } label: {
-                                        Label("这条记错了", systemImage: "trash")
-                                    }
-                                }
-
-                                if fact.id != facts.last?.id {
+                            ForEach(Array(shown.enumerated()), id: \.element.id) { index, item in
+                                row(item)
+                                if index != shown.count - 1 {
                                     RowDivider()
                                 }
                             }
                         }
                     }
 
-                    if !openVoices.isEmpty || !resolvedVoices.isEmpty {
-                        voicesSection
-                    }
-
-                    daysSection
+                    countsSection
                 }
                 .padding(.top, PhoneMetrics.Space.s)
                 .padding(.bottom, PhoneMetrics.Space.xl)
             }
         }
-    }
-
-    // MARK: - 概括
-
-    private var summarySection: some View {
-        GroupedSection("他心里的你") {
-            let summary = person?.summary.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-
-            if summary.isEmpty {
-                placeholder("还没有形成概括。聊得够多之后，旧的对话会被压成一段。")
-            } else {
-                Text(summary)
-                    .font(.system(size: PhoneMetrics.FontSize.sub))
-                    .foregroundStyle(Theme.label)
-                    .lineSpacing(4)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(PhoneMetrics.Space.m)
-            }
+        .sheet(item: $editing) { item in
+            MemoryItemEditor(item: item, characterName: character.name, world: world)
         }
     }
 
-    // MARK: - 心事
+    // MARK: - 筛选
 
-    private var voicesSection: some View {
-        GroupedSection(
-            "没说出口的",
-            footer: "没放下的会一直在，直到被聊开。放下了的留在这儿，不再提起。"
-        ) {
-            ForEach(Array(openVoices.enumerated()), id: \.element.id) { index, voice in
-                voiceRow(voice, resolved: false)
-                if index != openVoices.count - 1 || !resolvedVoices.isEmpty {
-                    RowDivider()
+    private var filterStrip: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: PhoneMetrics.Space.xs) {
+                chip(title: "全部", count: all.count, selected: filter == nil) {
+                    filter = nil
                 }
-            }
 
-            ForEach(Array(resolvedVoices.enumerated()), id: \.element.id) { index, voice in
-                voiceRow(voice, resolved: true)
-                if index != resolvedVoices.count - 1 {
-                    RowDivider()
-                }
-            }
-        }
-    }
-
-    private func voiceRow(_ voice: InnerVoiceEntry, resolved: Bool) -> some View {
-        HStack(alignment: .top, spacing: PhoneMetrics.Space.s) {
-            Image(systemName: resolved ? "checkmark.circle" : "bubble.left")
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(resolved ? Theme.secondaryLabel.opacity(0.6) : Theme.IconTint.purple)
-                .padding(.top, 2)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(voice.text)
-                    .font(.system(size: PhoneMetrics.FontSize.sub))
-                    .foregroundStyle(resolved ? Theme.secondaryLabel : Theme.label)
-                    .strikethrough(resolved, color: Theme.secondaryLabel.opacity(0.5))
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(TimeFormat.callTime(voice.createdAt))
-                    .font(.system(size: PhoneMetrics.FontSize.caption))
-                    .foregroundStyle(Theme.secondaryLabel.opacity(0.8))
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, PhoneMetrics.Space.m)
-        .padding(.vertical, PhoneMetrics.Space.s)
-    }
-
-    // MARK: - 这几天的日子
-
-    private var daysSection: some View {
-        GroupedSection(
-            "这几天的日子",
-            footer: "只有当天说过话才会有这一天。没聊的日子不会凭空编出来。"
-        ) {
-            if days.isEmpty {
-                placeholder("还没有留下任何一天")
-            } else {
-                ForEach(Array(days.enumerated()), id: \.element.id) { index, day in
-                    dayRow(day)
-                    if index != days.count - 1 {
-                        RowDivider()
+                ForEach(MemoryItem.Kind.allCases) { kind in
+                    let count = all.filter { $0.kind == kind }.count
+                    chip(title: kind.label, count: count, selected: filter == kind) {
+                        filter = kind
                     }
                 }
             }
+            .padding(.horizontal, PhoneMetrics.Space.m)
         }
     }
 
-    private func dayRow(_ day: CharacterDay) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(MoodColor.of(day.mood))
-                    .frame(width: 7, height: 7)
+    private func chip(title: String, count: Int, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.system(size: PhoneMetrics.FontSize.footnote, weight: selected ? .semibold : .regular))
+                Text("\(count)")
+                    .font(.system(size: 10, weight: .medium))
+                    .opacity(0.7)
+            }
+            .foregroundStyle(selected ? Color.white : Theme.label)
+            .padding(.horizontal, PhoneMetrics.Space.s)
+            .frame(height: 30)
+            .background {
+                Capsule()
+                    .fill(selected ? Theme.brand : Theme.separator.opacity(0.22))
+            }
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
 
-                Text(dayLabel(day.dateKey))
-                    .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .semibold))
-                    .foregroundStyle(Theme.label)
+    // MARK: - 一行
 
-                Text(day.mood.label)
-                    .font(.system(size: PhoneMetrics.FontSize.caption))
-                    .foregroundStyle(Theme.secondaryLabel)
+    private func row(_ item: MemoryItem) -> some View {
+        Button {
+            editing = item
+        } label: {
+            HStack(alignment: .top, spacing: PhoneMetrics.Space.s) {
+                Image(systemName: item.kind.symbol)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(item.kind == .voice && !item.isOpen
+                                     ? Theme.secondaryLabel.opacity(0.6)
+                                     : tint(item.kind))
+                    .frame(width: 16)
+                    .padding(.top, 2)
 
-                Spacer(minLength: 0)
+                VStack(alignment: .leading, spacing: 4) {
+                    if item.text.isEmpty {
+                        Text(item.kind == .day ? "那天没留下概括，可以补一句" : "（空）")
+                            .font(.system(size: PhoneMetrics.FontSize.footnote))
+                            .foregroundStyle(Theme.secondaryLabel.opacity(0.8))
+                    } else {
+                        Text(item.text)
+                            .font(.system(size: PhoneMetrics.FontSize.sub))
+                            .foregroundStyle(item.isOpen || item.kind != .voice
+                                             ? Theme.label
+                                             : Theme.secondaryLabel)
+                            .strikethrough(item.kind == .voice && !item.isOpen,
+                                           color: Theme.secondaryLabel.opacity(0.5))
+                            .lineLimit(item.kind == .summary ? 6 : 3)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
-                if !day.didChat {
-                    Text("没聊")
-                        .font(.system(size: PhoneMetrics.FontSize.caption))
-                        .foregroundStyle(Theme.secondaryLabel.opacity(0.7))
+                    HStack(spacing: 4) {
+                        Text(item.source)
+                            .font(.system(size: PhoneMetrics.FontSize.caption))
+                            .foregroundStyle(Theme.secondaryLabel.opacity(0.85))
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(Theme.secondaryLabel.opacity(0.45))
+                    }
                 }
             }
-
-            Text(day.items.map(\.title).joined(separator: "、"))
-                .font(.system(size: PhoneMetrics.FontSize.caption))
-                .foregroundStyle(Theme.secondaryLabel)
-                .lineLimit(2)
-
-            if !day.summary.isEmpty {
-                Text(day.summary)
-                    .font(.system(size: PhoneMetrics.FontSize.footnote))
-                    .foregroundStyle(Theme.label.opacity(0.85))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 1)
-            }
+            .padding(.horizontal, PhoneMetrics.Space.m)
+            .padding(.vertical, PhoneMetrics.Space.s)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, PhoneMetrics.Space.m)
-        .padding(.vertical, PhoneMetrics.Space.s)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.plain)
     }
 
-    private func dayLabel(_ key: String) -> String {
-        TimeFormat.dayLabel(key)
+    private func tint(_ kind: MemoryItem.Kind) -> Color {
+        switch kind {
+        case .fact: return Theme.IconTint.teal
+        case .voice: return Theme.IconTint.purple
+        case .summary: return Theme.IconTint.gray
+        case .day: return Theme.retroGreen
+        }
     }
 
-    // MARK: - 小组件
+    // MARK: - 底部统计
+
+    private var countsSection: some View {
+        GroupedSection("一眼看过去", footer: "这些数只统计这个角色。全局设定和历史在世界书里。") {
+            GroupedRow(title: "记得的事实", value: "\(all.filter { $0.kind == .fact }.count) 条")
+            RowDivider()
+            GroupedRow(title: "没放下的心事", value: "\(all.filter { $0.kind == .voice && $0.isOpen }.count) 条")
+            RowDivider()
+            GroupedRow(title: "留下概括的日子", value: "\(all.filter { $0.kind == .day && !$0.text.isEmpty }.count) 天")
+        }
+    }
 
     private func placeholder(_ text: String) -> some View {
         Text(text)

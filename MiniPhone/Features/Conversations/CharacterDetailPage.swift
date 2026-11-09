@@ -103,6 +103,21 @@ struct CharacterDetailPage: View {
 
                         RowDivider()
 
+                        NavigationLink {
+                            StatePanelPage(character: character, world: world)
+                        } label: {
+                            GroupedRow(
+                                symbol: "gauge.with.dots.needle.67percent",
+                                symbolTint: Theme.IconTint.green,
+                                title: "状态面板",
+                                value: WorldStore.stage(of: world.affinity(for: character.name)).label,
+                                showsChevron: true
+                            )
+                        }
+                        .buttonStyle(.plain)
+
+                        RowDivider()
+
                         // 查手机。桌面那个图标是按「最近说过话的人」开的，
                         // 从这个人的详情页进来才是确定的「看他这一台」。
                         Button {

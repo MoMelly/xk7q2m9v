@@ -117,6 +117,15 @@ enum DataBackup {
             var createdAt: Date
             /// v9 新增：常驻条目。旧备份没有这个键，读出来当关键词条目。
             var alwaysOn: Bool?
+            /// v10 新增：分类、优先级、插入位置、条件四个维度。
+            /// 全部可选——v9 及更早的备份里没有这些键，缺了就按老规矩反推。
+            var kind: String?
+            var priority: Int?
+            var position: String?
+            var condPhases: String?
+            var condMoods: String?
+            var condLocation: String?
+            var condMinDays: Int?
         }
 
         var version: Int
@@ -210,7 +219,14 @@ enum DataBackup {
                     content: $0.content,
                     enabled: $0.enabled,
                     createdAt: $0.createdAt,
-                    alwaysOn: $0.alwaysOn ? true : nil
+                    alwaysOn: $0.alwaysOn ? true : nil,
+                    kind: $0.kindRaw.isEmpty ? nil : $0.kindRaw,
+                    priority: $0.priority == 5 ? nil : $0.priority,
+                    position: $0.positionRaw.isEmpty ? nil : $0.positionRaw,
+                    condPhases: $0.condPhases.isEmpty ? nil : $0.condPhases,
+                    condMoods: $0.condMoods.isEmpty ? nil : $0.condMoods,
+                    condLocation: $0.condLocation.isEmpty ? nil : $0.condLocation,
+                    condMinDays: $0.condMinDays == 0 ? nil : $0.condMinDays
                 )
             },
             notes: notes
@@ -406,10 +422,17 @@ enum DataBackup {
                 characterUID: item.characterUID,
                 keywords: item.keywords,
                 content: item.content,
-                alwaysOn: item.alwaysOn ?? false
+                kind: item.kind.flatMap(WorldTrigger.init(rawValue:))
+                    ?? ((item.alwaysOn ?? false) ? .constant : .keyword),
+                priority: item.priority ?? 5,
+                position: item.position.flatMap(WorldPosition.init(rawValue:)) ?? .front
             )
             entry.enabled = item.enabled
             entry.createdAt = item.createdAt
+            entry.condPhases = item.condPhases ?? ""
+            entry.condMoods = item.condMoods ?? ""
+            entry.condLocation = item.condLocation ?? ""
+            entry.condMinDays = item.condMinDays ?? 0
             context.insert(entry)
         }
 

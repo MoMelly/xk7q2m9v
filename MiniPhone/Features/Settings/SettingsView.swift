@@ -133,6 +133,20 @@ struct SettingsView: View {
                         RowDivider()
 
                         rowLink {
+                            MemoryLibraryPage()
+                        } label: {
+                            GroupedRow(
+                                symbol: "books.vertical.fill",
+                                symbolTint: Theme.IconTint.purple,
+                                title: "记忆库",
+                                value: "全局设定与各角色进度",
+                                showsChevron: true
+                            )
+                        }
+
+                        RowDivider()
+
+                        rowLink {
                             DataPage()
                         } label: {
                             GroupedRow(

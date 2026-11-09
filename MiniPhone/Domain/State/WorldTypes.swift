@@ -407,6 +407,17 @@ struct WorldState: Codable {
     var couples: [String: CoupleState] = [:]
     /// 老存档里那唯一一份火花。迁移时归给第一个开口的角色，归完置空。
     var legacyCouple: CoupleState?
+    /// 每个角色的好感度，0–100。key 是角色名。
+    ///
+    /// 不是「分数」而是一个可以手调的刻度：聊天会慢慢推它，用户也能直接拖。
+    /// 只进提示词当语气参考，不参与任何数值判定——写成阈值解锁剧情那种，
+    /// 一旦数字算错就变成「聊了三百句还是陌生」。
+    var affinity: [String: Int] = [:]
+    /// 自由变量表。key 是名字，value 是一句话，整张表进提示词。
+    ///
+    /// 有些事实既不属于哪个角色、也不适合塞进设定集：天气、地点、今天是几号、
+    /// 「我们第一次见面是在三月」。它们要的是能被引用，不是被归类。
+    var variables: [String: String] = [:]
     var updatedAt: Date = Date()
 
     init() {}
@@ -418,6 +429,7 @@ struct WorldState: Codable {
         case feedInbox, feedActivity
         case phones, couples
         case moods, locations
+        case affinity, variables
         /// 旧字段，只读不写：解出老存档里的那一台手机 / 那一份火花 / 那一份心情 / 那一个地点。
         case phone, couple, mood, location
     }
@@ -458,6 +470,8 @@ struct WorldState: Codable {
             legacyCouple = legacy
         }
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date()
+        affinity = try container.decodeIfPresent([String: Int].self, forKey: .affinity) ?? [:]
+        variables = try container.decodeIfPresent([String: String].self, forKey: .variables) ?? [:]
     }
 
     /// 归档编码要跟着手写解码一起走，两边字段名对不上会静默丢数据。
@@ -482,6 +496,8 @@ struct WorldState: Codable {
         try container.encode(feedActivity, forKey: .feedActivity)
         try container.encode(phones, forKey: .phones)
         try container.encode(couples, forKey: .couples)
+        try container.encode(affinity, forKey: .affinity)
+        try container.encode(variables, forKey: .variables)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
 

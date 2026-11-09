@@ -288,48 +288,6 @@ final class WorldStore {
         return true
     }
 
-    // MARK: - 人物级记忆
-
-    /// 事实挂在人名上：群聊里谁说的不影响单聊能不能想起来。
-    func recordFact(person name: String, text: String, sourceName: String) {
-        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty else { return }
-
-        let index = state.ensurePerson(named: name)
-        let already = state.people[index].facts.contains { $0.text == clean }
-        guard !already else { return }
-
-        state.people[index].facts.append(
-            PersonFact(id: UUID(), text: clean, sourceName: sourceName, createdAt: Date())
-        )
-        if state.people[index].facts.count > 60 {
-            state.people[index].facts.removeFirst(state.people[index].facts.count - 60)
-        }
-        save()
-    }
-
-    func appendMemorySummary(person name: String, text: String) {
-        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty else { return }
-        let index = state.ensurePerson(named: name)
-        let merged = state.people[index].summary.isEmpty
-            ? clean
-            : state.people[index].summary + "\n" + clean
-        state.people[index].summary = String(merged.suffix(1200))
-        save()
-    }
-
-    /// 删掉一条记错的事。
-    ///
-    /// 记忆页原本是完全只读的：手改会让记忆和实际发生过的事对不上。
-    /// 但「记错了」和「想加一句」不是一回事——记错的那条必须能去掉，
-    /// 否则之后每轮都会带着这个错，越聊越歪。
-    func deleteFact(person name: String, id: UUID) {
-        guard let index = state.people.firstIndex(where: { $0.name == name }) else { return }
-        state.people[index].facts.removeAll { $0.id == id }
-        save()
-    }
-
     // MARK: - 心声
 
     @discardableResult
@@ -557,6 +515,11 @@ final class WorldStore {
             phoneLines: phoneLines(for: owner),
             letterLines: letterLines(for: owner),
             listeningNow: listeningNow,
+            affinity: state.affinity[owner],
+            variables: state.variables
+                .sorted { $0.key < $1.key }
+                .prefix(12)
+                .map { (key: $0.key, value: $0.value) },
             now: now
         )
     }
@@ -585,5 +548,9 @@ struct WorldContext {
     var letterLines: [String] = []
     /// 这会儿真的在放的那首歌。暂停了不算——「在听」是个状态，不是历史。
     var listeningNow: Track?
+    /// 这个角色的好感度。nil 表示还没建立，提示词里就不写这一段。
+    var affinity: Int? = nil
+    /// 自由变量表，已经排好序。整张表进提示词。
+    var variables: [(key: String, value: String)] = []
     var now: Date
 }

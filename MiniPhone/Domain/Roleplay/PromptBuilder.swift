@@ -22,6 +22,15 @@ enum PromptBuilder {
     ) -> String {
         var blocks: [String] = []
 
+        // 设定先算出来：前置块要插在人设后面，位置定死在装配顺序里，不能算到一半再回头插。
+        let book = resolveWorldBook(
+            worldEntries,
+            character: character,
+            triggerText: triggerText,
+            worldContext: worldContext,
+            now: now
+        )
+
         // 身份
         blocks.append("你正在扮演一个角色和用户对话。你就是这个角色本人，不要跳出角色，不要提到自己是模型或程序。")
 
@@ -36,6 +45,15 @@ enum PromptBuilder {
         if !character.tags.isEmpty { profile.append("标签：" + character.tags.joined(separator: "、")) }
         if !profile.isEmpty {
             blocks.append("【你在主页上怎么写自己】\n" + profile.joined(separator: "\n"))
+        }
+
+        // 基本设定：放在人设之后。模型对开头最上心，世界观和身份在这里压住整段对话。
+        if !book.front.isEmpty {
+            blocks.append("""
+            【基本设定】
+            \(book.front.joined(separator: "\n"))
+            这些是不管聊什么都成立的事。不用等被问到才想起来，也不要照着复述。
+            """)
         }
 
         // 对方是谁。同一个人可以换身份来聊，角色得跟着换称呼和态度。
@@ -144,21 +162,14 @@ enum PromptBuilder {
             }
         }
 
-        // 设定集：常驻的那几条不看关键词，每轮都在。基本盘失忆是最伤的一类错——
-        // 聊到第五句才发现角色不知道你们住哪儿。
-        let constant = constantEntries(worldEntries, character: character)
-        if !constant.isEmpty {
+        // 设定集分两个位置。前置跟在人设后面——模型对越靠前的内容越上心，
+        // 世界观、身份这类绝不能搞错的事放这里；补充放尾部，不抢开头的注意力。
+        if !book.back.isEmpty {
             blocks.append("""
-            【基本设定】
-            \(constant.joined(separator: "\n"))
-            这些是不管聊什么都成立的事。不用等被问到才想起来，也不要照着复述。
+            【补充设定】
+            \(book.back.joined(separator: "\n"))
+            这些是补充细节。接得住就用，接不住不用硬塞。
             """)
-        }
-
-        // 设定集命中
-        let hits = matchedEntries(worldEntries, triggerText: triggerText, character: character)
-        if !hits.isEmpty {
-            blocks.append("【设定】\n" + hits.joined(separator: "\n"))
         }
 
         // 输出硬性约束
@@ -296,6 +307,22 @@ enum PromptBuilder {
             parts.append("【此刻的状态】\(mood.mood.label)，因为\(mood.reason)。状态有惯性，不要一句话就换一种。")
         }
 
+        // 关系刻度。只给语气，不给数字——写出 72 分，模型会开始表演「我们是 72 分的关系」。
+        if let affinity = context.affinity {
+            let stage = WorldStore.stage(of: affinity)
+            parts.append("""
+            【你们现在的关系】\(stage.label)
+            \(stage.line)
+            按这个分寸说话，不要提「好感度」这三个字，也不要拿它当话题。
+            """)
+        }
+
+        // 自由变量。整张表都进，因为它们被设计成「一句话说得完」。
+        if !context.variables.isEmpty {
+            let lines = context.variables.map { "- \($0.key)：\($0.value)" }
+            parts.append("【世界变量】\n" + lines.joined(separator: "\n"))
+        }
+
         // 你自己这几天的日子。这是角色自己的经历，不是用户转述的。
         // 没有这一块，角色永远只有「现在」，问昨天就只能编。
         if !context.days.isEmpty {
@@ -388,50 +415,30 @@ enum PromptBuilder {
         TimeFormat.dayLabel(key, today: today)
     }
 
-    /// 关键词命中的设定条目。全局条目 + 本角色条目都参与。
-    static func matchedEntries(
-        _ entries: [WorldEntry],
-        triggerText: String,
-        character: Companion
-    ) -> [String] {
-        guard !triggerText.isEmpty else { return [] }
-        let haystack = triggerText.lowercased()
-
-        return entries.compactMap { entry in
-            guard entry.enabled, !entry.alwaysOn else { return nil }
-            if let owner = entry.characterUID, owner != character.uid { return nil }
-            let keywords = entry.keywordList
-            guard !keywords.isEmpty else { return nil }
-            let hit = keywords.contains { haystack.contains($0.lowercased()) }
-            guard hit else { return nil }
-            let content = entry.content.trimmingCharacters(in: .whitespacesAndNewlines)
-            return content.isEmpty ? nil : content
-        }
-    }
-
-    /// 常驻条目：不看关键词，只在数量上收着。
+    /// 把设定集解析成两组文本。
     ///
-    /// 上限八条——再多就把对话本身挤下去了，而且模型会开始照着念设定。
-    /// 全局条目排在角色自己的前面：世界观先立住，细节再补。
-    static func constantEntries(_ entries: [WorldEntry], character: Companion) -> [String] {
-        let mine = entries
-            .filter { $0.enabled && $0.alwaysOn }
-            .filter { entry in
-                guard let owner = entry.characterUID else { return true }
-                return owner == character.uid
-            }
-            .sorted { lhs, rhs in
-                if (lhs.characterUID == nil) != (rhs.characterUID == nil) {
-                    return lhs.characterUID == nil
-                }
-                return lhs.createdAt < rhs.createdAt
-            }
-            .compactMap { entry -> String? in
-                let content = entry.content.trimmingCharacters(in: .whitespacesAndNewlines)
-                return content.isEmpty ? nil : content
-            }
-
-        return Array(mine.prefix(8))
+    /// 条件条目要看的是「现在是什么状态」，所以心情和地点从 `worldContext` 里取——
+    /// 那一份才是这一轮真正会写进提示词的值，另开一条路去读世界状态会和它对不上。
+    private static func resolveWorldBook(
+        _ entries: [WorldEntry],
+        character: Companion,
+        triggerText: String,
+        worldContext: WorldContext?,
+        now: Date
+    ) -> WorldBookResolver.Resolved {
+        let conditions = WorldBookResolver.Conditions.build(
+            hour: CharacterClock.calendar.component(.hour, from: now),
+            mood: worldContext?.mood?.mood,
+            location: worldContext?.location ?? "",
+            since: character.createdAt,
+            now: now
+        )
+        return WorldBookResolver.resolve(
+            entries: entries,
+            character: character,
+            triggerText: triggerText,
+            conditions: conditions
+        )
     }
 
     /// 动态墙那条状态的提示词。
