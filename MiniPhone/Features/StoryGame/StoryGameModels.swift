@@ -147,7 +147,8 @@ struct StorySession: Codable, Identifiable, Hashable {
 
 /// 存档读写。一局一个 JSON 文件，索引就是扫目录。
 enum StoryArchive {
-    private static var directory: URL {
+    // 备份要把 stories/ 整目录拷走，所以这里不能是 private。
+    static var directory: URL {
         let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let dir = base.appendingPathComponent("stories", isDirectory: true)
         if !FileManager.default.fileExists(atPath: dir.path) {
