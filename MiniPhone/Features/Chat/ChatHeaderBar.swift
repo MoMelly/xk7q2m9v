@@ -55,17 +55,19 @@ struct ChatHeaderBar: View {
 
             Spacer(minLength: 0)
 
-            // 真机的信息 App 右上角就是这个位置放通话入口。
-            // 点开是三项：语音、视频、通话记录——不再单独占一个桌面图标。
-            GlassMenuButton(symbol: "phone.fill") {
-                ChatCallMenuItems(
-                    onPhotos: onOpenPhotos,
-                    onCall: onCall,
-                    onHistory: onCallHistory,
-                    togetherTitle: togetherTitle,
-                    onTogether: onTogether,
-                    isGroup: character.isGroup
-                )
+            // 群不是能接电话的对象：通话项滤掉之后，这颗电话图标点开只剩
+            // 「发一张图」，图标和里面装的东西对不上。群聊整个撤掉这颗按钮，
+            // 发图挪到「…」里，输入栏的「+」也还有同一个入口。
+            if !character.isGroup {
+                GlassMenuButton(symbol: "phone.fill") {
+                    ChatCallMenuItems(
+                        onPhotos: onOpenPhotos,
+                        onCall: onCall,
+                        onHistory: onCallHistory,
+                        togetherTitle: togetherTitle,
+                        onTogether: onTogether
+                    )
+                }
             }
 
             // 右上角原来直接开详情。加了心声之后这一格装不下两个入口，
@@ -75,6 +77,14 @@ struct ChatHeaderBar: View {
                     onOpenDetail()
                 } label: {
                     Label("角色详情", systemImage: "person.text.rectangle")
+                }
+
+                if character.isGroup {
+                    Button {
+                        onOpenPhotos()
+                    } label: {
+                        Label("发一张图", systemImage: "photo.on.rectangle")
+                    }
                 }
 
                 // 心声挂在每个人名下，群名下没有。群聊里这一项点开恒为空。
@@ -95,13 +105,21 @@ struct ChatHeaderBar: View {
 
 /// 聊天页顶栏那行小字。
 enum ChatLabels {
-    /// 「自定义 · 在的」「群聊 · 睡了」
+    /// 「自定义 · 在的」「日常 · 群聊 · 2 人」。
+    /// 作息是「一个人」的状态，群没有在/睡；顶栏改成写群里的人数。
     static func subtitle(_ character: Companion, at date: Date) -> String {
         var parts: [String] = [character.preset.displayName]
         if character.isGroup {
             parts.append("群聊")
+            // 和详情页「群成员」用同一套分隔符。
+            let count = character.membersNote
+                .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" || $0 == "\n" })
+                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+                .count
+            if count > 0 { parts.append("\(count) 人") }
+        } else {
+            parts.append(CharacterClock.isAsleep(character, at: date) ? "睡了" : "在的")
         }
-        parts.append(CharacterClock.isAsleep(character, at: date) ? "睡了" : "在的")
         return parts.joined(separator: " · ")
     }
 }

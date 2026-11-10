@@ -242,7 +242,7 @@ struct CharacterDetailPage: View {
                 VStack(spacing: PhoneMetrics.Space.section) {
                     identityCard
 
-                    GroupedSection("TA 的", footer: infoFooter) {
+                    GroupedSection(character.isGroup ? "这个群" : "TA 的", footer: infoFooter) {
                         infoRows
                     }
 
