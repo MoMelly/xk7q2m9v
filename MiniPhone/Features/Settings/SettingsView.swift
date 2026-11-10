@@ -10,6 +10,9 @@ struct SettingsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    /// 截图：记忆库挂在设置里两级，冷启动点不到，按状态名直接推过去。
+    @State private var previewMemoryLibrary = false
+
     /// 行尾那行小字。UIKit 那头只有图标名，这里按调色板翻成中文。
     private var iconName: String {
         AppIconPalette.displayName(for: UIApplication.shared.alternateIconName)
@@ -204,6 +207,17 @@ struct SettingsView: View {
                 }
                 .padding(.top, PhoneMetrics.Space.s)
                 .padding(.bottom, PhoneMetrics.Space.xl)
+                .navigationDestination(isPresented: $previewMemoryLibrary) {
+                    MemoryLibraryPage()
+                }
+                .onAppear {
+                    // 截图流水线没有手势，记忆库挂在设置里两级，按状态名直接推过去。
+                    // 这里必须挂在栈内内容上：挂到 AppScreen 外面等于挂在
+                    // NavigationStack 之外，SwiftUI 不会接管。
+                    if UserDefaults.standard.string(forKey: "previewState") == "memoryLibrary" {
+                        previewMemoryLibrary = true
+                    }
+                }
             }
         }
     }

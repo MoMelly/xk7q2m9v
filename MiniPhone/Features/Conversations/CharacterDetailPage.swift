@@ -52,17 +52,32 @@ struct CharacterDetailPage: View {
         return open == total ? "全部 \(total) 个" : "\(open) / \(total)"
     }
 
-    /// 截图：直接落到看板那一层。看板藏在详情里两级，冷启动点不到。
-    private var showsBoardDirectly: Bool {
-        UserDefaults.standard.string(forKey: "previewState") == "board"
+    /// 截图：藏在详情里两三级的页面，冷启动点不到按钮，按状态名直接落到那一层。
+    ///
+    /// - `board`：看板
+    /// - `statePanel`：状态面板
+    /// - `anonBox`：匿名提问箱
+    ///
+    /// 正常启动读不到这个键，一条都不会命中。
+    private var previewLeaf: String? {
+        UserDefaults.standard.string(forKey: "previewState")
+    }
+
+    private var previewLeafPage: some View {
+        switch previewLeaf {
+        case "board":
+            AnyView(CharacterBoardPage(character: character, world: world))
+        case "statePanel":
+            AnyView(StatePanelPage(character: character, world: world))
+        case "anonBox":
+            AnyView(AnonymousBoxPage(character: character, world: world, settings: settings))
+        default:
+            AnyView(detailBody)
+        }
     }
 
     var body: some View {
-        if showsBoardDirectly {
-            CharacterBoardPage(character: character, world: world)
-        } else {
-            detailBody
-        }
+        previewLeafPage
     }
 
     /// 「TA 的」这一组。
@@ -370,6 +385,13 @@ struct CharacterDetailPage: View {
         }
         .sheet(isPresented: $showEditor) {
             CharacterEditorView(character: character, onFinish: { showEditor = false })
+        }
+        .onAppear {
+            // 截图：世界书列表藏在「详情 → 编辑器 → 世界书」三级深处，
+            // 按状态名逐层打开；编辑器那边再开最里面的 sheet。
+            if previewLeaf == "worldEntries" {
+                showEditor = true
+            }
         }
         .sheet(isPresented: $showPhone) {
             CharacterPhoneScene(

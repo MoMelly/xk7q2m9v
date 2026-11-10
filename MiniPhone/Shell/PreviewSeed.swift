@@ -281,9 +281,124 @@ struct PreviewSeeder {
         case "storyGame", "storyEnd", "storyPlay":
             seedStory()
 
+        case "statePanel", "anonBox", "memoryLibrary", "worldEntries":
+            seedWorldState()
+
         default:
             break
         }
+    }
+
+    /// 世界状态四屏（状态面板 / 提问箱 / 记忆库 / 世界书）的预置数据。
+    ///
+    /// 这四屏读的都是 `WorldState` 和世界书条目。不垫数据的话，
+    /// 每一张截出来都是同一个「还没有」，排版对不对根本看不出来。
+    private func seedWorldState() {
+        let character = ensureDemoCompanion()
+        let owner = character?.name ?? "沈砚"
+
+        // 人物记忆：一段摘要、三条事实、一条没解开的心事。
+        let memory = PersonMemory(
+            name: owner,
+            summary: "上周聊过加班的事，说到十一点才散。他不爱主动讲自己的事，但问起来会认真答。",
+            facts: [
+                PersonFact(
+                    id: UUID(),
+                    text: "在做一套要交三个月的图标稿",
+                    sourceName: owner,
+                    createdAt: Date().addingTimeInterval(-86_400 * 6)
+                ),
+                PersonFact(
+                    id: UUID(),
+                    text: "不吃香菜，点外卖会特意备注",
+                    sourceName: owner,
+                    createdAt: Date().addingTimeInterval(-86_400 * 4)
+                ),
+                PersonFact(
+                    id: UUID(),
+                    text: "周五晚上一般去江边跑步",
+                    sourceName: owner,
+                    createdAt: Date().addingTimeInterval(-86_400 * 2)
+                )
+            ],
+            voices: [
+                InnerVoiceEntry(
+                    id: UUID(),
+                    personName: owner,
+                    text: "其实那天想说的是，图可以慢慢改。",
+                    createdAt: Date().addingTimeInterval(-3_600),
+                    source: .chat,
+                    isResolved: false,
+                    resolvedAt: nil,
+                    lastReferencedAt: nil
+                )
+            ]
+        )
+        if let index = world.state.people.firstIndex(where: { $0.name == owner }) {
+            world.state.people[index] = memory
+        } else {
+            world.state.people.append(memory)
+        }
+        world.state.affinity[owner] = 62
+
+        // 提问箱：两条答过的、一条还没答的。
+        if world.state.questions.isEmpty {
+            world.state.questions = [
+                AnonymousQuestion(
+                    id: UUID(),
+                    characterName: owner,
+                    asker: "匿名 3 号",
+                    text: "你觉得自己是个容易开心的人吗？",
+                    answer: "算是吧。开心这种事，我一般后知后觉。",
+                    askedAt: Date().addingTimeInterval(-86_400 * 2),
+                    answeredAt: Date().addingTimeInterval(-86_400 * 2 + 3_600)
+                ),
+                AnonymousQuestion(
+                    id: UUID(),
+                    characterName: owner,
+                    asker: "匿名 7 号",
+                    text: "最近一次觉得「还好有他」是什么时候？",
+                    answer: "上次改图到半夜，回来看到灯还亮着。",
+                    askedAt: Date().addingTimeInterval(-86_400),
+                    answeredAt: Date().addingTimeInterval(-86_400 + 5_400)
+                ),
+                AnonymousQuestion(
+                    id: UUID(),
+                    characterName: owner,
+                    asker: "匿名 11 号",
+                    text: "有没有什么一直想做但没做的事？",
+                    answer: "",
+                    askedAt: Date().addingTimeInterval(-7_200),
+                    answeredAt: nil
+                )
+            ]
+        }
+        world.save()
+
+        // 世界书：一条常驻的全局，一条挂在这个角色名下的关键词条目。
+        let existing = (try? context.fetch(FetchDescriptor<WorldEntry>())) ?? []
+        guard existing.isEmpty else { return }
+        context.insert(
+            WorldEntry(
+                characterUID: nil,
+                keywords: "",
+                content: "这个世界的手机网络稳定，外送和打车都方便，晚上十一点后街上有保安巡逻。",
+                kind: .constant
+            )
+        )
+        if let character {
+            context.insert(
+                WorldEntry(
+                    characterUID: character.uid,
+                    keywords: "改图,加班,稿子",
+                    content: "他在赶一套图标稿，截稿日在下个月三号。聊到工作时容易烦躁，聊别的会放松下来。",
+                    kind: .keyword,
+                    priority: 7,
+                    position: .front
+                )
+            )
+        }
+        try? context.save()
     }
 
     /// 两局文游。

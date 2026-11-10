@@ -117,6 +117,10 @@ struct CharacterEditorView: View {
                 if UserDefaults.standard.string(forKey: "previewState") == "avatarPicker" {
                     showAvatarPicker = true
                 }
+                // 世界书列表同理：它是编辑器里的一张 sheet。
+                if UserDefaults.standard.string(forKey: "previewState") == "worldEntries" {
+                    showWorldEntries = true
+                }
             }
         }
     }

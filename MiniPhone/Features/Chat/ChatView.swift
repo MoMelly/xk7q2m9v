@@ -143,9 +143,10 @@ struct ChatView: View {
             case "chatPhoto":
                 showPhotos = true
                 isComposerActive = true
-            case "charDetail", "board":
-                // board 是再往下压一层的看板，截图流水线没有手势可用，
-                // 先把详情页打开，由它自己决定要不要直接落到看板。
+            case "charDetail", "board", "statePanel", "anonBox", "worldEntries":
+                // board / statePanel / anonBox 是再往下压一层的页面，截图流水线
+                // 没有手势可用，先把详情页打开，由它自己决定要不要直接落到那一层。
+                // worldEntries 再深一级：详情 → 编辑器 → 世界书列表，逐层自己开。
                 showDetail = true
             case "call":
                 callKind = .voice
