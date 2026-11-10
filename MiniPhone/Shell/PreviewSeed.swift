@@ -341,6 +341,16 @@ struct PreviewSeeder {
         }
         world.state.affinity[owner] = 62
 
+        // 状态面板的「此刻」和「在哪」。空着的话那两行永远是「没写过」，
+        // 看不出真实数据下这层是什么样。
+        world.state.moods[owner] = MoodState(
+            mood: .tired,
+            reason: "赶了两天的图，眼睛有点干",
+            updatedAt: Date(),
+            source: .chat
+        )
+        world.state.locations[owner] = "工作室"
+
         // 提问箱：两条答过的、一条还没答的。
         if world.state.questions.isEmpty {
             world.state.questions = [

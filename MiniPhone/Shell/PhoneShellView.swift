@@ -68,7 +68,7 @@ struct PhoneShellView: View {
         switch previewState {
         case "chat": destination = .chat
         case "moments": destination = .moments
-        case "settings", "theme": destination = .settings
+        case "settings", "theme", "memoryLibrary": destination = .settings
         case "calendar": destination = .scene(.calendar)
         case "notes": destination = .scene(.notes)
         case "music", "musicBall", "musicLyrics": destination = .scene(.music)
@@ -362,7 +362,14 @@ struct PhoneShellView: View {
     private func appLayer(_ app: PhoneApp) -> some View {
         switch app.destination {
         case .chat:
-            if Self.opensChatDirectly, let character = companions.first {
+            // 截图直开时挑「最近说过话的那个人」，和主屏组件、查手机用的是
+            // 同一条规则。不能取列表第一个：内置小助手最先建、sortIndex 又靠前，
+            // 取 first 会让所有预览（状态面板、提问箱、详情）都落到它头上，
+            // 预置在世界状态里的数据全挂在那个人身上，一幅都对不上。
+            if Self.opensChatDirectly,
+               let character = companions.max(by: {
+                   ($0.lastMessageAt ?? .distantPast) < ($1.lastMessageAt ?? .distantPast)
+               }) {
                 ChatView(character: character, settings: settings, onExit: closeApp)
             } else {
                 ConversationListView(settings: settings, onExit: closeApp)

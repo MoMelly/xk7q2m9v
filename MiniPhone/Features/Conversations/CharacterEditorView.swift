@@ -118,8 +118,15 @@ struct CharacterEditorView: View {
                     showAvatarPicker = true
                 }
                 // 世界书列表同理：它是编辑器里的一张 sheet。
+                //
+                // 不能在 onAppear 里直接弹：编辑器自己也是刚被弹出来的 sheet，
+                // 还没完成呈现时再弹一层会被 SwiftUI 静默吞掉（实测截图里
+                // 停在编辑器那一层）。等呈现稳定后再弹。
                 if UserDefaults.standard.string(forKey: "previewState") == "worldEntries" {
-                    showWorldEntries = true
+                    Task {
+                        try? await Task.sleep(nanoseconds: 600_000_000)
+                        showWorldEntries = true
+                    }
                 }
             }
         }
