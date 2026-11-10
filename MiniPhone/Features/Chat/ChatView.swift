@@ -377,7 +377,10 @@ struct ChatView: View {
 
     /// 双击头像拍的这一下。抖动一下再把那条事件落库，
     /// 手感是「拍到了」，而不是「界面闪了一下」。
+    ///
+    /// 群不响应：拍的是「这个人」，群没有后缀也没有「被拍到」的体感。
     private func pat() {
+        guard !character.isGroup else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let myName = profiles.first(where: { $0.isDefault })?.name
             ?? profiles.first?.name

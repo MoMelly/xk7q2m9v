@@ -17,7 +17,11 @@ enum CharacterClock {
     ///
     /// 区间是 `[sleepHour, 24) ∪ [0, wakeHour)`，所以 23 点睡、7 点起
     /// 和 1 点睡、9 点起都能用同一个判断，不需要为跨零点写特殊分支。
+    ///
+    /// 群永远醒着：群里总有成员在线，给群排作息没有对应的体感，
+    /// 列表里一个「睡了」的群也不知道该等谁醒。
     static func isAsleep(_ character: Companion, at now: Date = Date()) -> Bool {
+        guard !character.isGroup else { return false }
         let hour = calendar.component(.hour, from: now)
         let sleep = max(0, min(23, character.sleepHour))
         let wake = max(0, min(23, character.wakeHour))
@@ -44,10 +48,13 @@ enum CharacterClock {
         var lines: [String] = []
         lines.append("现在是\(fullDescription(now))。")
 
-        if isAsleep(character, at: now) {
-            lines.append("这个点你已经睡了（你通常 \(character.sleepHour) 点睡、\(character.wakeHour) 点起）。你还醒着是因为对方把你吵醒了，回复要带着刚被叫醒的迟钝和困意，句子短，别说太长。")
-        } else {
-            lines.append("这个点你是醒着的（你通常 \(character.sleepHour) 点睡、\(character.wakeHour) 点起）。")
+        // 群没有生物钟：不写睡/醒那两行，深夜的群照常有人说话。
+        if !character.isGroup {
+            if isAsleep(character, at: now) {
+                lines.append("这个点你已经睡了（你通常 \(character.sleepHour) 点睡、\(character.wakeHour) 点起）。你还醒着是因为对方把你吵醒了，回复要带着刚被叫醒的迟钝和困意，句子短，别说太长。")
+            } else {
+                lines.append("这个点你是醒着的（你通常 \(character.sleepHour) 点睡、\(character.wakeHour) 点起）。")
+            }
         }
 
         if let last = lastMessageAt {
