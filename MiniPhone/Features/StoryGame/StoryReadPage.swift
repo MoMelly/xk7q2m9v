@@ -57,8 +57,12 @@ struct StoryReadPage: View {
                             streamingLine
                         }
 
-                        if session.isEnded, let notice = endedNotice {
-                            endedBanner(notice)
+                        if session.isEnded {
+                            endedBanner(
+                                endedNotice
+                                    ?? session.endingLabel.map { "结局 · \($0)" }
+                                    ?? "故事到此"
+                            )
                         }
 
                         Color.clear.frame(height: 1).id("bottom")
@@ -182,26 +186,17 @@ struct StoryReadPage: View {
         }
     }
 
-    /// 旁白。首字下沉，其余用衬线正文。
+    /// 旁白。首行缩进两格，段落之间留白。
     ///
-    /// 首字是标点的时候不下沉——「“」放大到两行高只会变成一个黑洞。
+    /// 一开始做的是首字下沉，试过之后不行：中文字身方正，一个字放大到两行高
+    /// 会把第一行挤得只剩它自己，后面跟着的半个句子悬在右下角，读起来像断句。
+    /// 中文书本来就是「首行缩进两格」，照着来更稳。
     private func narration(_ text: String) -> some View {
-        Group {
-            if let first = text.first, !Self.leadPunctuation.contains(first) {
-                (Text(String(first))
-                    .font(Theme.serif(30, weight: .semibold))
-                    .foregroundColor(Theme.StoryPaper.vermilion.opacity(0.9))
-                    + Text(String(text.dropFirst()))
-                    .font(Theme.serif(15.5))
-                    .foregroundColor(Theme.StoryPaper.ink))
-            } else {
-                Text(text)
-                    .font(Theme.serif(15.5))
-                    .foregroundColor(Theme.StoryPaper.ink)
-            }
-        }
-        .lineSpacing(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        Text(Self.indented(text))
+            .font(Theme.serif(15.5))
+            .foregroundStyle(Theme.StoryPaper.ink)
+            .lineSpacing(8)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// 角色说的话。名字一行小字，台词包在「」里加重。
@@ -211,9 +206,9 @@ struct StoryReadPage: View {
         VStack(alignment: .leading, spacing: 5) {
             if let speaker, !speaker.isEmpty {
                 Text(speaker)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 10.5, weight: .semibold))
                     .kerning(1.4)
-                    .foregroundStyle(Theme.StoryPaper.vermilion)
+                    .foregroundStyle(Theme.StoryPaper.vermilion.opacity(0.9))
             }
 
             Text(Self.quoted(text))
@@ -228,10 +223,10 @@ struct StoryReadPage: View {
 
     /// 玩家自己的话。左边一道朱红细线就够，不用再标「我」。
     private func playerLine(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 10) {
+        HStack(alignment: .top, spacing: 11) {
             Rectangle()
-                .fill(Theme.StoryPaper.vermilion.opacity(0.45))
-                .frame(width: 2)
+                .fill(Theme.StoryPaper.vermilion.opacity(0.62))
+                .frame(width: 2.5)
                 .clipShape(Capsule())
 
             Text(Self.quoted(text))
@@ -241,7 +236,7 @@ struct StoryReadPage: View {
                 .fixedSize(horizontal: false, vertical: true)
         }
         .fixedSize(horizontal: false, vertical: true)
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
     }
 
     private var streamingLine: some View {
@@ -381,8 +376,14 @@ struct StoryReadPage: View {
 
     // MARK: - 文本处理
 
-    /// 会被放大成首字的标点。这些字下沉只会变成一个孤立的大号符号。
-    private static let leadPunctuation = Set<Character>("「」『』“‘（(【[《<—-…·")
+    /// 首行缩进两格。用全角空格，不用 padding——
+    /// 缩进只该在第一行，折行之后还是得顶格。
+    private static func indented(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return trimmed }
+        if trimmed.hasPrefix("　") { return trimmed }
+        return "　　" + trimmed
+    }
 
     /// 给台词套上「」。已经套过的不重复套。
     private static func quoted(_ text: String) -> String {
@@ -407,11 +408,11 @@ private struct StoryPaperBackdrop: View {
             RadialGradient(
                 gradient: Gradient(colors: [
                     Color.clear,
-                    Theme.StoryPaper.edge.opacity(0.55)
+                    Theme.StoryPaper.edge.opacity(0.38)
                 ]),
                 center: .center,
-                startRadius: 170,
-                endRadius: 560
+                startRadius: 200,
+                endRadius: 600
             )
 
             Canvas { context, size in

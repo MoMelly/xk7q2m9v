@@ -278,7 +278,7 @@ struct PreviewSeeder {
         case "feedInbox", "feedChat", "feedShare", "feedCard":
             seedInbox()
 
-        case "storyGame", "storyEnd":
+        case "storyGame", "storyEnd", "storyPlay":
             seedStory()
 
         default:
@@ -286,10 +286,11 @@ struct PreviewSeeder {
         }
     }
 
-    /// 一局已经走完的文游。
+    /// 两局文游。
     ///
-    /// `storyGame` 只看存档列表，`storyEnd` 会直接进阅读页——
-    /// 那边只有「已经结束」的档才显示结局名，所以两种状态共用同一份数据。
+    /// `storyGame` 只看存档列表，`storyEnd` 进一局已结束的（看结局那一行），
+    /// `storyPlay` 进一局进行中的（看选项和输入条）。两种状态共用同一份存档，
+    /// 靠 `isEnded` 区分——不这样的话，验收时只能看到其中一半的界面。
     private func seedStory() {
         guard StoryArchive.loadAll().isEmpty else { return }
 
@@ -316,6 +317,29 @@ struct PreviewSeeder {
         story.createdAt = Date().addingTimeInterval(-5_400)
         story.updatedAt = Date().addingTimeInterval(-600)
         StoryArchive.save(story)
+
+        // 进行中的那一局。这一份才看得到选项按钮和底部输入条。
+        var playing = StorySession(
+            title: "未寄出的信",
+            premise: "抽屉最底下压着一封没寄出去的信，收信人明天就搬走了。",
+            characterUIDs: [],
+            characterNames: ["柏川", "阿岚"],
+            playerName: "我"
+        )
+        playing.lines = [
+            StoryLine(speaker: nil, text: "傍晚的光斜进来，把书桌切成两半。他把抽屉拉开，又停住了。", isNarration: true),
+            StoryLine(speaker: "柏川", text: "你站在门口多久了。", isNarration: false),
+            StoryLine(speaker: "我", text: "有一会儿了。那是什么？", isNarration: false),
+            StoryLine(speaker: "柏川", text: "没什么。写坏了的。", isNarration: false),
+            StoryLine(speaker: "阿岚", text: "写坏了还压在抽屉最底下？", isNarration: false),
+            StoryLine(speaker: nil, text: "他没接话，把抽屉推回去一半，停在那里。", isNarration: true)
+        ]
+        playing.summary = "三个人围着一封没寄出去的信，谁都没把话说完。"
+        playing.choices = ["问那封信是写给谁的", "替他把抽屉关上"]
+        playing.branchScore = StorySession.score(playing.choices ?? [])
+        playing.createdAt = Date().addingTimeInterval(-3_600)
+        playing.updatedAt = Date().addingTimeInterval(-120)
+        StoryArchive.save(playing)
     }
 
     /// 私信/转帖的演示数据：角色、两类来件、活动索引、开场白消息一次配齐。

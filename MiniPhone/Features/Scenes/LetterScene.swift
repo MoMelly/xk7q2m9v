@@ -46,18 +46,15 @@ struct LetterScene: View {
     }
 
     var body: some View {
-        AppScreen(title: "信件", surface: .light, onClose: onClose) {
+        AppScreen(title: "信件", surface: .paper, onClose: onClose) {
             VStack(spacing: 0) {
-                SegmentedTabs(items: Filter.allCases, title: { $0.title }, selection: $filter)
-                    .padding(.horizontal, PhoneMetrics.Space.m)
-                    .padding(.top, PhoneMetrics.Space.xs)
-                    .padding(.bottom, PhoneMetrics.Space.s)
+                filterBar
 
                 if letters.isEmpty {
                     emptyState
                 } else {
                     ScrollView {
-                        VStack(spacing: 0) {
+                        LazyVStack(spacing: 10) {
                             ForEach(letters) { letter in
                                 HStack(spacing: 0) {
                                     NavigationLink {
@@ -69,16 +66,58 @@ struct LetterScene: View {
 
                                     starButton(letter)
                                 }
-
-                                RowDivider()
+                                .background(
+                                    RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                                        .fill(Theme.StoryPaper.card)
+                                )
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                                        .strokeBorder(Theme.StoryPaper.rule.opacity(0.7), lineWidth: 0.8)
+                                }
                             }
                         }
-                        .background(AppSurface.light.rowSurface)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 26)
                     }
                 }
             }
         }
         .onAppear { seedTrialLetterIfNeeded() }
+    }
+
+    /// 三档筛选画成书页页边的下划线，不用分段控件。
+    ///
+    /// 分段控件是一整块灰底滑块，压在纸上会像贴了一张便签纸；
+    /// 一条细下划线更接近目录的写法，也不用额外解释哪一档被选中了。
+    private var filterBar: some View {
+        HStack(spacing: 20) {
+            ForEach(Filter.allCases) { item in
+                Button {
+                    withAnimation(.easeOut(duration: 0.16)) { filter = item }
+                } label: {
+                    VStack(spacing: 5) {
+                        Text(item.title)
+                            .font(Theme.serif(14, weight: filter == item ? .semibold : .regular))
+                            .foregroundStyle(
+                                filter == item
+                                    ? Theme.StoryPaper.ink
+                                    : Theme.StoryPaper.inkSoft.opacity(0.85)
+                            )
+
+                        Rectangle()
+                            .fill(filter == item ? Theme.StoryPaper.vermilion : Color.clear)
+                            .frame(height: 1.5)
+                    }
+                    .fixedSize()
+                }
+                .buttonStyle(.plain)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
+        .padding(.bottom, 12)
     }
 
     /// 首次进信件页给一封小助手的信：先让她看到信长什么样、能读能收，
@@ -113,9 +152,13 @@ struct LetterScene: View {
             }
         } label: {
             Image(systemName: letter.isFavorite ? "star.fill" : "star")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(letter.isFavorite ? Theme.warning : AppSurface.light.secondaryLabel.opacity(0.55))
-                .frame(width: 44, height: 44)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(
+                    letter.isFavorite
+                        ? Theme.StoryPaper.vermilion
+                        : Theme.StoryPaper.inkSoft.opacity(0.4)
+                )
+                .frame(width: 40, height: 44)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -123,72 +166,75 @@ struct LetterScene: View {
     }
 
     private func row(_ letter: Letter) -> some View {
-        HStack(alignment: .top, spacing: PhoneMetrics.Space.s) {
+        HStack(alignment: .top, spacing: 11) {
+            // 一枚小小的朱红印章，替掉原来的圆形头像块。
+            // 信上本来不该有头像——那是聊天列表的写法。
             ZStack {
                 Circle()
-                    .fill(Theme.Watermelon.pith)
+                    .strokeBorder(Theme.StoryPaper.vermilion.opacity(0.45), lineWidth: 0.9)
                 Text(String(letter.fromName.prefix(1)))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Theme.deepGreen)
+                    .font(Theme.serif(13, weight: .semibold))
+                    .foregroundStyle(Theme.StoryPaper.vermilion)
             }
-            .frame(width: 32, height: 32)
+            .frame(width: 30, height: 30)
 
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: PhoneMetrics.Space.xxs) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 5) {
                     Text(letter.fromName)
-                        .font(.system(
-                            size: PhoneMetrics.FontSize.footnote,
-                            weight: letter.isRead ? .regular : .semibold
-                        ))
-                        .foregroundStyle(AppSurface.light.label)
+                        .font(Theme.serif(12, weight: letter.isRead ? .regular : .semibold))
+                        .foregroundStyle(Theme.StoryPaper.inkSoft)
                         .lineLimit(1)
 
                     if !letter.isRead {
                         Circle()
-                            .fill(Theme.brand)
-                            .frame(width: 6, height: 6)
+                            .fill(Theme.StoryPaper.vermilion)
+                            .frame(width: 5, height: 5)
                     }
 
                     Spacer(minLength: 0)
 
                     Text(TimeFormat.callTime(letter.createdAt))
-                        .font(.system(size: PhoneMetrics.FontSize.caption))
-                        .foregroundStyle(AppSurface.light.secondaryLabel)
+                        .font(.system(size: 10))
+                        .foregroundStyle(Theme.StoryPaper.inkSoft.opacity(0.7))
                 }
 
                 Text(letter.title)
-                    .font(.system(size: PhoneMetrics.FontSize.body, weight: letter.isRead ? .regular : .semibold))
-                    .foregroundStyle(AppSurface.light.label)
+                    .font(Theme.serif(15, weight: letter.isRead ? .regular : .semibold))
+                    .foregroundStyle(Theme.StoryPaper.ink)
                     .lineLimit(1)
 
                 Text(letter.body.replacingOccurrences(of: "\n", with: " "))
-                    .font(.system(size: PhoneMetrics.FontSize.caption))
-                    .foregroundStyle(AppSurface.light.secondaryLabel)
+                    .font(Theme.serif(11.5))
+                    .foregroundStyle(Theme.StoryPaper.inkSoft)
                     .lineLimit(2)
+                    .lineSpacing(3)
             }
         }
-        .padding(.leading, PhoneMetrics.Space.m)
-        .padding(.trailing, PhoneMetrics.Space.xxs)
-        .padding(.vertical, PhoneMetrics.Space.s)
+        .padding(.leading, 14)
+        .padding(.trailing, 4)
+        .padding(.vertical, 12)
         .frame(minHeight: PhoneMetrics.Row.detailed)
         .contentShape(Rectangle())
     }
 
     @ViewBuilder
     private var emptyState: some View {
-        VStack(spacing: PhoneMetrics.Space.xs) {
-            Image(systemName: filter == .favorite ? "star" : "envelope.open")
-                .font(.system(size: 30, weight: .light))
+        VStack(spacing: 10) {
+            Text("❖")
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.StoryPaper.vermilion.opacity(0.5))
 
             Text(emptyTitle)
-                .font(.system(size: PhoneMetrics.FontSize.sub))
+                .font(Theme.serif(15, weight: .medium))
+                .foregroundStyle(Theme.StoryPaper.ink)
 
             Text(emptyHint)
-                .font(.system(size: PhoneMetrics.FontSize.caption))
+                .font(Theme.serif(11.5))
+                .foregroundStyle(Theme.StoryPaper.inkSoft)
                 .multilineTextAlignment(.center)
+                .lineSpacing(3)
                 .padding(.horizontal, PhoneMetrics.Space.xl)
         }
-        .foregroundStyle(AppSurface.light.secondaryLabel)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -214,7 +260,8 @@ struct LetterScene: View {
 
 /// 读一封信。
 ///
-/// 不用白卡套正文：信就该像纸，用米色底 + 衬线字，落款靠右。
+/// 整页就是一张纸，不再往灰底上摆一张米色卡——
+/// 灰底上的米色卡看着像「一张便签贴在墙上」，而这里要的是「摊开一封信」。
 struct LetterReaderPage: View {
     let letter: Letter
     let world: WorldStore
@@ -225,34 +272,21 @@ struct LetterReaderPage: View {
     }
 
     var body: some View {
-        AppPage(title: current.title, surface: .light) {
+        AppPage(title: current.title, surface: .paper) {
             ScrollView {
-                VStack(alignment: .leading, spacing: PhoneMetrics.Space.m) {
-                    HStack(spacing: PhoneMetrics.Space.xs) {
-                        Text("来自 \(current.fromName)")
-                            .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .medium))
-                            .foregroundStyle(AppSurface.light.secondaryLabel)
-
-                        Spacer(minLength: 0)
-
-                        Text(TimeFormat.monthDayTime(current.createdAt))
-                            .font(.system(size: PhoneMetrics.FontSize.caption))
-                            .foregroundStyle(AppSurface.light.secondaryLabel)
-                    }
+                VStack(alignment: .leading, spacing: 18) {
+                    head
 
                     Text(current.body)
-                        .font(.system(size: 16, design: .serif))
-                        .foregroundStyle(AppSurface.light.label)
-                        .lineSpacing(8)
+                        .font(Theme.serif(15.5))
+                        .foregroundStyle(Theme.StoryPaper.ink)
+                        .lineSpacing(9)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(PhoneMetrics.Space.l)
+                .padding(.horizontal, 26)
+                .padding(.top, 20)
+                .padding(.bottom, 48)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Theme.cream)
-                .clipShape(
-                    RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                )
-                .padding(PhoneMetrics.Space.m)
             }
         }
         .toolbar {
@@ -261,11 +295,40 @@ struct LetterReaderPage: View {
                     world.toggleLetterFavorite(current.id)
                 } label: {
                     Image(systemName: current.isFavorite ? "star.fill" : "star")
-                        .foregroundStyle(current.isFavorite ? Theme.warning : Theme.secondaryLabel)
+                        .foregroundStyle(
+                            current.isFavorite
+                                ? Theme.StoryPaper.vermilion
+                                : Theme.StoryPaper.inkSoft.opacity(0.6)
+                        )
                 }
                 .accessibilityLabel(current.isFavorite ? "取消收藏" : "收藏")
             }
         }
         .onAppear { world.markLetterRead(letter.id) }
+    }
+
+    /// 抬头：谁写来的、什么时候写的，下面压一条细线。
+    private var head: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("来自 \(current.fromName)")
+                .font(.system(size: 10, weight: .medium))
+                .kerning(1.5)
+                .foregroundStyle(Theme.StoryPaper.vermilion)
+
+            Text(TimeFormat.monthDayTime(current.createdAt))
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.StoryPaper.inkSoft.opacity(0.75))
+
+            LinearGradient(
+                colors: [
+                    Theme.StoryPaper.rule.opacity(0.9),
+                    Theme.StoryPaper.rule.opacity(0)
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(height: 0.8)
+            .padding(.top, 7)
+        }
     }
 }

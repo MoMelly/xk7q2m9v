@@ -57,40 +57,46 @@ extension WorldStore {
 
         // 每个人的记忆拼成一段。
         //
-        // 群聊和单聊读的东西**不一样**，这一点很要紧：
-        // 单聊时读他自己全部的记忆（一对一那份 + 各群里那份）；
-        // 群聊时只读「这个群共同的记载」和「各人在这个群里做过什么」，
-        // 不能把谁跟用户私聊过的内容摊到群里——那会变成当众念别人的私信。
+        // 群聊和单聊读的东西不完全一样：
+        // 单聊读他自己全部的记忆（一对一那份 + 各群里那份）；
+        // 群聊里每个人也读自己那份——他当然记得跟用户私下说过什么，
+        // 不给的话，群里聊天会像刚认识。但绝不能拿别人的记忆去说别人的事，
+        // 这条约束在提示词里交代（见 `PromptBuilder` 的「共同记得的事」）。
         let summaries = people.compactMap { person -> String? in
-            if isGroupChat {
-                if person.name == owner {
-                    let base = person.summary.trimmingCharacters(in: .whitespacesAndNewlines)
-                    return base.isEmpty ? nil : "群里的记载：\n\(base)"
-                }
-                guard let note = person.groupNotes[owner], !note.isEmpty else { return nil }
-                return "\(person.name)在群里：\n\(note)"
-            }
+            // 群自己的记录已经在下面 `groupDigests` 里单独列了。
+            if isGroupChat, person.name == owner { return nil }
 
             var parts: [String] = []
             let base = person.summary.trimmingCharacters(in: .whitespacesAndNewlines)
             if !base.isEmpty { parts.append(base) }
-            for group in person.groupNotes.keys.sorted() {
+
+            let scopes = isGroupChat ? [owner] : person.groupNotes.keys.sorted()
+            for group in scopes {
                 guard let note = person.groupNotes[group], !note.isEmpty else { continue }
-                parts.append("在「\(group)」群里：\(note)")
+                parts.append(isGroupChat ? "在群里：\(note)" : "在「\(group)」群里：\(note)")
             }
+
             guard !parts.isEmpty else { return nil }
-            return "\(person.name)：\n" + parts.joined(separator: "\n")
+            let head = isGroupChat ? "\(person.name)记得的" : person.name
+            return "\(head)：\n" + parts.joined(separator: "\n")
         }
 
-        // 群里大家共同的那一段也要读。各人那份只记了他自己的视角，
-        // 「群里到底发生了什么事」在群名下那一条里。
+        // 群里的记录。
         //
-        // 截到 400 字：一个群上千字的摘要塞进一对一，会把当前对话挤没；
-        // 他要的只是「知道有这么回事」的分寸。
-        let groupDigests = isGroupChat ? [] : groupPeople.compactMap { group -> String? in
-            let base = group.summary.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !base.isEmpty else { return nil }
-            return "「\(group.name)」这个群里：\n" + String(base.prefix(400))
+        // 群聊时就是群名下那一条——那是「这个群里大家共同的事」；
+        // 单聊时是每个群各自那一条，截到 400 字：一个群上千字的摘要塞进一对一，
+        // 会把当前对话挤没，他要的只是「知道有这么回事」的分寸。
+        let groupDigests: [String]
+        if isGroupChat {
+            let base = state.people.first { $0.name == owner }?.summary
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            groupDigests = base.isEmpty ? [] : ["你们这个群共同的事：\n\(base)"]
+        } else {
+            groupDigests = groupPeople.compactMap { group -> String? in
+                let base = group.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !base.isEmpty else { return nil }
+                return "「\(group.name)」这个群里：\n" + String(base.prefix(400))
+            }
         }
 
         let mergedSummaries = summaries + groupDigests

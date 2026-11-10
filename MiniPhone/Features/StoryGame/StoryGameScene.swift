@@ -33,11 +33,18 @@ struct StoryGameScene: View {
             }
         }
         .onAppear {
-            // 截图：`storyEnd` 直接进阅读页，拍「结局 · xxx」那一行。
-            // 正常启动读不到这个键；存档列表点进去也是同一条路。
-            guard UserDefaults.standard.string(forKey: "previewState") == "storyEnd",
-                  viewModel.session == nil,
-                  let archived = StoryArchive.loadAll().first else { return }
+            // 截图：`storyEnd` 进一局已结束的，拍「结局 · xxx」那一行；
+            // `storyPlay` 进一局进行中的，拍选项和输入条。
+            // 正常启动读不到这两个键；存档列表点进去也是同一条路。
+            let state = UserDefaults.standard.string(forKey: "previewState")
+            guard state == "storyEnd" || state == "storyPlay",
+                  viewModel.session == nil else { return }
+
+            let pool = StoryArchive.loadAll()
+            let target = state == "storyEnd"
+                ? pool.first { $0.isEnded }
+                : pool.first { !$0.isEnded }
+            guard let archived = target else { return }
             viewModel.session = archived
         }
     }

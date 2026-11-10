@@ -23,8 +23,28 @@ enum ReplyParser {
         return false
     }
 
+    /// 剥掉最外层那对括号。
+    ///
+    /// 提示词里让模型用括号写旁白，是为了让它自己分得清「这是在叙事」；
+    /// 落到界面上那对括号就是多余的了——正文直接用衬线斜体排，
+    /// 再套一层括号会读成「有人在念括号」。
+    static func stripBrackets(_ text: String) -> String {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return trimmed }
+        let pairs: [(Swift.Character, Swift.Character)] = [("（", "）"), ("(", ")"), ("【", "】")]
+        for (open, close) in pairs where trimmed.first == open && trimmed.last == close {
+            return String(trimmed.dropFirst().dropLast())
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return trimmed
+    }
+
     /// 群聊：按行拆，每行尝试解析「名字：内容」。
     /// 认不出发言人的行并入上一条，避免模型偶尔漏写名字就丢内容。
+    ///
+    /// 整行被括号包住的是旁白。这一条以前漏了：`splitSpeaker` 拆不出名字时
+    /// 一律当成「没署名的台词」，于是文游里每一段场景描写都被包上「」当对话显示，
+    /// 读起来像有人在念括号。
     static func parseGroup(_ raw: String) -> [Line] {
         let rawLines = raw
             .replacingOccurrences(of: "\r", with: "")
@@ -37,6 +57,8 @@ enum ReplyParser {
         for line in rawLines {
             if let split = splitSpeaker(line) {
                 result.append(Line(speaker: split.speaker, text: split.text, isNarration: false))
+            } else if isNarration(line) {
+                result.append(Line(speaker: nil, text: stripBrackets(line), isNarration: true))
             } else if var last = result.last {
                 last = Line(speaker: last.speaker, text: last.text + "\n" + line, isNarration: last.isNarration)
                 result[result.count - 1] = last
@@ -52,7 +74,10 @@ enum ReplyParser {
     static func parseSingle(_ raw: String) -> [Line] {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
-        return [Line(speaker: nil, text: trimmed, isNarration: isNarration(trimmed))]
+        if isNarration(trimmed) {
+            return [Line(speaker: nil, text: stripBrackets(trimmed), isNarration: true)]
+        }
+        return [Line(speaker: nil, text: trimmed, isNarration: false)]
     }
 
     /// 「名字：内容」，名字最多 12 个字符，且不能含标点，防止把「他说：」误判成发言人。

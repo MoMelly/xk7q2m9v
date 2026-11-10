@@ -213,10 +213,11 @@ enum Theme {
     /// 配色全部偏暖、压暗：纸不能太白（白纸在手机上像空白页），
     /// 朱红不能太鲜（鲜红是警告色，这里是印章和花枝的颜色）。
     enum StoryPaper {
-        /// 纸面。比纯白黄一档，接近宣纸。
-        static let paper = Color(red: 0.949, green: 0.922, blue: 0.867)
+        /// 纸面。比纯白黄一档，接近宣纸。压得太暗会显脏，
+        /// 手机上整页偏灰会像「没加载出来」。
+        static let paper = Color(red: 0.965, green: 0.943, blue: 0.898)
         /// 纸的边角。往四周压暗用的。
-        static let edge = Color(red: 0.867, green: 0.820, blue: 0.741)
+        static let edge = Color(red: 0.898, green: 0.855, blue: 0.784)
         /// 正文墨色。不用纯黑，纯黑在暖底上会显脏。
         static let ink = Color(red: 0.176, green: 0.145, blue: 0.125)
         /// 旁白和说明。比正文浅一档，但不能像占位符那么淡。

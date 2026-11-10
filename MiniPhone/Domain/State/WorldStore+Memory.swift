@@ -54,7 +54,8 @@ extension WorldStore {
     /// 已经退群的人继续收到群记忆。
     func syncGroup(named group: String, members: [String]) {
         guard !group.isEmpty else { return }
-        let roster = Array(Set(members.filter { !$0.isEmpty })).sorted()
+        // 群名本身不算成员：它在单聊里会被当成一个人去查，查到的却是群。
+        let roster = Array(Set(members.filter { !$0.isEmpty && $0 != group })).sorted()
         guard !roster.isEmpty, state.groups[group] != roster else { return }
         state.groups[group] = roster
         save()
