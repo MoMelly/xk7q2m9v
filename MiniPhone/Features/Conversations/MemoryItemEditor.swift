@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 改一条记忆。
 ///
-/// 四种条目共用这一张表：能改的就只有文字，加上心事专用的「放下 / 捡起」。
+/// 五种条目共用这一张表：能改的就只有文字，加上心事专用的「放下 / 捡起」。
 /// 之前记忆页整页只读，理由是「手改会让记忆和实际发生过的事对不上」——
 /// 这个顾虑对「加一条」成立，对「改错字」不成立。模型记错一个人名，
 /// 之后每轮都跟着错，能改才谈得上准确。
@@ -37,7 +37,7 @@ struct MemoryItemEditor: View {
                 .padding(.bottom, PhoneMetrics.Space.xl)
             }
             .background(Theme.groupedBackground)
-            .navigationTitle("改\(item.kind.label)")
+            .navigationTitle(item.kind == .groupNote ? "改这份群记忆" : "改\(item.kind.label)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -60,10 +60,7 @@ struct MemoryItemEditor: View {
     // MARK: - 文字
 
     private var editorSection: some View {
-        GroupedSection(
-            item.kind == .summary ? "概括" : "内容",
-            footer: textFooter
-        ) {
+        GroupedSection(editorTitle, footer: textFooter) {
             TextEditor(text: $text)
                 .font(.system(size: PhoneMetrics.FontSize.sub))
                 .foregroundStyle(Theme.label)
@@ -75,12 +72,21 @@ struct MemoryItemEditor: View {
         }
     }
 
+    private var editorTitle: String {
+        switch item.kind {
+        case .summary: return "概括"
+        case .groupNote: return "\(item.notePerson ?? "成员")记住的"
+        default: return "内容"
+        }
+    }
+
     private var textFooter: String {
         switch item.kind {
         case .summary: return "这一段会整段进提示词。写长了他每轮都要读，别超过几行。"
         case .fact: return "改空了等于删掉。这一条每轮都会带上，写错了要改——留着错的，之后每轮都跟着错。"
         case .voice: return "这是他没说出口的话。改文字不会让它变成说出来过。"
         case .day: return "这一天的概括。改的是他记得的那一句，不是当天真实的对话记录。"
+        case .groupNote: return "这一段只属于他在这个群里的视角：群聊里他说话时读，跟他单聊时也读得到，但不会进群共同记忆。"
         }
     }
 
@@ -110,7 +116,11 @@ struct MemoryItemEditor: View {
         GroupedSection {
             GroupedRow(title: "类型", value: item.kind.label)
             RowDivider()
-            GroupedRow(title: "记在谁那儿", value: characterName)
+            GroupedRow(title: "记在谁那儿", value: item.notePerson ?? characterName)
+            if let group = item.noteGroup, !group.isEmpty {
+                RowDivider()
+                GroupedRow(title: "哪个群", value: group)
+            }
             if !item.source.isEmpty {
                 RowDivider()
                 GroupedRow(title: "出处", value: item.source)
@@ -152,6 +162,9 @@ struct MemoryItemEditor: View {
             world.setVoiceResolved(person: characterName, id: id, resolved: resolved)
         case .day:
             world.updateDaySummary(named: characterName, dateKey: item.dateKey, summary: clean)
+        case .groupNote:
+            guard let person = item.notePerson, let group = item.noteGroup else { return }
+            world.setGroupNote(person: person, group: group, text: clean)
         }
     }
 
@@ -167,6 +180,9 @@ struct MemoryItemEditor: View {
             world.updateVoice(person: characterName, id: id, text: "")
         case .day:
             world.updateDaySummary(named: characterName, dateKey: item.dateKey, summary: "")
+        case .groupNote:
+            guard let person = item.notePerson, let group = item.noteGroup else { return }
+            world.setGroupNote(person: person, group: group, text: "")
         }
     }
 }

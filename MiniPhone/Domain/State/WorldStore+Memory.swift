@@ -31,8 +31,9 @@ extension WorldStore {
     /// 不是增量——用追加的话每压一次就多一份，1200 字的上限会被旧摘要挤满。
     func replaceMemorySummary(person name: String, text: String) {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty else { return }
         let index = state.ensurePerson(named: name)
+        // 空串是编辑器里的「删掉这一条」。压缩路径在外面已经挡过空结果，
+        // 这里再挡一次会让删除按钮看着生效、实际什么也没改。
         state.people[index].summary = String(clean.suffix(1200))
         save()
     }
@@ -64,10 +65,38 @@ extension WorldStore {
     /// 这个人在某个群里那一份记忆。群聊压缩时写，单聊和群聊都读。
     func setGroupNote(person name: String, group: String, text: String) {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !clean.isEmpty, !group.isEmpty else { return }
+        guard !group.isEmpty else { return }
         let index = state.ensurePerson(named: name)
-        state.people[index].groupNotes[group] = String(clean.suffix(1_200))
+        if clean.isEmpty {
+            // 空串同样表示删除。留着空值会让群记忆页分出一栏永远空白的视角。
+            state.people[index].groupNotes.removeValue(forKey: group)
+        } else {
+            state.people[index].groupNotes[group] = String(clean.suffix(1_200))
+        }
         save()
+    }
+
+    /// 这个群里每个成员各自记下的那一份。key 是成员名，不含群本身。
+    func groupNotes(in group: String) -> [String: String] {
+        var result: [String: String] = [:]
+        for person in state.people where person.name != group {
+            guard let note = person.groupNotes[group],
+                  !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            else { continue }
+            result[person.name] = note
+        }
+        return result
+    }
+
+    /// 群记忆页要分几栏：成员表里的每个人都有一栏，已经留下笔记但不在
+    /// 成员表里的人也要有，否则那条笔记在界面上找不到出处。
+    /// 不用 Set 合并——顺序随机会让每次重启分栏位置都不一样。
+    func groupRoster(named group: String) -> [String] {
+        var names = (state.groups[group] ?? []).filter { $0 != group }
+        for name in groupNotes(in: group).keys.sorted() where !names.contains(name) {
+            names.append(name)
+        }
+        return names
     }
 
     /// 删掉一条记错的事。

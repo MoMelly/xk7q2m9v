@@ -14,6 +14,8 @@ struct MemoryItem: Identifiable, Hashable {
         case voice
         case summary
         case day
+        /// 某个成员在某个群里各自记下的那一段。只在群记忆页出现。
+        case groupNote
 
         var id: String { rawValue }
 
@@ -23,6 +25,7 @@ struct MemoryItem: Identifiable, Hashable {
             case .voice: return "心事"
             case .summary: return "概括"
             case .day: return "日子"
+            case .groupNote: return "群视角"
             }
         }
 
@@ -32,6 +35,7 @@ struct MemoryItem: Identifiable, Hashable {
             case .voice: return "bubble.left"
             case .summary: return "text.alignleft"
             case .day: return "calendar"
+            case .groupNote: return "person.2"
             }
         }
     }
@@ -50,6 +54,9 @@ struct MemoryItem: Identifiable, Hashable {
     let factID: UUID?
     let voiceID: UUID?
     let dateKey: String
+    /// 群视角专用：这份笔记属于哪个人、哪个群。其余类型恒为 nil。
+    let notePerson: String?
+    let noteGroup: String?
 
     init(
         id: String,
@@ -60,7 +67,9 @@ struct MemoryItem: Identifiable, Hashable {
         source: String = "",
         factID: UUID? = nil,
         voiceID: UUID? = nil,
-        dateKey: String = ""
+        dateKey: String = "",
+        notePerson: String? = nil,
+        noteGroup: String? = nil
     ) {
         self.id = id
         self.kind = kind
@@ -71,12 +80,21 @@ struct MemoryItem: Identifiable, Hashable {
         self.factID = factID
         self.voiceID = voiceID
         self.dateKey = dateKey
+        self.notePerson = notePerson
+        self.noteGroup = noteGroup
     }
 
     /// 从一个角色身上把四种条目摊成一个流，新的在前。
     ///
     /// 日子只取有概括的那些：空的那天在日历里能看，进记忆流只是噪音。
-    static func collect(person: PersonMemory?, days: [CharacterDay]) -> [MemoryItem] {
+    /// `notes` 是群成员各自在 `group` 里记下的文字，只有群记忆页会传；
+    /// 空笔记不进流，否则筛选条上的计数会把「还没记」算成「记了一条」。
+    static func collect(
+        person: PersonMemory?,
+        days: [CharacterDay],
+        group: String = "",
+        notes: [String: String] = [:]
+    ) -> [MemoryItem] {
         var items: [MemoryItem] = []
 
         if let person {
@@ -131,6 +149,23 @@ struct MemoryItem: Identifiable, Hashable {
                 dateKey: day.dateKey
             )
         })
+
+        // 群笔记按成员名排序：名字是稳定的，重启不会换顺序。
+        for name in notes.keys.sorted() {
+            let text = notes[name] ?? ""
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+            items.append(
+                MemoryItem(
+                    id: "groupNote-\(name)",
+                    kind: .groupNote,
+                    text: text,
+                    createdAt: Date(timeIntervalSince1970: 1),
+                    source: "在\(group)里他自己记住的",
+                    notePerson: name,
+                    noteGroup: group
+                )
+            )
+        }
 
         // 概括不参与按时间排：它没有具体时间，按 1970 排会永远沉到底，
         // 而它其实是「最旧也最重」的那一条，单独钉在顶部。
