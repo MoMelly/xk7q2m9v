@@ -214,12 +214,17 @@ final class ChatViewModel {
 
         // 他今天的时间轴要有，提示词里那块「今天的安排」才不是空的。
         // 生成是本地算的，不花接口调用；同一天只会落一份。
-        world.ensureCharacterDay(
-            named: character.name,
-            wakeHour: character.wakeHour,
-            sleepHour: character.sleepHour,
-            replies: character.messages.filter { $0.role == .assistant }.count
-        )
+        //
+        // 群不排：群没有「今天」，那几行只会在记忆页里变成一条对不上人的日程。
+        // 群成员各自的日子由 `recordDay` 在聊天之后补上。
+        if !character.isGroup {
+            world.ensureCharacterDay(
+                named: character.name,
+                wakeHour: character.wakeHour,
+                sleepHour: character.sleepHour,
+                replies: character.messages.filter { $0.role == .assistant }.count
+            )
+        }
 
         let worldContext = world.context(
             for: names,

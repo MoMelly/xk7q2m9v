@@ -65,134 +65,188 @@ struct CharacterDetailPage: View {
         }
     }
 
+    /// 「TA 的」这一组。
+    ///
+    /// 群不是人。主页、看板、日程、好感度、提问箱、手机这些东西，
+    /// 原来对群也一律列出来——点进群的主页是一张空卡，好感度拖到 100
+    /// 也不会让任何一句台词变。群只留两样：群里发生过什么，和群里都有谁。
+    @ViewBuilder
+    private var infoRows: some View {
+        if character.isGroup {
+            NavigationLink {
+                CharacterMemoryPage(character: character, world: world)
+            } label: {
+                GroupedRow(
+                    symbol: "brain.head.profile",
+                    symbolTint: Theme.IconTint.purple,
+                    title: "群里的记忆",
+                    value: world.memorySummary(for: character.name).isEmpty ? nil : "写得下",
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.plain)
+
+            RowDivider()
+
+            GroupedRow(
+                symbol: "person.2.fill",
+                symbolTint: Theme.IconTint.teal,
+                title: "群成员",
+                value: groupMemberCount == 0 ? "还没写" : "\(groupMemberCount) 人"
+            )
+        } else {
+            NavigationLink {
+                CharacterHomePage(character: character, world: world)
+            } label: {
+                GroupedRow(
+                    symbol: "person.crop.circle.fill",
+                    symbolTint: Theme.IconTint.orange,
+                    title: "主页",
+                    value: "\(character.totalReplies)",
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.plain)
+
+            RowDivider()
+
+            NavigationLink {
+                CharacterBoardPage(character: character, world: world)
+            } label: {
+                GroupedRow(
+                    symbol: "person.crop.rectangle.fill",
+                    symbolTint: Theme.IconTint.rose,
+                    title: "看板",
+                    value: "点一下有反应",
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.plain)
+
+            RowDivider()
+
+            NavigationLink {
+                CharacterDayPage(world: world, character: character)
+            } label: {
+                GroupedRow(
+                    symbol: "calendar",
+                    symbolTint: Theme.IconTint.pink,
+                    title: "今天的日程",
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.plain)
+
+            RowDivider()
+
+            NavigationLink {
+                CharacterMemoryPage(character: character, world: world)
+            } label: {
+                GroupedRow(
+                    symbol: "brain.head.profile",
+                    symbolTint: Theme.IconTint.purple,
+                    title: "记忆",
+                    value: factCount > 0 ? "\(factCount) 条" : nil,
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.plain)
+
+            RowDivider()
+
+            NavigationLink {
+                AnonymousBoxPage(character: character, world: world, settings: settings)
+            } label: {
+                GroupedRow(
+                    symbol: "questionmark.bubble.fill",
+                    symbolTint: Theme.IconTint.indigo,
+                    title: "匿名提问箱",
+                    value: world.questions(for: character.name).isEmpty
+                        ? "还没人问"
+                        : "\(world.questions(for: character.name).count) 个",
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.plain)
+
+            RowDivider()
+
+            NavigationLink {
+                StatePanelPage(character: character, world: world)
+            } label: {
+                GroupedRow(
+                    symbol: "gauge.with.dots.needle.67percent",
+                    symbolTint: Theme.IconTint.green,
+                    title: "状态面板",
+                    value: AffinityScale.stage(of: world.affinity(for: character.name)).label,
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.plain)
+
+            RowDivider()
+
+            // 查手机。桌面那个图标是按「最近说过话的人」开的，
+            // 从这个人的详情页进来才是确定的「看他这一台」。
+            Button {
+                showPhone = true
+            } label: {
+                GroupedRow(
+                    symbol: "iphone.gen3",
+                    symbolTint: Theme.IconTint.gray,
+                    title: "\(character.name) 的手机",
+                    value: world.hasPhone(for: character.name) ? "已生成" : "还没打开",
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    /// 这一组的脚注。群要说明为什么少了几项，不然会像功能坏了。
+    private var infoFooter: String? {
+        character.isGroup
+            ? "群没有主页、日程和好感度。这些是「一个人」才有的东西，群只记得住发生过什么。"
+            : nil
+    }
+
+    /// 群成员数从「成员」那段文字里数。它是自由文本，不是结构化的名单，
+    /// 逗号、顿号、换行都有人用，所以三种都当分隔符。
+    private var groupMemberCount: Int {
+        character.membersNote
+            .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" || $0 == "\n" })
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            .count
+    }
+
     private var detailBody: some View {
         AppScreen(title: "详情", onClose: onClose) {
             ScrollView {
                 VStack(spacing: PhoneMetrics.Space.section) {
                     identityCard
 
-                    GroupedSection("TA 的") {
-                        NavigationLink {
-                            CharacterHomePage(character: character, world: world)
-                        } label: {
-                            GroupedRow(
-                                symbol: "person.crop.circle.fill",
-                                symbolTint: Theme.IconTint.orange,
-                                title: "主页",
-                                value: "\(character.totalReplies)",
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        RowDivider()
-
-                        NavigationLink {
-                            CharacterBoardPage(character: character, world: world)
-                        } label: {
-                            GroupedRow(
-                                symbol: "person.crop.rectangle.fill",
-                                symbolTint: Theme.IconTint.rose,
-                                title: "看板",
-                                value: "点一下有反应",
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        RowDivider()
-
-                        NavigationLink {
-                            CharacterDayPage(world: world, character: character)
-                        } label: {
-                            GroupedRow(
-                                symbol: "calendar",
-                                symbolTint: Theme.IconTint.pink,
-                                title: "今天的日程",
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        RowDivider()
-
-                        NavigationLink {
-                            CharacterMemoryPage(character: character, world: world)
-                        } label: {
-                            GroupedRow(
-                                symbol: "brain.head.profile",
-                                symbolTint: Theme.IconTint.purple,
-                                title: "记忆",
-                                value: factCount > 0 ? "\(factCount) 条" : nil,
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        RowDivider()
-
-                        NavigationLink {
-                            AnonymousBoxPage(character: character, world: world, settings: settings)
-                        } label: {
-                            GroupedRow(
-                                symbol: "questionmark.bubble.fill",
-                                symbolTint: Theme.IconTint.indigo,
-                                title: "匿名提问箱",
-                                value: world.questions(for: character.name).isEmpty
-                                    ? "还没人问"
-                                    : "\(world.questions(for: character.name).count) 个",
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        RowDivider()
-
-                        NavigationLink {
-                            StatePanelPage(character: character, world: world)
-                        } label: {
-                            GroupedRow(
-                                symbol: "gauge.with.dots.needle.67percent",
-                                symbolTint: Theme.IconTint.green,
-                                title: "状态面板",
-                                value: AffinityScale.stage(of: world.affinity(for: character.name)).label,
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
-
-                        RowDivider()
-
-                        // 查手机。桌面那个图标是按「最近说过话的人」开的，
-                        // 从这个人的详情页进来才是确定的「看他这一台」。
-                        Button {
-                            showPhone = true
-                        } label: {
-                            GroupedRow(
-                                symbol: "iphone.gen3",
-                                symbolTint: Theme.IconTint.gray,
-                                title: "\(character.name) 的手机",
-                                value: world.hasPhone(for: character.name) ? "已生成" : "还没打开",
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
+                    GroupedSection("TA 的", footer: infoFooter) {
+                        infoRows
                     }
 
-                    GroupedSection(
-                        "边界",
-                        footer: calendarDenied
-                            ? "系统里的日历权限被拒绝了，去「设置 → 小手机 → 日历」打开。"
-                            : UserCalendarBridge.statusLine(for: character.name)
-                    ) {
-                        Toggle(isOn: calendarBinding) {
-                            Text("可以看我日历上的安排")
-                                .font(.system(size: PhoneMetrics.FontSize.body))
-                                .foregroundStyle(Theme.label)
+                    // 日历是「一个人才有的东西」。群没有自己的日历，
+                    // 这个开关打开也只会去读用户本人的日程，然后当成群看过。
+                    if !character.isGroup {
+                        GroupedSection(
+                            "边界",
+                            footer: calendarDenied
+                                ? "系统里的日历权限被拒绝了，去「设置 → 小手机 → 日历」打开。"
+                                : UserCalendarBridge.statusLine(for: character.name)
+                        ) {
+                            Toggle(isOn: calendarBinding) {
+                                Text("可以看我日历上的安排")
+                                    .font(.system(size: PhoneMetrics.FontSize.body))
+                                    .foregroundStyle(Theme.label)
+                            }
+                            .tint(Theme.tint)
+                            .padding(.horizontal, PhoneMetrics.Space.m)
+                            .frame(minHeight: PhoneMetrics.Row.single)
                         }
-                        .tint(Theme.tint)
-                        .padding(.horizontal, PhoneMetrics.Space.m)
-                        .frame(minHeight: PhoneMetrics.Row.single)
                     }
 
                     GroupedSection("设定") {
@@ -238,35 +292,41 @@ struct CharacterDetailPage: View {
                         }
                         .buttonStyle(.plain)
 
-                        RowDivider()
-
                         // 拍一拍后缀。角色这边单独一条：双击 TA 的头像时用。
-                        Button {
-                            patDraft = character.patSuffix
-                            showPatEditor = true
-                        } label: {
-                            GroupedRow(
-                                symbol: "hand.tap.fill",
-                                symbolTint: Theme.IconTint.orange,
-                                title: "拍一拍后缀",
-                                value: character.patSuffix.isEmpty ? "的肩膀" : character.patSuffix,
-                                showsChevron: true
-                            )
+                        // 群不给：拍一个群，这句话该谁说？
+                        if !character.isGroup {
+                            RowDivider()
+
+                            Button {
+                                patDraft = character.patSuffix
+                                showPatEditor = true
+                            } label: {
+                                GroupedRow(
+                                    symbol: "hand.tap.fill",
+                                    symbolTint: Theme.IconTint.orange,
+                                    title: "拍一拍后缀",
+                                    value: character.patSuffix.isEmpty ? "的肩膀" : character.patSuffix,
+                                    showsChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .buttonStyle(.plain)
                     }
 
-                    GroupedSection("信件", footer: letterMessage) {
-                        Button(action: writeLetter) {
-                            GroupedRow(
-                                symbol: "envelope.fill",
-                                symbolTint: Theme.IconTint.orange,
-                                title: letterService.isWriting(character) ? "正在写…" : "让 TA 写封信",
-                                showsChevron: false
-                            )
+                    // 信是一个人写给另一个人的。群不写信：落款该署谁的名？
+                    if !character.isGroup {
+                        GroupedSection("信件", footer: letterMessage) {
+                            Button(action: writeLetter) {
+                                GroupedRow(
+                                    symbol: "envelope.fill",
+                                    symbolTint: Theme.IconTint.orange,
+                                    title: letterService.isWriting(character) ? "正在写…" : "让 TA 写封信",
+                                    showsChevron: false
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(letterService.isWriting(character))
                         }
-                        .buttonStyle(.plain)
-                        .disabled(letterService.isWriting(character))
                     }
 
                     GroupedSection("这个会话") {

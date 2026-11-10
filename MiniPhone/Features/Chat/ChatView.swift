@@ -457,7 +457,8 @@ struct ChatView: View {
                     onHistory: { showCalls = true },
                     togetherTitle: isTogether ? "结束一起听" : "一起听",
                     onTogether: toggleTogether,
-                    onPacket: { showPacket = true }
+                    onPacket: { showPacket = true },
+                    isGroup: character.isGroup
                 )
             }
 

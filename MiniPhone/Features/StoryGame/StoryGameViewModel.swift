@@ -26,9 +26,14 @@ final class StoryGameViewModel {
     private var rosterCache: [Companion] = []
 
     /// 可选角色：开局时要给模型一份花名册。
+    ///
+    /// 群不进花名册：文游里的「参与角色」是能开口说话的人，
+    /// 让模型挑中一个群，它会试着让这个群说话，然后写出「众人：……」这种行。
     static func roster(context: ModelContext) -> [Companion] {
         let all = (try? context.fetch(FetchDescriptor<Companion>())) ?? []
-        return all.sorted { $0.sortIndex < $1.sortIndex }
+        return all
+            .filter { !$0.isGroup }
+            .sorted { $0.sortIndex < $1.sortIndex }
     }
 
     // MARK: - 开局

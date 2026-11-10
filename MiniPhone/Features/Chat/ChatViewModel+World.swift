@@ -22,9 +22,13 @@ extension ChatViewModel {
 
         // 群主，加上这一轮真的开口的成员，各自记一天。
         // 只记群主的话，群里其他人永远没有当天日程，好感度也一直停在默认值。
-        var targets: [(name: String, wake: Int, sleep: Int)] = [
-            (character.name, character.wakeHour, character.sleepHour)
-        ]
+        //
+        // 群自己不排日程：「群今天去了便利店」不是一句能成立的话，
+        // 那份数据只会在记忆页变成一条对不上人的记录。
+        var targets: [(name: String, wake: Int, sleep: Int)] = []
+        if !character.isGroup {
+            targets.append((character.name, character.wakeHour, character.sleepHour))
+        }
         if !speakers.isEmpty, let context {
             let roster = (try? context.fetch(FetchDescriptor<Companion>())) ?? []
             for name in Set(speakers).sorted() where name != character.name {

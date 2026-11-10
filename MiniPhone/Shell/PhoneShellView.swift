@@ -241,9 +241,10 @@ struct PhoneShellView: View {
             }
             Self.applyPreviewTheme()
             // 主屏和锁屏只有一块地方，挑人的规则跟「TA 的手机」默认打开谁一致：
-            // 最近说过话的那个。小助手不算——它不是谈恋爱的人。
+            // 最近说过话的那个。小助手不算——它不是谈恋爱的人；群也不算，
+            // 小组件上写一个群名，看起来像系统在提醒你有个群。
             let primary = companions
-                .filter { !$0.isFeedOnly && $0.name != DefaultAssistant.name }
+                .filter { !$0.isFeedOnly && !$0.isGroup && $0.name != DefaultAssistant.name }
                 .sorted { ($0.lastMessageAt ?? .distantPast) > ($1.lastMessageAt ?? .distantPast) }
                 .first?.name ?? ""
             if !primary.isEmpty { world.primaryName = primary }

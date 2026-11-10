@@ -63,7 +63,8 @@ struct ChatHeaderBar: View {
                     onCall: onCall,
                     onHistory: onCallHistory,
                     togetherTitle: togetherTitle,
-                    onTogether: onTogether
+                    onTogether: onTogether,
+                    isGroup: character.isGroup
                 )
             }
 
@@ -115,6 +116,11 @@ struct ChatCallMenuItems: View {
     var onTogether: () -> Void
     /// 发红包。只有输入栏那个「+」给，电话菜单里不给——那儿是通话的地方。
     var onPacket: (() -> Void)? = nil
+    /// 群聊里没有通话，也没有「一起听」。
+    ///
+    /// 群不是一个能接电话的东西：拨过去该谁接？一起听也一样——
+    /// 一副耳机没法三个人分。这两项留在菜单里，点了就是个说不通的操作。
+    var isGroup: Bool = false
 
     var body: some View {
         Button {
@@ -131,32 +137,38 @@ struct ChatCallMenuItems: View {
             }
         }
 
-        Button {
-            onTogether()
-        } label: {
-            Label(togetherTitle, systemImage: "headphones")
+        if !isGroup {
+            Button {
+                onTogether()
+            } label: {
+                Label(togetherTitle, systemImage: "headphones")
+            }
         }
 
-        Divider()
+        if !isGroup {
+            Divider()
 
-        Button {
-            onCall(.voice)
-        } label: {
-            Label("语音通话", systemImage: "phone.fill")
+            Button {
+                onCall(.voice)
+            } label: {
+                Label("语音通话", systemImage: "phone.fill")
+            }
+
+            Button {
+                onCall(.video)
+            } label: {
+                Label("视频通话", systemImage: "video.fill")
+            }
         }
 
-        Button {
-            onCall(.video)
-        } label: {
-            Label("视频通话", systemImage: "video.fill")
-        }
+        if !isGroup {
+            Divider()
 
-        Divider()
-
-        Button {
-            onHistory()
-        } label: {
-            Label("通话记录", systemImage: "clock.arrow.circlepath")
+            Button {
+                onHistory()
+            } label: {
+                Label("通话记录", systemImage: "clock.arrow.circlepath")
+            }
         }
     }
 }

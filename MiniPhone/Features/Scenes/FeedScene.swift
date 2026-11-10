@@ -130,7 +130,10 @@ struct FeedScene: View {
             //
             // 挑最近说过话的那个，不是查询顺序里的第一个：原来固定取 first，
             // 有多个角色时只有那一个人会来私信，其他人永远沉默。
-            let pool = companions.filter { !$0.isFeedOnly }
+            //
+            // 群不进这个池子：西瓜皮的私信是「一个人找你说话」，
+            // 一个群没有自己的账号，发过来只会显示成群名在私信你。
+            let pool = companions.filter { !$0.isFeedOnly && !$0.isGroup }
             guard let character = pool.max(by: {
                 ($0.lastMessageAt ?? .distantPast) < ($1.lastMessageAt ?? .distantPast)
             }) else { return }

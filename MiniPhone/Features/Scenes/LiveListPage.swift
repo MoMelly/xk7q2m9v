@@ -42,8 +42,10 @@ enum LiveCatalog {
 
         // 角色开播：人名 + 整点做哈希，命中才播，最多两个。
         // 不是全部角色同时开播，也不是每次进来换一批。
+        //
+        // 群不播：直播是一个人对着镜头说话，房间里挂一个群名没有对应的画面。
         var characterRooms: [LiveRoom] = []
-        for companion in companions where !companion.isFeedOnly {
+        for companion in companions where !companion.isFeedOnly && !companion.isGroup {
             let seed = StableSeed.of(companion.name + "#live\(hour)")
             guard StableSeed.index(seed, count: 3) == 0 else { continue }
             let titleSeed = StableSeed.index(seed, count: titles.count)

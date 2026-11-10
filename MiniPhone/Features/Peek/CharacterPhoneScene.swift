@@ -24,8 +24,9 @@ struct CharacterPhoneScene: View {
     private var service: CharacterPhoneService { .shared }
 
     /// 能查手机的候选人。西瓜皮的路人作者没有手机——他们不在「信息」里。
+    /// 群也没有：一台手机不会三个人共用，查出来的桌面不知道是谁的。
     private var candidates: [Companion] {
-        companions.filter { !$0.isFeedOnly }
+        companions.filter { !$0.isFeedOnly && !$0.isGroup }
     }
 
     /// 没选过时的默认：最近说过话的那个。查手机查的通常是「此刻在我旁边的那个人」。

@@ -23,8 +23,9 @@ struct MemoryLibraryPage: View {
 
     private var people: [PersonMemory] { world.state.people }
 
+    /// 「聊过的人」。群不算人：这里数的是能一对一说话的对象。
     private var chatCount: Int {
-        companions.filter { !$0.isFeedOnly }.count
+        companions.filter { !$0.isFeedOnly && !$0.isGroup }.count
     }
 
     var body: some View {
@@ -215,9 +216,9 @@ struct MemoryLibraryPage: View {
     private var peopleSection: some View {
         GroupedSection(
             "每个角色记住了多少",
-            footer: "点进去改具体条目。没聊过的角色不出现在这里。"
+            footer: "点进去改具体条目。没聊过的角色不出现在这里。群不在这份清单里，它的记忆在群详情里。"
         ) {
-            let rows = companions.filter { !$0.isFeedOnly && !$0.isNPC }
+            let rows = companions.filter { !$0.isFeedOnly && !$0.isNPC && !$0.isGroup }
             if rows.isEmpty {
                 Text("还没有角色。")
                     .font(.system(size: PhoneMetrics.FontSize.footnote))

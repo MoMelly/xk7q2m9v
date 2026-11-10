@@ -20,9 +20,9 @@ struct CoupleScene: View {
     @Query(sort: \Companion.sortIndex) private var companions: [Companion]
     @State private var selectedName: String?
 
-    /// 有火花的候选人。西瓜皮的路人作者和内置小助手不算。
+    /// 有火花的候选人。西瓜皮的路人作者、内置小助手、群都不算。
     private var candidates: [Companion] {
-        companions.filter { !$0.isFeedOnly && $0.name != DefaultAssistant.name }
+        companions.filter { !$0.isFeedOnly && !$0.isGroup && $0.name != DefaultAssistant.name }
     }
 
     private var recentOwner: Companion? {
