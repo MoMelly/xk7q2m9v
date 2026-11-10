@@ -23,10 +23,30 @@ struct MemoryLibraryPage: View {
 
     private var people: [PersonMemory] { world.state.people }
 
-    /// 「聊过的人」。群不算人：这里数的是能一对一说话的对象。
-    private var chatCount: Int {
-        companions.filter { !$0.isFeedOnly && !$0.isGroup }.count
+    /// 清单和统计共用一份口径：只算「真的留下过记忆的人」。
+    ///
+    /// 群不在这张表里（它的记忆在群详情里），路人作者和 NPC 不进清单；
+    /// 只建了角色、没留下任何记忆的也不算——否则会出现「0 条事实」的空行，
+    /// 和页面写的「不出现在这里」自相矛盾。
+    private var rememberedPeople: [Companion] {
+        companions.filter { character in
+            guard !character.isFeedOnly, !character.isNPC, !character.isGroup else { return false }
+            guard let memory = people.first(where: { $0.name == character.name }) else { return false }
+            return !memory.facts.isEmpty
+                || !memory.voices.isEmpty
+                || !memory.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || !memory.groupNotes.isEmpty
+        }
     }
+
+    /// 两个统计也按这份清单算：群名下那条共同记忆不算「事」，
+    /// 已删角色留下的孤儿记忆也不该继续撑大数字。
+    private var rememberedMemories: [PersonMemory] {
+        let names = Set(rememberedPeople.map(\.name))
+        return people.filter { names.contains($0.name) }
+    }
+
+    private var chatCount: Int { rememberedPeople.count }
 
     var body: some View {
         AppPage(title: "记忆库") {
@@ -70,8 +90,8 @@ struct MemoryLibraryPage: View {
                 spacing: PhoneMetrics.Space.s
             ) {
                 stat("聊过的人", "\(chatCount)", "person.2.fill", Theme.IconTint.teal)
-                stat("记住的事", "\(people.reduce(0) { $0 + $1.facts.count })", "pin.fill", Theme.IconTint.orange)
-                stat("没放下的心事", "\(people.reduce(0) { $0 + $1.voices.filter { !$0.isResolved }.count })", "bubble.left.fill", Theme.IconTint.purple)
+                stat("记住的事", "\(rememberedMemories.reduce(0) { $0 + $1.facts.count })", "pin.fill", Theme.IconTint.orange)
+                stat("没放下的心事", "\(rememberedMemories.reduce(0) { $0 + $1.voices.filter { !$0.isResolved }.count })", "bubble.left.fill", Theme.IconTint.purple)
                 stat("全局设定", "\(globals.count)", "globe.asia.australia.fill", Theme.IconTint.indigo)
             }
             .padding(PhoneMetrics.Space.s)
@@ -216,9 +236,9 @@ struct MemoryLibraryPage: View {
     private var peopleSection: some View {
         GroupedSection(
             "每个角色记住了多少",
-            footer: "点进去改具体条目。没聊过的角色不出现在这里。群不在这份清单里，它的记忆在群详情里。"
+            footer: "点进去改具体条目。还没留下记忆的角色不出现在这里。群不在这份清单里，它的记忆在群详情里。"
         ) {
-            let rows = companions.filter { !$0.isFeedOnly && !$0.isNPC && !$0.isGroup }
+            let rows = rememberedPeople
             if rows.isEmpty {
                 Text("还没有角色。")
                     .font(.system(size: PhoneMetrics.FontSize.footnote))

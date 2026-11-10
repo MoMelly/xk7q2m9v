@@ -77,10 +77,13 @@ struct ChatHeaderBar: View {
                     Label("角色详情", systemImage: "person.text.rectangle")
                 }
 
-                Button {
-                    onOpenVoices()
-                } label: {
-                    Label("他的心声", systemImage: "quote.bubble")
+                // 心声挂在每个人名下，群名下没有。群聊里这一项点开恒为空。
+                if !character.isGroup {
+                    Button {
+                        onOpenVoices()
+                    } label: {
+                        Label("他的心声", systemImage: "quote.bubble")
+                    }
                 }
             }
         }

@@ -56,6 +56,19 @@ struct ConversationListView: View {
         }
     }
 
+    /// 通话只认「一个人」：群不能接电话，拨过去该谁接说不通。
+    private var callableCharacters: [Companion] {
+        visibleCharacters.filter { !$0.isGroup }
+    }
+
+    /// 快捷拨号是回拨：按 sortIndex 取第一个等于随机拨给某个人，
+    /// 通话要的是最近跟我说过话的那个，按钮上也把名字写出来。
+    private var recentCallable: Companion? {
+        callableCharacters
+            .sorted { ($0.lastMessageAt ?? .distantPast) > ($1.lastMessageAt ?? .distantPast) }
+            .first
+    }
+
     var body: some View {
         ZStack {
             ChatBackgroundView(settings: settings).ignoresSafeArea()
@@ -230,15 +243,19 @@ struct ConversationListView: View {
                 HStack(spacing: 10) {
                     ForEach(CallKind.allCases) { kind in
                         Button {
-                            guard let target = visibleCharacters.first else { return }
+                            guard let target = recentCallable else { return }
                             callTarget = target
                             callKind = kind
                         } label: {
-                            VStack(spacing: 6) {
+                            VStack(spacing: 4) {
                                 Image(systemName: kind.symbol)
                                     .font(.system(size: 20))
                                 Text(kind.title)
                                     .font(.system(size: 12, weight: .medium))
+                                Text(recentCallable?.name ?? "还没人能打")
+                                    .font(.system(size: 10))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
                             }
                             .foregroundStyle(Theme.deepGreen)
                             .frame(maxWidth: .infinity)
@@ -246,7 +263,7 @@ struct ConversationListView: View {
                             .background(Capsule().fill(Theme.mint.opacity(0.92)))
                         }
                         .buttonStyle(.plain)
-                        .disabled(visibleCharacters.isEmpty)
+                        .disabled(recentCallable == nil)
                     }
                 }
 
@@ -273,7 +290,7 @@ struct ConversationListView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 4)
 
-                ForEach(visibleCharacters) { character in
+                ForEach(callableCharacters) { character in
                     HStack(spacing: 12) {
                         AvatarBubble(character: character, size: 42)
                         VStack(alignment: .leading, spacing: 3) {

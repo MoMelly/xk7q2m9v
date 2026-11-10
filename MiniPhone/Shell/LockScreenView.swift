@@ -37,7 +37,7 @@ struct LockScreenView: View {
                 if !hidesWidgets {
                     LockScreenWidgets(
                         moodLabel: world.primaryMood?.mood.label,
-                        voiceText: world.state.unresolvedVoices(limit: 1).first?.text
+                        voiceText: world.state.unresolvedVoices(limit: 1, person: world.primaryName).first?.text
                     )
                 }
 

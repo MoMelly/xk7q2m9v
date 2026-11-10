@@ -25,6 +25,21 @@ extension WorldStore {
         for index in state.people.indices where state.people[index].name == from {
             state.people[index].name = to
         }
+        // 名字还冗余存在条目内部：事实的来源、心事的归属、评论的署名。
+        // 只改 PersonMemory.name 的话，记忆页和心事页里仍旧显示旧名字。
+        for index in state.people.indices {
+            for fact in state.people[index].facts.indices where state.people[index].facts[fact].sourceName == from {
+                state.people[index].facts[fact].sourceName = to
+            }
+            for voice in state.people[index].voices.indices where state.people[index].voices[voice].personName == from {
+                state.people[index].voices[voice].personName = to
+            }
+        }
+        for index in state.feed.indices {
+            for comment in state.feed[index].comments.indices where state.feed[index].comments[comment].authorName == from {
+                state.feed[index].comments[comment].authorName = to
+            }
+        }
         for index in state.characterDays.indices where state.characterDays[index].name == from {
             state.characterDays[index].name = to
         }
@@ -130,7 +145,15 @@ extension WorldStore {
 
         // 群：删的是群就整条删掉；删的是人就从所有群的成员名单里摘出去。
         // 留着名字的话，单聊反查时还会命中一个已经不存在的人。
-        state.groups.removeValue(forKey: target)
+        // 删的是群：成员各自那份「在这个群里」的笔记也要一起清。
+        // 只删群账户的话，重建同名群时旧记忆会自己回来；
+        // 清空群记忆那条路径（clearPersonMemory）已经处理过，删除这里漏了。
+        if let members = state.groups.removeValue(forKey: target) {
+            for member in members where member != target {
+                guard let index = state.people.firstIndex(where: { $0.name == member }) else { continue }
+                state.people[index].groupNotes.removeValue(forKey: target)
+            }
+        }
         for group in Array(state.groups.keys) {
             state.groups[group]?.removeAll { $0 == target }
         }

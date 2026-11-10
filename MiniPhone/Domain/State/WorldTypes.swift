@@ -510,9 +510,14 @@ struct WorldState: Codable {
             .sorted()
     }
 
-    func unresolvedVoices(limit: Int = 4) -> [InnerVoiceEntry] {
-        people
-            .flatMap(\.voices)
+    /// 给了 `person` 就只取这个人的心事：锁屏组件的心情按主角读，
+    /// 旁边那句潜台词却是全局最新一条时，会出现「他的心情配她的心事」。
+    /// 不给就是整张表，查手机那类页面要的正是这个。
+    func unresolvedVoices(limit: Int = 4, person: String? = nil) -> [InnerVoiceEntry] {
+        let pool = person.map { name in
+            people.filter { $0.name == name }.flatMap(\.voices)
+        } ?? people.flatMap(\.voices)
+        return pool
             .filter { !$0.isResolved }
             .sorted { $0.createdAt > $1.createdAt }
             .prefix(limit)

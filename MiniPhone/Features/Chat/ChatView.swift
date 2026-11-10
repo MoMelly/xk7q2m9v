@@ -86,7 +86,7 @@ struct ChatView: View {
                 if !pinnedMessages.isEmpty {
                     ChatPinnedBar(
                         messages: pinnedMessages,
-                        myName: profiles.first?.name ?? "我",
+                        myName: myDisplayName,
                         onTap: { pinnedTarget = $0.uid },
                         onUnpin: { togglePin($0) }
                     )
@@ -375,6 +375,14 @@ struct ChatView: View {
         )
     }
 
+    /// 我的身份：默认身份优先，没设就取第一个，再没有退回「我」。
+    /// 置顶栏和拍一拍共用，免得一处取 first、另一处取 isDefault。
+    private var myDisplayName: String {
+        profiles.first(where: { $0.isDefault })?.name
+            ?? profiles.first?.name
+            ?? "我"
+    }
+
     /// 双击头像拍的这一下。抖动一下再把那条事件落库，
     /// 手感是「拍到了」，而不是「界面闪了一下」。
     ///
@@ -382,10 +390,7 @@ struct ChatView: View {
     private func pat() {
         guard !character.isGroup else { return }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        let myName = profiles.first(where: { $0.isDefault })?.name
-            ?? profiles.first?.name
-            ?? "我"
-        viewModel.sendPat(character: character, myName: myName, context: context)
+        viewModel.sendPat(character: character, myName: myDisplayName, context: context)
     }
 
     private func beginQuote(_ message: StoredMessage) {

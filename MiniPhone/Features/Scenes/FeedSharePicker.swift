@@ -13,7 +13,8 @@ struct FeedSharePicker: View {
     @Query private var companions: [Companion]
 
     private var candidates: [Companion] {
-        companions.filter { !$0.isFeedOnly }
+        // 分享是「一个人找你说话」的通道，群没有自己的私信 thread。
+        companions.filter { !$0.isFeedOnly && !$0.isGroup }
     }
 
     private let columns = Array(

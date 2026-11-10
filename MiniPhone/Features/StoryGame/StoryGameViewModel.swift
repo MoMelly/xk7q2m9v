@@ -27,12 +27,12 @@ final class StoryGameViewModel {
 
     /// 可选角色：开局时要给模型一份花名册。
     ///
-    /// 群不进花名册：文游里的「参与角色」是能开口说话的人，
-    /// 让模型挑中一个群，它会试着让这个群说话，然后写出「众人：……」这种行。
+    /// 花名册只收能开口说话的人：群会让模型写出「众人：……」，
+    /// 西瓜皮的路人作者是只用来挂帖子的代理，点进主页是空的。
     static func roster(context: ModelContext) -> [Companion] {
         let all = (try? context.fetch(FetchDescriptor<Companion>())) ?? []
         return all
-            .filter { !$0.isGroup }
+            .filter { !$0.isGroup && !$0.isFeedOnly }
             .sorted { $0.sortIndex < $1.sortIndex }
     }
 

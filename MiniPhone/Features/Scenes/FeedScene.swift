@@ -239,7 +239,7 @@ struct FeedScene: View {
     @ViewBuilder
     private var content: some View {
         if feedTab == .live {
-            LiveListPage(companions: companions.filter { !$0.isFeedOnly }, settings: settings)
+            LiveListPage(companions: companions.filter { !$0.isFeedOnly && !$0.isGroup }, settings: settings)
         } else if notes.isEmpty {
             emptyState
         } else {

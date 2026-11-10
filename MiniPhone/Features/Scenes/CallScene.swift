@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 /// 通话记录。
@@ -14,6 +15,7 @@ struct CallScene: View {
 
     @State private var filter: Filter = .all
     @State private var detail: CallEntry?
+    @Query private var companions: [Companion]
 
     enum Filter: String, CaseIterable, Identifiable {
         case all = "全部"
@@ -31,7 +33,11 @@ struct CallScene: View {
     }
 
     private var entries: [CallEntry] {
-        let people = world.state.people
+        // 通话记录只列还存在、且能接电话的人。群名下也有 PersonMemory
+        // （群里说过的话记在群账上），那不是一通电话；删掉的角色同理，
+        // 他的记忆条目还留在 JSON 里，但号码已经没了。
+        let callable = Set(companions.filter { !$0.isGroup && !$0.isFeedOnly }.map(\.name))
+        let people = world.state.people.filter { callable.contains($0.name) }
         var result: [CallEntry] = []
 
         for person in people {

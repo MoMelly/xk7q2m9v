@@ -15,6 +15,7 @@ extension WorldStore {
     /// 不然十几条按时间排，聊到猫的时候它已经被挤出去了。
     func context(
         for names: [String],
+        isGroup: Bool = false,
         deviceLines: [String],
         calendarLines: [String] = [],
         focus: String = "",
@@ -32,7 +33,9 @@ extension WorldStore {
         //
         // 群聊本身不用做这一步：那时群就在 `names` 里。
         let owner = names.first ?? ""
-        let isGroupChat = state.groups[owner] != nil
+        // 由调用方显式给，不从 groups 表反推：syncGroup 在成员名单为空时不落库，
+        // 新群还没开口说话的那一轮会被误判成单聊，把成员的私聊事实全读进来。
+        let isGroupChat = isGroup
         let groupNames = isGroupChat ? [] : state.groupsInvolving(owner)
         let groupKeys = Set(groupNames)
         let groupPeople = state.people.filter { groupKeys.contains($0.name) }

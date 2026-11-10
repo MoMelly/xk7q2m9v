@@ -54,10 +54,13 @@ final class ChatViewModel {
         context.insert(userMessage)
         character.lastMessageAt = Date()
         save(context)
-        // 火花记的是「今天我跟这个角色说过话」。别人那边不记。
-        // 同一步把主屏/锁屏的「主角」换成他：刚跟谁说完话，主页就该显示谁的状态。
-        WorldStore.shared.primaryName = character.name
-        WorldStore.shared.markCoupleDay(fromMe: true, partner: character.name)
+        // 火花和主屏「主角」都只认一个人。群聊里开口的是几个成员，
+        // 把群名写进 primaryName，主屏/锁屏/日历就会去读一个不存在的「人」的心情，
+        // 还会给群记一天情侣火花（情侣页已经排除群，这份数据永远显示不出来）。
+        if !character.isGroup {
+            WorldStore.shared.primaryName = character.name
+            WorldStore.shared.markCoupleDay(fromMe: true, partner: character.name)
+        }
 
         guard callMode else { return }
         await generateReply(
@@ -228,6 +231,7 @@ final class ChatViewModel {
 
         let worldContext = world.context(
             for: names,
+            isGroup: character.isGroup,
             deviceLines: DeviceSnapshot.lines(allowPhoneLookups: settings.allowPhoneLookups),
             calendarLines: calendarLines,
             focus: trigger,
