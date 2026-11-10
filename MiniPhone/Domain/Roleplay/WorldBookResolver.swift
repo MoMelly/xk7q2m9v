@@ -44,12 +44,13 @@ enum WorldBookResolver {
         entries: [WorldEntry],
         character: Companion,
         triggerText: String,
-        conditions: Conditions
+        conditions: Conditions,
+        groupUIDs: Set<UUID> = []
     ) -> Resolved {
         let haystack = triggerText.lowercased()
 
         let picked = entries.filter { entry in
-            isEligible(entry, character: character)
+            isEligible(entry, character: character, groupUIDs: groupUIDs)
                 && matches(entry, haystack: haystack, conditions: conditions)
         }
 
@@ -79,11 +80,18 @@ enum WorldBookResolver {
 
     // MARK: - 逐条判断
 
-    /// 这条能不能参与本次匹配：开着的、且属于当前角色或全局。
-    private static func isEligible(_ entry: WorldEntry, character: Companion) -> Bool {
+    /// 这条能不能参与本次匹配：开着的、且属于当前角色、群成员，或者全局。
+    ///
+    /// 群聊只放行群主的话，其他成员的设定集在群里永远不生效——
+    /// 他们在提示词里就只剩一个名字，说话方式也只能跟着群主走。
+    private static func isEligible(
+        _ entry: WorldEntry,
+        character: Companion,
+        groupUIDs: Set<UUID>
+    ) -> Bool {
         guard entry.enabled else { return false }
         guard let owner = entry.characterUID else { return true }
-        return owner == character.uid
+        return owner == character.uid || groupUIDs.contains(owner)
     }
 
     private static func matches(_ entry: WorldEntry, haystack: String, conditions: Conditions) -> Bool {

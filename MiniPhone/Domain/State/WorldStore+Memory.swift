@@ -27,14 +27,13 @@ extension WorldStore {
         save()
     }
 
-    func appendMemorySummary(person name: String, text: String) {
+    /// 整段替换概括。压缩的结果是「这几轮聊完，到现在为止的全部记忆」，
+    /// 不是增量——用追加的话每压一次就多一份，1200 字的上限会被旧摘要挤满。
+    func replaceMemorySummary(person name: String, text: String) {
         let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return }
         let index = state.ensurePerson(named: name)
-        let merged = state.people[index].summary.isEmpty
-            ? clean
-            : state.people[index].summary + "\n" + clean
-        state.people[index].summary = String(merged.suffix(1200))
+        state.people[index].summary = String(clean.suffix(1200))
         save()
     }
 
@@ -105,13 +104,6 @@ extension WorldStore {
             return
         }
         state.people[personIndex].facts[factIndex].text = clean
-        save()
-    }
-
-    /// 整段替换概括。之前只有追加（压缩时接在后面），改一个字就得删整份。
-    func replaceMemorySummary(person name: String, text: String) {
-        guard let index = state.people.firstIndex(where: { $0.name == name }) else { return }
-        state.people[index].summary = String(text.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1200))
         save()
     }
 

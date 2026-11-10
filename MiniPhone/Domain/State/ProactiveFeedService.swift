@@ -22,8 +22,13 @@ final class ProactiveFeedService {
     /// 返回新落下的来件；开场白写进角色消息表由界面层做，Domain 层不碰 SwiftData。
     func deliverIfDue(character: Companion, settings: SettingsStore) async -> FeedInboxItem? {
         let world = WorldStore.shared
-        if let last = world.state.feedInbox.first?.createdAt,
-           Date().timeIntervalSince(last) < 6 * 3_600 { return nil }
+        // 限流按人算。用全站最近一条来限的话，一个人刚发过，
+        // 其他角色就全被按住了，永远不会有人轮上。
+        let last = world.state.feedInbox
+            .filter { $0.companionName == character.name }
+            .map(\.createdAt)
+            .max()
+        if let last, Date().timeIntervalSince(last) < 6 * 3_600 { return nil }
         return await deliver(character: character, settings: settings)
     }
 

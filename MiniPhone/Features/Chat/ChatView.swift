@@ -118,7 +118,7 @@ struct ChatView: View {
                 } else if let source = quoting {
                     ChatContextBar(
                         symbol: "quote.opening",
-                        title: "引用 \(source.role == .user ? "我" : character.name)",
+                        title: "引用 \(source.role == .user ? "我" : (source.speaker ?? character.name))",
                         detail: source.text,
                         onCancel: { quoting = nil }
                     )
@@ -170,7 +170,8 @@ struct ChatView: View {
             // 一轮说完了才念。边流边念会一个字一个字往外蹦，听不清在说什么。
             guard wasStreaming, !isStreaming, settings.speakReplies else { return }
             guard let last = messages.last, last.role == .assistant, !last.text.isEmpty else { return }
-            SpeechService.shared.speak(last.text, as: character.name)
+            // 群聊按说话人取名，不然群里所有人共用一个声音。
+            SpeechService.shared.speak(last.text, as: last.speaker ?? character.name)
         }
         .onChange(of: SpeechService.shared.transcript) { _, text in
             // 识别到一半就往输入框里填，说完直接发，不用再改一遍。
@@ -443,31 +444,6 @@ struct ChatView: View {
     }
 
     /// 说话键。说话时不收键盘也不弹面板，只是把识别到的字往输入框里填。
-    private var micButton: some View {
-        let listening = SpeechService.shared.isListening
-
-        return Button {
-            let speech = SpeechService.shared
-            if speech.isListening {
-                speech.stopListening()
-            } else {
-                showStickers = false
-                showPhotos = false
-                speech.startListening()
-                isInputFocused = false
-            }
-        } label: {
-            Image(systemName: listening ? "waveform" : "mic")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(listening ? Theme.IconTint.pink : Theme.cream.opacity(0.72))
-                .frame(width: 30, height: 30)
-                .symbolEffect(.variableColor.iterative, isActive: listening)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help("说话输入")
-    }
-
     private var activeComposer: some View {
         HStack(spacing: 10) {
             // 微信那套：输入框左边的加号里放通话。拨号不再占桌面一格。

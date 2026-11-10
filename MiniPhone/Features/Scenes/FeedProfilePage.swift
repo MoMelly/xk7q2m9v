@@ -180,7 +180,12 @@ struct FeedProfilePage: View {
                         Color.clear
                             .aspectRatio(0.80, contentMode: .fit)
                             .overlay {
-                                FeedCover(note: note)
+                                NoteCover(
+                                    title: note.title,
+                                    body: note.body,
+                                    tag: note.tag,
+                                    seed: note.coverSeed
+                                )
                             }
                             .clipShape(
                                 RoundedRectangle(cornerRadius: PhoneMetrics.Radius.cover, style: .continuous)

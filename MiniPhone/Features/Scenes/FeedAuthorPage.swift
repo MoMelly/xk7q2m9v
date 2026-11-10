@@ -115,7 +115,12 @@ struct FeedAuthorPage: View {
                             Color.clear
                                 .aspectRatio(0.80, contentMode: .fit)
                                 .overlay {
-                                    FeedCover(note: note)
+                                    NoteCover(
+                                        title: note.title,
+                                        body: note.body,
+                                        tag: note.tag,
+                                        seed: note.coverSeed
+                                    )
                                 }
                                 .clipShape(
                                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.cover, style: .continuous)
@@ -134,6 +139,13 @@ struct FeedAuthorPage: View {
         if let authorUID,
            let found = companions.first(where: { $0.uid.uuidString == authorUID }) {
             return found.uid.uuidString
+        }
+        // 同一个人点第二次「发私信」时不能新建第二个：这类角色在会话列表里
+        // 被 `isFeedOnly` 过滤掉了，用户既看不见也删不掉，私信还会被拆成
+        // 两条互不相通的线程。按名字复用已有的那个。
+        if let existing = companions.first(where: { $0.name == authorName && $0.isFeedOnly }) {
+            localCompanion = existing
+            return existing.uid.uuidString
         }
         let proxy = Companion(
             name: authorName,

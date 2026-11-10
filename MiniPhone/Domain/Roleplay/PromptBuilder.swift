@@ -5,6 +5,17 @@ import Foundation
 /// 这一层是「酒馆兼容」的落点：V2 角色卡里的 description / first_mes
 /// 直接进 `人设` 和 `开场白`；世界书条目进 `设定集` 的关键词匹配。
 /// 剩下的采样参数、正则、宏不暴露给用户，全部由这里固定。
+/// 群聊里的一个成员，来自库里同名的 `Companion`。
+///
+/// 只带名字和一小段人设：群聊提示词的重点是「谁是谁」，不是把
+/// 每个人的完整设定都塞进来——那样一轮就要几千字，还互相打架。
+struct GroupMate: Hashable {
+    let name: String
+    let persona: String
+    /// 他的角色 uid。设定集条目是按 uid 绑角色的，群聊里要放行各成员的条目。
+    let uid: UUID
+}
+
 enum PromptBuilder {
     static func systemPrompt(
         character: Companion,
@@ -18,7 +29,8 @@ enum PromptBuilder {
         callMode: Bool = false,
         userIdentity: UserIdentity? = nil,
         feedActivityLines: [String] = [],
-        stickerNames: [String] = []
+        stickerNames: [String] = [],
+        groupMates: [GroupMate] = []
     ) -> String {
         var blocks: [String] = []
 
@@ -28,7 +40,8 @@ enum PromptBuilder {
             character: character,
             triggerText: triggerText,
             worldContext: worldContext,
-            now: now
+            now: now,
+            groupUIDs: Set(groupMates.map(\.uid))
         )
 
         // 身份
@@ -123,12 +136,21 @@ enum PromptBuilder {
         // 群聊
         if character.isGroup {
             let members = character.membersNote.trimmingCharacters(in: .whitespacesAndNewlines)
-            blocks.append("""
+            var groupText = """
             【这是群聊】成员包括\(members.isEmpty ? "你和其他几位" : members)。
             - 每条回复里，每句话单独一行，以「名字：」开头，名字必须是上述成员之一。
             - 一次可以有一到三个人说话，像真的群聊那样有人接话、有人不接。
             - 不要写旁白，不要写谁在做什么动作，只写台词。
-            """)
+            """
+            // 成员各自的设定。只给一串名字的话，模型分不出这些名字是谁，
+            // 只好用同一个语气写所有人——群聊看着就像只有一个人在说话。
+            if !groupMates.isEmpty {
+                let lines = groupMates.map { mate in
+                    "- \(mate.name)：" + (mate.persona.isEmpty ? "（没写具体设定，按名字和台词保持自己的语气）" : mate.persona)
+                }
+                groupText += "\n【群成员各自是什么人】\n" + lines.joined(separator: "\n")
+            }
+            blocks.append(groupText)
         }
 
         // 长度
@@ -424,7 +446,8 @@ enum PromptBuilder {
         character: Companion,
         triggerText: String,
         worldContext: WorldContext?,
-        now: Date
+        now: Date,
+        groupUIDs: Set<UUID> = []
     ) -> WorldBookResolver.Resolved {
         let conditions = WorldBookResolver.Conditions.build(
             hour: CharacterClock.calendar.component(.hour, from: now),
@@ -437,7 +460,8 @@ enum PromptBuilder {
             entries: entries,
             character: character,
             triggerText: triggerText,
-            conditions: conditions
+            conditions: conditions,
+            groupUIDs: groupUIDs
         )
     }
 
@@ -502,20 +526,5 @@ enum PromptBuilder {
         parts.append("【问题】\n\(question)")
         parts.append("两三句话说清，最长不超过五行。")
         return parts.joined(separator: "\n\n")
-    }
-
-    /// 西瓜皮那条笔记的配图。
-    ///
-    /// 明写「不要文字」：标题另外画在封面下面，让模型在图里再写一遍，
-    /// 双列里会看到两次一样的话，而且中文常常糊成一团。
-    /// 「不要正脸」也是同一个理由——1024 的随手拍里挤出一张脸，最像假图。
-    static func feedImagePrompt(title: String, body: String, tag: String) -> String {
-        let cleanTag = tag.trimmingCharacters(in: .whitespacesAndNewlines)
-        let subject = cleanTag.isEmpty ? title : "\(title)，\(cleanTag)"
-        return """
-        一张手机随手拍的照片，主题：\(subject)。场景描述：\(body)
-        风格：真实的生活照，自然光，轻微颗粒感，构图随意，像发在社交软件上的日常。
-        画面里不要出现任何文字、水印、logo；不要求出现人脸，如果出现人物就只拍背影或局部。
-        """
     }
 }

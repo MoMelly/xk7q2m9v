@@ -100,6 +100,8 @@ struct ConversationListView: View {
         ) {
             Button("删除这个角色和全部聊天记录", role: .destructive) {
                 if let target = pendingDelete {
+                    // 世界状态是另一份按名字存的数据，得一起清。
+                    WorldStore.shared.purgePerson(named: target.name)
                     context.delete(target)
                     try? context.save()
                 }

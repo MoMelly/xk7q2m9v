@@ -323,7 +323,7 @@ struct CharacterDetailPage: View {
             Button("清空", role: .destructive) { clearHistory() }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("聊天记录和记忆摘要都会清掉，不能恢复。")
+            Text("聊天记录、他记得的事、这几天的日程都会清掉，不能恢复。好感度保留。")
         }
     }
 
@@ -410,6 +410,9 @@ struct CharacterDetailPage: View {
         }
         character.memorySummary = ""
         character.memoryCursor = nil
+        // 记忆条目和日程也是从这些对话里长出来的，一起清。
+        // 只清消息的话，记忆页还翻得到旧事实，模型在空对话里照样提起旧事。
+        WorldStore.shared.clearPersonMemory(named: character.name)
         try? context.save()
     }
 }

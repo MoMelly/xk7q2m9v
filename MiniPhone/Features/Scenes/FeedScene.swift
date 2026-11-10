@@ -126,8 +126,14 @@ struct FeedScene: View {
         }
         .task { @MainActor in
             // 角色自己决定要不要在西瓜皮上找你说句话，不需要你点任何按钮。
-            // 服务内部按六小时限流，没填 Key 会直接返回。
-            guard let character = companions.first(where: { !$0.isFeedOnly }) else { return }
+            // 服务内部按人限流，没填 Key 会直接返回。
+            //
+            // 挑最近说过话的那个，不是查询顺序里的第一个：原来固定取 first，
+            // 有多个角色时只有那一个人会来私信，其他人永远沉默。
+            let pool = companions.filter { !$0.isFeedOnly }
+            guard let character = pool.max(by: {
+                ($0.lastMessageAt ?? .distantPast) < ($1.lastMessageAt ?? .distantPast)
+            }) else { return }
             guard let item = await proactive.deliverIfDue(
                 character: character,
                 settings: settings
@@ -165,11 +171,6 @@ struct FeedScene: View {
             opening.character = character
             context.insert(opening)
             try? context.save()
-        }
-        // 配图是另一件事：晚几秒出现不影响看内容，画完了滚动时会自己长出来。
-        // 开关关着、没填 Key、或者最近几条都已经有图时，这里一步就返回。
-        .task { @MainActor in
-            await FeedImageService.shared.fillMissing(settings: settings)
         }
     }
 

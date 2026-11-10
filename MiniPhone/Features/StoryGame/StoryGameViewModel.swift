@@ -292,11 +292,13 @@ final class StoryGameViewModel {
         }
 
         if mode != .hidden, let tail = memoryTail(current) {
-            for (index, uid) in current.characterUIDs.enumerated() {
+            // 按 uid 找角色，不碰 `characterNames`：它和 `characterUIDs` 是两个
+            // 平行数组，比它短一次就下标越界。存档是用户能导出再导回来的，
+            // 这里不能假定两边等长。
+            for uid in current.characterUIDs {
                 guard let character = try? context.fetch(
                     FetchDescriptor<Companion>(predicate: #Predicate { $0.uid == uid })
                 ).first else { continue }
-                let name = current.characterNames[index]
                 let entry: String
                 switch mode {
                 case .asReality:

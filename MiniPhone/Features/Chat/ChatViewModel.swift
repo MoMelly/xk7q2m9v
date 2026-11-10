@@ -162,8 +162,12 @@ final class ChatViewModel {
         let world = WorldStore.shared
         let names = relatedNames(for: character)
 
+        // 只取主聊天。西瓜皮的私信和转帖是另一条线，混进来之后模型会
+        // 对着「刚从西瓜皮转来的那条帖子」继续往下聊，而且和
+        // `hasPendingUserMessages`、`regenerate` 的口径对不上。
         let history = Array(
             character.messages
+                .filter { $0.channel == .chat }
                 .sorted { $0.createdAt < $1.createdAt }
                 .suffix(plan.contextWindow)
         )
@@ -250,11 +254,13 @@ final class ChatViewModel {
                 state: world.state,
                 characterName: character.name
             ),
-            stickerNames: StickerLibrary.shared.names(for: character)
+            stickerNames: StickerLibrary.shared.names(for: character),
+            groupMates: groupMates(for: character, context: context)
         )
 
         var request: [ChatMessage] = [ChatMessage(role: .system, text: system)]
-        request.append(contentsOf: history.map { $0.asChatMessage })
+        // 群聊历史逐条带说话人，不然模型分不清上一位是谁。
+        request.append(contentsOf: history.map { $0.asChatMessage(grouped: character.isGroup) })
 
         let client = OpenAICompatibleClient(config: settings.config)
 
@@ -350,8 +356,16 @@ final class ChatViewModel {
 
         character.totalReplies += 1
         character.lastMessageAt = Date()
-        applySideEffects(meta, names: names, character: character, context: context)
-        recordDay(meta, for: character)
+        // 这一轮谁真的开口了。群聊的状态增量要归他们，不能一律记在群主头上。
+        let speakers = Array(Set(lines.compactMap(\.speaker).filter { !$0.isEmpty })).sorted()
+        applySideEffects(
+            meta,
+            names: names,
+            speakers: speakers,
+            character: character,
+            context: context
+        )
+        recordDay(meta, for: character, speakers: speakers, context: context)
         applyRefresh(
             meta,
             refresh: refresh,
@@ -376,117 +390,6 @@ final class ChatViewModel {
         }
     }
 
-    /// 把这一轮记进角色当天的那一页。
-    ///
-    /// 日程本身是本地排出来的，聊过之后才盖上「这天说过话」的章，
-    /// 并把模型给的 dayLog 挂上去。角色之后说「昨天我们聊到……」靠的就是它。
-    private func recordDay(_ meta: ReplyEnvelope.Meta?, for character: Companion) {
-        let world = WorldStore.shared
-
-        world.ensureCharacterDay(
-            named: character.name,
-            wakeHour: character.wakeHour,
-            sleepHour: character.sleepHour,
-            replies: character.totalReplies
-        )
-
-        let log = meta?.dayLog?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        world.noteCharacterChat(named: character.name, summary: log)
-        world.markCoupleDay(fromMe: false, partner: character.name)
-        // 说过一轮就往前挪一格。模型给了具体的心情转折也不额外加，
-        // 否则「聊得开心」比「天天来」涨得快，好感度会集中爆发在几次长对话里。
-        world.bumpAffinity(for: character.name, by: 1)
-    }
-
-    /// 状态块里带回来的增量统一写进 WorldStore。
-    /// 群聊里发生的事按所有相关人物归档，所以回到单聊时读得到同一份记忆。
-    private func applySideEffects(
-        _ meta: ReplyEnvelope.Meta?,
-        names: [String],
-        character: Companion,
-        context: ModelContext
-    ) {
-        guard let meta else { return }
-        let world = WorldStore.shared
-
-        if let raw = meta.mood, let mood = Mood(rawValue: raw) {
-            world.updateMood(mood, reason: meta.moodReason ?? "", source: .chat, for: character.name)
-        }
-        if let voice = meta.voice {
-            world.appendVoice(person: character.name, text: voice, source: .chat)
-        }
-        if let memory = meta.memory {
-            for name in names {
-                world.recordFact(person: name, text: memory, sourceName: character.name)
-            }
-        }
-        if let note = meta.scheduleNote, !note.isEmpty {
-            world.recordFact(person: character.name, text: "日程：\(note)", sourceName: character.name)
-        }
-        if let moment = meta.moment, !moment.isEmpty {
-            context.insert(
-                MomentPost(
-                    characterUID: character.uid,
-                    characterName: character.name,
-                    text: moment
-                )
-            )
-        }
-        if let raw = meta.voiceResolvedID, let id = UUID(uuidString: raw) {
-            world.resolveVoice(id: id)
-        }
-    }
-
-    /// 把这一轮带回来的页面增量写进世界状态。
-    ///
-    /// 判定过要刷、模型却什么都没给，是正常会发生的（它觉得最近没线索）。
-    /// 这种情况不清零计数，下一轮还能再判一次，不会白等六轮。
-    private func applyRefresh(
-        _ meta: ReplyEnvelope.Meta?,
-        refresh: RefreshRequest?,
-        enabledPages: [RefreshPage],
-        for character: Companion
-    ) {
-        let world = WorldStore.shared
-
-        guard let refresh, let meta else {
-            world.noteTurn(pages: enabledPages)
-            return
-        }
-
-        var added = 0
-        if refresh.wantsShop {
-            added += world.applyShopDrafts(meta.shop ?? [], limit: refresh.shopLimit)
-        }
-        if refresh.wantsFeed {
-            added += world.applyFeedDrafts(
-                meta.feed ?? [],
-                author: character.name,
-                authorUID: character.uid.uuidString,
-                limit: refresh.feedLimit
-            )
-            added += world.applyFeedComments(meta.feedComments ?? [], limit: refresh.commentLimit)
-        }
-
-        if added > 0 {
-            world.markRefreshed(refresh.pages)
-            // App 不在前台时补一条本地通知；在前台由外壳弹玻璃横幅，不走系统通知。
-            ReplyNotifier.notifyRefresh(text: refresh.notices.joined(separator: "\n"))
-        } else {
-            world.noteTurn(pages: enabledPages)
-        }
-    }
-
-    private func relatedNames(for character: Companion) -> [String] {
-        var names = [character.name]
-        if character.isGroup {
-            names.append(contentsOf: character.membersNote
-                .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" || $0 == "\n" })
-                .map { String($0).trimmingCharacters(in: .whitespaces) }
-                .filter { !$0.isEmpty })
-        }
-        return Array(Set(names))
-    }
 
     private func save(_ context: ModelContext) {
         do {
@@ -550,7 +453,9 @@ final class ChatViewModel {
             save(context)
 
             let world = WorldStore.shared
-            world.appendMemorySummary(person: character.name, text: clean)
+            // 这是「整段重写」的结果，不是增量。用 append 的话每压一次就多一份，
+            // 1200 字的上限被几份旧摘要挤满，最新那份反而被切掉半截。
+            world.replaceMemorySummary(person: character.name, text: clean)
             for name in relatedNames(for: character) {
                 world.recordFact(person: name, text: clean, sourceName: character.name)
             }

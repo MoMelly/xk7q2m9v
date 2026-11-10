@@ -308,9 +308,8 @@ struct Letter: Codable, Identifiable, Hashable {
 
 /// 西瓜皮式的一条笔记。
 ///
-/// 封面默认是由标题和 `coverSeed` 现场排出来的文字图——不占包体、不用调接口。
-/// 开了「AI 配图」之后会多一张真图，文件名记在 `imageFile` 里，
-/// 图本身在 `Documents/feedImages`；没有这张图就照旧排文字封面。
+/// 封面不是图片文件，是由标题和 `coverSeed` 现场排出来的文字图——
+/// 用真图就要么占包体、要么调生图接口，两种都不划算。
 struct FeedNote: Codable, Identifiable, Hashable {
     var id: UUID
     var authorName: String
@@ -323,34 +322,6 @@ struct FeedNote: Codable, Identifiable, Hashable {
     var comments: [NoteComment]
     var postedAt: Date
     var coverSeed: Int
-    /// AI 配图的文件名。nil 表示还没画过（或者用户清掉了）。
-    var imageFile: String?
-
-    init(
-        id: UUID,
-        authorName: String,
-        authorUID: String?,
-        title: String,
-        body: String,
-        tag: String,
-        likes: Int,
-        comments: [NoteComment],
-        postedAt: Date,
-        coverSeed: Int,
-        imageFile: String? = nil
-    ) {
-        self.id = id
-        self.authorName = authorName
-        self.authorUID = authorUID
-        self.title = title
-        self.body = body
-        self.tag = tag
-        self.likes = likes
-        self.comments = comments
-        self.postedAt = postedAt
-        self.coverSeed = coverSeed
-        self.imageFile = imageFile
-    }
 }
 
 /// 西瓜皮来件的两种类型。私信和转帖在界面上是两条独立通道，

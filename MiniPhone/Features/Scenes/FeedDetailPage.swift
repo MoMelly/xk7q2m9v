@@ -27,7 +27,13 @@ struct FeedDetailPage: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        FeedCover(note: current, height: 240)
+                        NoteCover(
+                            title: current.title,
+                            body: current.body,
+                            tag: current.tag,
+                            seed: current.coverSeed
+                        )
+                        .frame(height: 240)
                             .clipShape(
                                 RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
                             )
@@ -36,7 +42,7 @@ struct FeedDetailPage: View {
 
                         authorRow
                         bodyText
-                        actionRow
+                        shareButton
                         commentSection
                     }
                     .padding(.bottom, PhoneMetrics.Space.xl)
@@ -151,84 +157,33 @@ struct FeedDetailPage: View {
         }
     }
 
-    /// 分享和配图并排放在右端两枚小胶囊里。
-    ///
-    /// 全宽一大条太抢戏；配图这一枚只在设置里开了「AI 配图」时才出现——
-    /// 每点一次都是一次真实付费调用，不该是一个随手能碰到的大按钮。
-    private var actionRow: some View {
-        VStack(alignment: .trailing, spacing: 6) {
-            HStack(spacing: PhoneMetrics.Space.xs) {
-                Spacer(minLength: 0)
-
-                if settings.feedImages {
-                    Button {
-                        retryImage()
-                    } label: {
-                        HStack(spacing: 5) {
-                            if FeedImageService.shared.isBusy(current.id) {
-                                ProgressView()
-                                    .controlSize(.mini)
-                            } else {
-                                Image(systemName: current.imageFile == nil
-                                      ? "sparkles" : "arrow.triangle.2.circlepath")
-                                    .font(.system(size: 11, weight: .medium))
-                            }
-                            Text(current.imageFile == nil ? "配一张图" : "换一张")
-                                .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
-                        }
-                        .foregroundStyle(AppSurface.light.secondaryLabel)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 7)
-                        .background(Capsule().fill(AppSurface.light.rowSurface))
-                        .overlay {
-                            Capsule().strokeBorder(AppSurface.light.separator, lineWidth: 0.6)
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(FeedImageService.shared.isBusy(current.id))
+    private var shareButton: some View {
+        // 全宽一大条太抢戏，收成右端一枚小胶囊，只是个轻量入口。
+        HStack {
+            Spacer(minLength: 0)
+            Button {
+                showSharePicker = true
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 11, weight: .medium))
+                    Text("分享到私聊")
+                        .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
                 }
-
-                Button {
-                    showSharePicker = true
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 11, weight: .medium))
-                        Text("分享到私聊")
-                            .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
-                    }
-                    .foregroundStyle(Theme.brand)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(
-                        Capsule().fill(Theme.brand.opacity(0.09))
-                    )
-                    .overlay {
-                        Capsule().strokeBorder(Theme.brand.opacity(0.22), lineWidth: 0.6)
-                    }
+                .foregroundStyle(Theme.brand)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    Capsule().fill(Theme.brand.opacity(0.09))
+                )
+                .overlay {
+                    Capsule().strokeBorder(Theme.brand.opacity(0.22), lineWidth: 0.6)
                 }
-                .buttonStyle(.plain)
             }
-
-            // 失败只有一行字，不放弹窗：这一页是看笔记的地方，弹窗会打断。
-            if settings.feedImages,
-               current.imageFile == nil,
-               let error = FeedImageService.shared.lastError {
-                Text(error)
-                    .font(.system(size: PhoneMetrics.FontSize.caption))
-                    .foregroundStyle(Theme.warning)
-                    .multilineTextAlignment(.trailing)
-                    .lineLimit(2)
-            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, PhoneMetrics.Space.m)
         .padding(.bottom, PhoneMetrics.Space.s)
-    }
-
-    private func retryImage() {
-        Task { @MainActor in
-            await FeedImageService.shared.regenerate(noteID: current.id, settings: settings)
-        }
     }
 
     /// 卡片只写进那条私信的消息流，不新开转帖通道、也不写角色活动索引。

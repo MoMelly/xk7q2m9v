@@ -183,7 +183,8 @@ struct CallOverlay: View {
 
                     ForEach(lines) { message in
                         line(
-                            speaker: message.role == .user ? "你" : character.name,
+                            // 群聊通话里每个成员都得有自己的名字，不然字幕全署在群名上。
+                            speaker: message.role == .user ? "你" : (message.speaker ?? character.name),
                             text: message.text,
                             isUser: message.role == .user
                         )

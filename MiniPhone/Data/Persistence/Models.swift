@@ -231,7 +231,12 @@ final class StoredMessage {
         set { channelRaw = newValue.rawValue }
     }
 
-    var asChatMessage: ChatMessage {
+    /// `grouped` 表示这是群聊的历史。
+    ///
+    /// 群聊里必须把说话人写进正文：不带的话，模型看到的是一串没有署名的
+    /// assistant 消息，分不清上一句是谁说的，于是只顺着一个人往下写，
+    /// 群里就只剩下一个「他」。单聊不加，否则模型会学着自己也带前缀。
+    func asChatMessage(grouped: Bool = false) -> ChatMessage {
         // 带图的消息在历史里得说清楚，不然模型会看到一条只有半句话、
         // 或者干脆空白的内容，接不上刚才聊到哪儿。
         var body: String
@@ -247,6 +252,11 @@ final class StoredMessage {
         }
         if !quoteText.isEmpty {
             body = "（引用\(quoteSpeaker)：\(quoteText.prefix(40))）\(body)"
+        }
+        // 名字拼在最后，落在最前面：`阿岚：（引用我：…）内容`。
+        // 「我」那一侧不署名——用户没有名字，模型也不需要知道。
+        if grouped, role == .assistant, let speaker, !speaker.isEmpty {
+            body = "\(speaker)：\(body)"
         }
         return ChatMessage(id: uid, role: role, text: body, createdAt: createdAt)
     }

@@ -75,7 +75,7 @@ struct FeedCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            FeedCover(note: note)
+            NoteCover(title: note.title, body: note.body, tag: note.tag, seed: note.coverSeed)
                 .frame(width: width, height: width / Self.aspectRatio(for: note.coverSeed))
                 .clipShape(
                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.grouped, style: .continuous)

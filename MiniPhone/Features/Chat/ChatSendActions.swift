@@ -135,7 +135,8 @@ extension ChatView {
                 character: character,
                 context: context,
                 settings: settings,
-                quoteSpeaker: quoted.map { $0.role == .user ? "我" : character.name } ?? "",
+                // 群聊里引用的是某个成员说的话，署名得是他，不是群名。
+                quoteSpeaker: quoted.map { $0.role == .user ? "我" : ($0.speaker ?? character.name) } ?? "",
                 quoteText: quoted?.text ?? ""
             )
         }

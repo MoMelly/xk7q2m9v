@@ -504,6 +504,13 @@ struct CharacterEditorView: View {
             target = created
         }
 
+        // 改名要在赋值之前记下旧名字：世界状态是按名字存数据的，
+        // 不搬的话记忆、好感度、日程全留在旧名字下面，界面上像是被清空了。
+        let previousName = target.name
+        if previousName != trimmedName {
+            WorldStore.shared.renamePerson(from: previousName, to: trimmedName)
+        }
+
         target.name = trimmedName
         target.persona = persona
         target.greeting = greeting
@@ -539,6 +546,9 @@ struct CharacterEditorView: View {
 
     private func deleteCharacter() {
         guard let character else { return }
+        // 先清世界状态里的那一份。只删 Companion 的话，重建一个同名角色
+        // 会直接继承前一个人的记忆和好感度。
+        WorldStore.shared.purgePerson(named: character.name)
         context.delete(character)
         try? context.save()
         onFinish()

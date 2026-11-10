@@ -43,6 +43,12 @@ enum DataBackup {
             var packetCents: Int?
             var packetNote: String?
             var packetOpened: Bool?
+            /// v4 新增。通道与线程决定这条消息显示在哪：主聊天、西瓜皮私信、
+            /// 还是转帖。漏了的话恢复之后私信和转帖全部塌回主聊天，
+            /// 拍一拍也会变成一条普通消息。
+            var channelRaw: String?
+            var threadRaw: String?
+            var isPat: Bool?
         }
 
         struct Char: Codable {
@@ -72,6 +78,15 @@ enum DataBackup {
             /// v3 新增。内置头像键与上传头像文件名。
             var avatarImageKey: String?
             var avatarFileName: String?
+            /// v4 新增。这几个字段在 `Companion` 上早就有了，备份一直没带。
+            /// 漏着的后果是恢复之后：所有会话的「我以谁的身份」回落成默认身份、
+            /// 西瓜皮路人作者全变成正式角色涌进信息列表、拍一拍后缀没了、
+            /// 屏蔽过的贴纸又全部冒出来。
+            var personaUID: String?
+            var isFeedOnly: Bool?
+            var patSuffix: String?
+            var blockedStickerGroupsRaw: String?
+            var blockedStickerNamesRaw: String?
         }
 
         /// 「我的」里的一个身份。v3 新增，老备份没有整段。
@@ -190,7 +205,12 @@ enum DataBackup {
                                     editedAt: $0.editedAt,
                                     packetCents: $0.packetCents == 0 ? nil : $0.packetCents,
                                     packetNote: $0.packetNote.isEmpty ? nil : $0.packetNote,
-                                    packetOpened: $0.packetOpened ? true : nil
+                                    packetOpened: $0.packetOpened ? true : nil,
+                                    // 主聊天是默认值，存 nil 省体积；恢复时按 nil 还原成 chat。
+                                    channelRaw: $0.channelRaw == MessageChannel.chat.rawValue
+                                        ? nil : $0.channelRaw,
+                                    threadRaw: $0.threadRaw.isEmpty ? nil : $0.threadRaw,
+                                    isPat: $0.isPat ? true : nil
                                 )
                             },
                         signature: character.signature,
@@ -198,7 +218,14 @@ enum DataBackup {
                         canReadCalendar: character.canReadCalendar,
                         isNPC: character.isNPC,
                         avatarImageKey: character.avatarImageKey,
-                        avatarFileName: character.avatarFileName
+                        avatarFileName: character.avatarFileName,
+                        personaUID: character.personaUID.isEmpty ? nil : character.personaUID,
+                        isFeedOnly: character.isFeedOnly ? true : nil,
+                        patSuffix: character.patSuffix.isEmpty ? nil : character.patSuffix,
+                        blockedStickerGroupsRaw: character.blockedStickerGroupsRaw.isEmpty
+                            ? nil : character.blockedStickerGroupsRaw,
+                        blockedStickerNamesRaw: character.blockedStickerNamesRaw.isEmpty
+                            ? nil : character.blockedStickerNamesRaw
                     )
                 },
             moments: moments
@@ -304,27 +331,7 @@ enum DataBackup {
             }
             try? FileManager.default.copyItem(at: file, to: destination.appendingPathComponent(file.lastPathComponent))
         }
-
-        // 西瓜皮的 AI 配图也一起搬。库里的 `imageFile` 只是个文件名，
-        // 不搬文件的话恢复之后每一条都会退回文字封面，看着像「图全丢了」。
-        copyDirectory(FeedImageStorage.directory, to: folder.appendingPathComponent("feedImages", isDirectory: true))
         return folder
-    }
-
-    /// 整个目录拷进备份。没有这个目录就当没有，不算失败。
-    private static func copyDirectory(_ source: URL, to destination: URL) {
-        let files = (try? FileManager.default.contentsOfDirectory(
-            at: source,
-            includingPropertiesForKeys: nil
-        )) ?? []
-        guard !files.isEmpty else { return }
-        try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
-        for file in files {
-            try? FileManager.default.copyItem(
-                at: file,
-                to: destination.appendingPathComponent(file.lastPathComponent)
-            )
-        }
     }
 
     // MARK: - 恢复
@@ -400,6 +407,11 @@ enum DataBackup {
             character.isNPC = item.isNPC ?? false
             character.avatarImageKey = item.avatarImageKey ?? ""
             character.avatarFileName = item.avatarFileName ?? ""
+            character.personaUID = item.personaUID ?? ""
+            character.isFeedOnly = item.isFeedOnly ?? false
+            character.patSuffix = item.patSuffix ?? ""
+            character.blockedStickerGroupsRaw = item.blockedStickerGroupsRaw ?? ""
+            character.blockedStickerNamesRaw = item.blockedStickerNamesRaw ?? ""
             context.insert(character)
 
             for message in item.messages {
@@ -419,6 +431,9 @@ enum DataBackup {
                 stored.packetCents = message.packetCents ?? 0
                 stored.packetNote = message.packetNote ?? ""
                 stored.packetOpened = message.packetOpened ?? false
+                stored.channelRaw = message.channelRaw ?? MessageChannel.chat.rawValue
+                stored.threadRaw = message.threadRaw ?? ""
+                stored.isPat = message.isPat ?? false
                 stored.editedAt = message.editedAt
                 stored.character = character
                 context.insert(stored)
@@ -517,19 +532,6 @@ enum DataBackup {
                 )
             }
             extras.append("头像照片 \(files.count) 张")
-        }
-        let backupFeedImages = folder.appendingPathComponent("feedImages", isDirectory: true)
-        if let files = try? FileManager.default.contentsOfDirectory(
-            at: backupFeedImages,
-            includingPropertiesForKeys: nil
-        ), !files.isEmpty {
-            for file in files {
-                try? FileManager.default.copyItem(
-                    at: file,
-                    to: FeedImageStorage.directory.appendingPathComponent(file.lastPathComponent)
-                )
-            }
-            extras.append("配图 \(files.count) 张")
         }
         if payload.users != nil {
             extras.append("我的身份")

@@ -169,13 +169,20 @@ struct StorySetupPage: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("开场") {
-                        let player = (try? modelContext.fetch(FetchDescriptor<UserProfile>()))?
-                            .first?.name ?? "我"
+                        // 用当前默认身份，不是「查到的第一个身份」：
+                        // 多身份时第一个不一定是正在用的那个，玩家名会张冠李戴。
+                        let player = UserProfileBook
+                            .resolve(uid: "", in: modelContext)?.name ?? "我"
+                        // 顺序按名单走。`selected` 是无序 Set，直接 `Array()` 会让
+                        // 同一次选择的角色顺序每次都不同，正文里的称呼跟着乱。
+                        let ordered = roster
+                            .filter { selected.contains($0.uid) }
+                            .map(\.uid)
                         Task {
                             await viewModel.start(
                                 title: title,
                                 premise: premise,
-                                uids: Array(selected),
+                                uids: ordered,
                                 roster: roster,
                                 playerName: player,
                                 settings: settings
