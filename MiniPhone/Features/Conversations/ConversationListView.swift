@@ -21,9 +21,14 @@ struct ConversationListView: View {
         .contains(UserDefaults.standard.string(forKey: "previewState") ?? "")
     @State private var showCallHistory = false
     @State private var pendingDelete: Companion?
-    @State private var tab: Tab = UserDefaults.standard.string(forKey: "previewState") == "chatMine"
-        ? .mine
-        : .messages
+    /// 截图用的启动 Tab，只影响预览状态，不落盘。
+    @State private var tab: Tab = {
+        switch UserDefaults.standard.string(forKey: "previewState") {
+        case "chatMine": return .mine
+        case "chatCalls": return .calls
+        default: return .messages
+        }
+    }()
     @State private var query = ""
     @State private var callKind: CallKind?
     @State private var callTarget: Companion?

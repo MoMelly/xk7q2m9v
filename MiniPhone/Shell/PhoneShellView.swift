@@ -80,7 +80,8 @@ struct PhoneShellView: View {
         case "phonePeek": destination = .scene(.phonePeek)
         case "couple": destination = .scene(.couple)
         case "storyGame", "storyPlay", "storyEnd": destination = .scene(.storyGame)
-        case "chatDetail", "chatMine", "chatEditor", "chatStickers", "chatPhoto", "chatDynamic", "chatGlass", "avatarPicker",
+        case "chatDetail", "chatMine", "chatCalls", "chatEditor", "chatStickers", "chatPhoto",
+             "chatDynamic", "chatGlass", "avatarPicker",
              "charDetail", "board", "statePanel", "anonBox", "worldEntries",
              "call", "chatTogether", "redPacket": destination = .chat
         case "chatNight": destination = .chat
