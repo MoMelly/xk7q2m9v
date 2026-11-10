@@ -55,7 +55,7 @@ struct PhoneShellView: View {
     private static var opensChatDirectly: Bool {
         switch previewState {
         case "chatDetail", "chatStickers", "chatPhoto", "chatDynamic", "chatGlass", "charDetail", "board",
-             "statePanel", "anonBox", "worldEntries",
+             "statePanel", "anonBox", "worldEntries", "chatGroup", "groupDetail", "groupMemory",
              "call", "chatTogether", "redPacket":
             return true
         default:
@@ -81,7 +81,7 @@ struct PhoneShellView: View {
         case "couple": destination = .scene(.couple)
         case "storyGame", "storyPlay", "storyEnd": destination = .scene(.storyGame)
         case "chatDetail", "chatMine", "chatCalls", "chatEditor", "chatStickers", "chatPhoto",
-             "chatDynamic", "chatGlass", "avatarPicker",
+             "chatDynamic", "chatGlass", "avatarPicker", "chatGroup", "groupDetail", "groupMemory",
              "charDetail", "board", "statePanel", "anonBox", "worldEntries",
              "call", "chatTogether", "redPacket": destination = .chat
         case "chatNight": destination = .chat

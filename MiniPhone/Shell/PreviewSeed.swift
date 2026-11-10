@@ -284,6 +284,9 @@ struct PreviewSeeder {
         case "statePanel", "anonBox", "memoryLibrary", "worldEntries":
             seedWorldState()
 
+        case "chatGroup", "groupDetail", "groupMemory":
+            seedGroupChat()
+
         case "chatCalls":
             // 这一屏要验「群不在能拨号的名单里」，所以必须真的建一个群，
             // 还把它排在最前：只放几个人的话，滤不滤群截图上完全一样。

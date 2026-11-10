@@ -71,6 +71,8 @@ struct CharacterDetailPage: View {
             AnyView(StatePanelPage(character: character, world: world))
         case "anonBox":
             AnyView(AnonymousBoxPage(character: character, world: world, settings: settings))
+        case "groupMemory":
+            AnyView(CharacterMemoryPage(character: character, world: world))
         default:
             AnyView(detailBody)
         }
