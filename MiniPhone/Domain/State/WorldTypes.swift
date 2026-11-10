@@ -133,49 +133,6 @@ struct CharacterDay: Codable, Identifiable {
     }
 }
 
-/// 一条跨会话事实。归属到人，不归属到会话，群聊里发生的事单聊也能读到。
-struct PersonFact: Codable, Identifiable {
-    var id: UUID
-    var text: String
-    var sourceName: String
-    var createdAt: Date
-}
-
-enum VoiceSource: String, Codable {
-    case chat
-    case moment
-    case schedule
-}
-
-/// 一条心声。
-///
-/// 与「单轮给玩家看一句」的区别：它有时间戳、有来源、有是否了结，
-/// 后续提示词会读到尚未了结的心结，直到被明确标记解决。
-struct InnerVoiceEntry: Codable, Identifiable {
-    var id: UUID
-    var personName: String
-    var text: String
-    var createdAt: Date
-    var source: VoiceSource
-    var isResolved: Bool
-    var resolvedAt: Date?
-    var lastReferencedAt: Date?
-}
-
-struct PersonMemory: Codable, Identifiable {
-    var name: String
-    var summary: String
-    var facts: [PersonFact]
-    var voices: [InnerVoiceEntry]
-
-    var id: String { name }
-
-    static func empty(named name: String) -> PersonMemory {
-        PersonMemory(name: name, summary: "", facts: [], voices: [])
-    }
-}
-
-/// `id` 用相对路径而不是随机 UUID：歌单每次扫描都要保持同一批身份，
 /// 否则 SwiftUI 的 ForEach 会把整列当成换了数据。
 struct Track: Codable, Identifiable, Hashable {
     var id: String
@@ -436,6 +393,12 @@ struct WorldState: Codable {
     var variables: [String: String] = [:]
     /// 匿名提问箱里的一问一答，新的在前。
     var questions: [AnonymousQuestion] = []
+    /// 群聊的成员表：群名 → 成员名。
+    ///
+    /// 单聊时要能想起「他所在的那个群里发生过什么」，所以这张表必须落在
+    /// 世界状态里。群的成员名单在 SwiftData 的 `Companion.membersNote` 上，
+    /// 那是界面层的输入，`WorldStore` 不该去读它。
+    var groups: [String: [String]] = [:]
     var updatedAt: Date = Date()
 
     init() {}
@@ -448,6 +411,7 @@ struct WorldState: Codable {
         case phones, couples
         case moods, locations
         case affinity, variables, questions
+        case groups
         /// 旧字段，只读不写：解出老存档里的那一台手机 / 那一份火花 / 那一份心情 / 那一个地点。
         case phone, couple, mood, location
     }
@@ -491,6 +455,7 @@ struct WorldState: Codable {
         affinity = try container.decodeIfPresent([String: Int].self, forKey: .affinity) ?? [:]
         variables = try container.decodeIfPresent([String: String].self, forKey: .variables) ?? [:]
         questions = try container.decodeIfPresent([AnonymousQuestion].self, forKey: .questions) ?? []
+        groups = try container.decodeIfPresent([String: [String]].self, forKey: .groups) ?? [:]
     }
 
     /// 归档编码要跟着手写解码一起走，两边字段名对不上会静默丢数据。
@@ -518,6 +483,7 @@ struct WorldState: Codable {
         try container.encode(affinity, forKey: .affinity)
         try container.encode(variables, forKey: .variables)
         try container.encode(questions, forKey: .questions)
+        try container.encode(groups, forKey: .groups)
         try container.encode(updatedAt, forKey: .updatedAt)
     }
 
@@ -534,6 +500,14 @@ struct WorldState: Codable {
 
     func person(named name: String) -> PersonMemory? {
         people.first { $0.name == name }
+    }
+
+    /// 这个人所在的所有群。单聊时靠它把群记忆一起读出来。
+    func groupsInvolving(_ name: String) -> [String] {
+        groups
+            .filter { $0.value.contains(name) }
+            .map(\.key)
+            .sorted()
     }
 
     func unresolvedVoices(limit: Int = 4) -> [InnerVoiceEntry] {

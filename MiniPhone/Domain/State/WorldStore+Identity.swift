@@ -53,6 +53,24 @@ extension WorldStore {
         moveKey(&state.couples, from: from, to: to)
         moveKey(&state.refreshTurns, from: from, to: to)
 
+        // 群成员表。成员改名了但表里还是旧名字，单聊就反查不到他在哪个群。
+        // 先收集键再改：遍历字典的同时写它，Swift 那边是未定义行为。
+        for group in Array(state.groups.keys) {
+            guard var members = state.groups[group], members.contains(from) else { continue }
+            if let index = members.firstIndex(of: from) { members[index] = to }
+            state.groups[group] = members
+        }
+        // 改的是群名本身：键跟着换，成员各自那份群笔记的键也得换，
+        // 否则记忆还在，只是再也读不出来了。
+        if let members = state.groups.removeValue(forKey: from) {
+            state.groups[to] = members
+        }
+        for index in state.people.indices {
+            if let note = state.people[index].groupNotes.removeValue(forKey: from) {
+                state.people[index].groupNotes[to] = note
+            }
+        }
+
         save()
         AppLog.storage.info("世界状态改名：\(from, privacy: .public) → \(to, privacy: .public)")
     }
@@ -71,6 +89,15 @@ extension WorldStore {
             state.people[index].facts.removeAll()
             state.people[index].voices.removeAll()
             state.people[index].summary = ""
+            state.people[index].groupNotes.removeAll()
+        }
+        // 清的是群：成员各自那份群笔记也得清。
+        // 只清群账户的话，下次进群他照旧记得，界面上看着像没清干净。
+        if let members = state.groups[target] {
+            for member in members where member != target {
+                guard let index = state.people.firstIndex(where: { $0.name == member }) else { continue }
+                state.people[index].groupNotes.removeValue(forKey: target)
+            }
         }
         state.characterDays.removeAll { $0.name == target }
         save()
@@ -100,6 +127,13 @@ extension WorldStore {
         state.affinity.removeValue(forKey: target)
         state.couples.removeValue(forKey: target)
         state.refreshTurns.removeValue(forKey: target)
+
+        // 群：删的是群就整条删掉；删的是人就从所有群的成员名单里摘出去。
+        // 留着名字的话，单聊反查时还会命中一个已经不存在的人。
+        state.groups.removeValue(forKey: target)
+        for group in Array(state.groups.keys) {
+            state.groups[group]?.removeAll { $0 == target }
+        }
 
         save()
         AppLog.storage.info("世界状态清理：\(target, privacy: .public)")

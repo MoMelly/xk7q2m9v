@@ -9,12 +9,16 @@ enum AppSurface {
     case light
     case dark
     case glass
+    /// 文游用。整页是一张纸，不跟夜间翻深色——书就是书，
+    /// 夜里看纸质感的页面也还是亮的，翻黑了就成了另一种界面。
+    case paper
 
     var background: Color {
         switch self {
         case .light: return Theme.groupedBackground
         case .dark: return Theme.ink
         case .glass: return .clear
+        case .paper: return Theme.StoryPaper.paper
         }
     }
 
@@ -22,6 +26,7 @@ enum AppSurface {
         switch self {
         case .light: return Theme.label
         case .dark, .glass: return .white
+        case .paper: return Theme.StoryPaper.ink
         }
     }
 
@@ -29,6 +34,7 @@ enum AppSurface {
         switch self {
         case .light: return Theme.secondaryLabel
         case .dark, .glass: return .white.opacity(0.7)
+        case .paper: return Theme.StoryPaper.inkSoft
         }
     }
 
@@ -36,6 +42,7 @@ enum AppSurface {
         switch self {
         case .light: return Theme.rowSurface
         case .dark, .glass: return .white.opacity(0.1)
+        case .paper: return Theme.StoryPaper.card
         }
     }
 
@@ -43,6 +50,7 @@ enum AppSurface {
         switch self {
         case .light: return Theme.separator
         case .dark, .glass: return .white.opacity(0.15)
+        case .paper: return Theme.StoryPaper.rule
         }
     }
 
@@ -50,6 +58,7 @@ enum AppSurface {
         switch self {
         case .light: return Theme.tint
         case .dark, .glass: return Theme.mint
+        case .paper: return Theme.StoryPaper.vermilion
         }
     }
 
@@ -65,6 +74,7 @@ enum AppSurface {
         switch self {
         case .light: return ThemeStore.shared.isNight ? .dark : .light
         case .dark, .glass: return .dark
+        case .paper: return .light
         }
     }
 }

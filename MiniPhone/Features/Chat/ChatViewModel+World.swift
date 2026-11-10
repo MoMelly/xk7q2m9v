@@ -58,39 +58,60 @@ extension ChatViewModel {
         _ meta: ReplyEnvelope.Meta?,
         names: [String],
         speakers: [String],
+        spoken: [String] = [],
         character: Companion,
         context: ModelContext
     ) {
         guard let meta else { return }
         let world = WorldStore.shared
 
-        // 心情和心事归「这一轮真正开口的人」。群聊里只有一个人说话时写给他；
-        // 几个人同时说、或者根本分不清（旁白、动作），才回落到会话自己的角色。
-        // 原来一律写给群主，阿岚的心情会变成整个群的心情，柏川在单聊里
-        // 永远读不到自己那句心事。
+        // 这一轮谁在说、说了几句。`spoken` 是有序且带重复的，用来挑
+        // 「说话最多的那个人」；`speakers` 只是去了重的名单。
         let owners = speakers.filter { !$0.isEmpty }
-        let owner = owners.count == 1 ? (owners.first ?? character.name) : character.name
+        let owner = Self.mostFrequent(spoken) ?? (owners.count == 1 ? (owners.first ?? character.name) : character.name)
 
         if let raw = meta.mood, let mood = Mood(rawValue: raw) {
             world.updateMood(mood, reason: meta.moodReason ?? "", source: .chat, for: owner)
         }
-        if let voice = meta.voice {
-            world.appendVoice(person: owner, text: voice, source: .chat)
+
+        if let voice = meta.voice, !voice.isEmpty {
+            if character.isGroup {
+                // 群聊的心事按发言人分。原来整条写给群主，结果群里
+                // 每个人都只有群主一个心情，别人在单聊里永远读不到自己的心事。
+                let items = Self.parseGroupVoices(
+                    voice,
+                    allowed: Set(owners),
+                    fallback: owner
+                )
+                for item in items.prefix(2) {
+                    world.appendVoice(person: item.name, text: item.text, source: .chat)
+                }
+            } else {
+                world.appendVoice(person: character.name, text: voice, source: .chat)
+            }
         }
+
         if let memory = meta.memory {
             // 有明确说话人时只记给他。原先分给群里每一个人，
             // 结果是「柏川记得阿岚说过的话」，而且记成自己说的。
             for name in (owners.isEmpty ? names : owners) {
                 world.recordFact(person: name, text: memory, sourceName: owner)
             }
+            // 群里共同发生的事还得记一份在群名下，否则单聊时读不到。
+            if character.isGroup, !character.name.isEmpty, !owners.isEmpty {
+                world.recordFact(person: character.name, text: memory, sourceName: owner)
+            }
         }
         if let note = meta.scheduleNote, !note.isEmpty {
             // 日程是「谁今天干了什么」，只记给说话的人。
             world.recordFact(person: owner, text: "日程：\(note)", sourceName: owner)
         }
-        if let moment = meta.moment, !moment.isEmpty {
+        if let moment = meta.moment, !moment.isEmpty, !character.isGroup {
             // 动态挂在这个会话的角色上：`characterUID` 和 `characterName` 必须
             // 是同一个人的，改其中一个就会点进一张空主页。
+            //
+            // 群聊不产动态：动态是「一个人的号」，一个群没有自己的主页，
+            // 挂到群主名下就变成群主替所有人发心情。
             context.insert(
                 MomentPost(
                     characterUID: character.uid,
@@ -102,6 +123,68 @@ extension ChatViewModel {
         if let raw = meta.voiceResolvedID, let id = UUID(uuidString: raw) {
             world.resolveVoice(id: id)
         }
+    }
+
+    /// 挑出现次数最多的那个名字。并列时取最早出现的，
+    /// 不能让一次并列把「这一轮谁在主导」判给随机的一个人。
+    private static func mostFrequent(_ items: [String]) -> String? {
+        var counts: [String: Int] = [:]
+        var firstSeen: [String: Int] = [:]
+        for (index, item) in items.enumerated() {
+            counts[item, default: 0] += 1
+            if firstSeen[item] == nil { firstSeen[item] = index }
+        }
+        return counts.max { lhs, rhs in
+            if lhs.value != rhs.value { return lhs.value < rhs.value }
+            return (firstSeen[lhs.key] ?? 0) > (firstSeen[rhs.key] ?? 0)
+        }?.key
+    }
+
+    /// 群聊心事拆解。
+    ///
+    /// 模型有时给一行「名字：内容」，有时给几行，有时干脆只给一句不带名字。
+    /// 三种都收：认得出名字、而且名字确实在这轮开过口的人里，就记给他；
+    /// 认不出、或者名字对不上，落到这一轮说话最多的人头上。
+    private static func parseGroupVoices(
+        _ raw: String,
+        allowed: Set<String>,
+        fallback: String
+    ) -> [(name: String, text: String)] {
+        let rows = raw
+            .replacingOccurrences(of: "\r", with: "")
+            .split(separator: "\n")
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+
+        var result: [(name: String, text: String)] = []
+        for row in rows {
+            guard let index = row.firstIndex(where: { $0 == "：" || $0 == ":" }) else {
+                push(&result, name: fallback, text: row)
+                continue
+            }
+            let name = String(row[row.startIndex..<index]).trimmingCharacters(in: .whitespaces)
+            let body = String(row[row.index(after: index)...]).trimmingCharacters(in: .whitespaces)
+            if allowed.contains(name), !body.isEmpty {
+                push(&result, name: name, text: body)
+            } else if !body.isEmpty {
+                push(&result, name: fallback, text: row)
+            }
+        }
+        return result
+    }
+
+    /// 一条心事最多留 40 字。潜台词本来就不该是一段独白，
+    /// 写长了会挤占提示词里「还没放下的心事」那四条的位置。
+    private static func push(
+        _ list: inout [(name: String, text: String)],
+        name: String,
+        text: String
+    ) {
+        let clean = text
+            .trimmingCharacters(in: CharacterSet(charactersIn: " \n「」\"'“”"))
+        guard !clean.isEmpty, !name.isEmpty else { return }
+        guard !list.contains(where: { $0.name == name && $0.text == clean }) else { return }
+        list.append((name, String(clean.prefix(40))))
     }
 
     /// 把这一轮带回来的页面增量写进世界状态。

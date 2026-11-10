@@ -314,9 +314,16 @@ final class StoryGameViewModel {
                 }
                 let endingNote = ending.map { "。最后是「\($0.endingTitle)」：\($0.endingLine)" }
                     ?? "。故事停在那里，没走到一个明确的结局。"
-                character.memorySummary = (character.memorySummary + "\n" + entry + endingNote)
+                // 只留最新的一千二百字。文游玩多了这段会一直往上叠，
+                // 叠到最后提示词里全是旧故事，当前对话被挤没。
+                let merged = (character.memorySummary + "\n" + entry + endingNote)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
+                let kept = merged.count > 1_200 ? String(merged.suffix(1_200)) : merged
+                character.memorySummary = kept
                 context.insert(character)
+                // 聊天读的是世界状态里那一份，两处都得写：
+                // 只改 `character.memorySummary` 的话，玩完之后角色在聊天里完全不记得。
+                WorldStore.shared.replaceMemorySummary(person: character.name, text: kept)
             }
             try? context.save()
         }

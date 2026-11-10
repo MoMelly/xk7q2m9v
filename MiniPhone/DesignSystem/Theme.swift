@@ -204,6 +204,33 @@ enum Theme {
         static let lampGlow = Color(red: 1.0, green: 0.85, blue: 0.58)
     }
 
+    /// 文游阅读页的纸。
+    ///
+    /// 这是全 App 唯一一处不用液态玻璃的地方。它不是「另一个页面」，
+    /// 是一本摊开在桌上在读的书——玻璃压在纸上会把纸压没，所以这里整页
+    /// 是实体纸，只有顶栏和底部输入条压着一层薄玻璃。
+    ///
+    /// 配色全部偏暖、压暗：纸不能太白（白纸在手机上像空白页），
+    /// 朱红不能太鲜（鲜红是警告色，这里是印章和花枝的颜色）。
+    enum StoryPaper {
+        /// 纸面。比纯白黄一档，接近宣纸。
+        static let paper = Color(red: 0.949, green: 0.922, blue: 0.867)
+        /// 纸的边角。往四周压暗用的。
+        static let edge = Color(red: 0.867, green: 0.820, blue: 0.741)
+        /// 正文墨色。不用纯黑，纯黑在暖底上会显脏。
+        static let ink = Color(red: 0.176, green: 0.145, blue: 0.125)
+        /// 旁白和说明。比正文浅一档，但不能像占位符那么淡。
+        static let inkSoft = Color(red: 0.400, green: 0.353, blue: 0.310)
+        /// 朱红。标题、印章、强调句、发送键。
+        static let vermilion = Color(red: 0.549, green: 0.184, blue: 0.216)
+        /// 淡朱红。细线与装饰。
+        static let vermilionLight = Color(red: 0.741, green: 0.396, blue: 0.376)
+        /// 描边和分隔。
+        static let rule = Color(red: 0.792, green: 0.741, blue: 0.655)
+        /// 纸上的按钮底。比纸面亮一点，才有「纸片压在纸上」的层次。
+        static let card = Color(red: 0.973, green: 0.953, blue: 0.910)
+    }
+
     /// 阴影只有三档。
     /// 浅色分组列表默认不用——给每行都加阴影，浅底上会叠出一圈灰边。
     enum ShadowStyle {

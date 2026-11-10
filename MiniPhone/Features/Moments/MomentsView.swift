@@ -164,7 +164,10 @@ struct MomentsView: View {
     // MARK: - 生成
 
     private func generate() {
-        guard !isGenerating, let character = characters.randomElement() else { return }
+        // 群不发动态。动态是「一个人的号」，群没有自己的主页，
+        // 挂到群主名下就变成群主替所有人发心情。
+        let solo = characters.filter { !$0.isGroup }
+        guard !isGenerating, let character = solo.randomElement() else { return }
         guard settings.isConfigured else {
             errorText = "还没填 API Key。去桌面「设置」里填一个。"
             return

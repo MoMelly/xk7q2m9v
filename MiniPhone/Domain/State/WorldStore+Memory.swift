@@ -37,6 +37,38 @@ extension WorldStore {
         save()
     }
 
+    /// 读一个人（或一个群）已经攒下的记忆。没写过就是空串。
+    ///
+    /// 群记忆和人物记忆共用这一张表：群名也是一个「人名」，只是它的
+    /// facts 和 summary 记的是群层面的事。这样单聊、群聊、记忆页读的是同一份。
+    func memorySummary(for name: String) -> String {
+        state.person(named: name)?.summary ?? ""
+    }
+
+    // MARK: - 群
+
+    /// 群聊开场时同步一次成员表。
+    ///
+    /// 成员表要落在世界状态里，单聊才知道「他还在哪些群里」。
+    /// 名单变了就整份换掉——群成员在界面上是可改的，留旧名字只会让
+    /// 已经退群的人继续收到群记忆。
+    func syncGroup(named group: String, members: [String]) {
+        guard !group.isEmpty else { return }
+        let roster = Array(Set(members.filter { !$0.isEmpty })).sorted()
+        guard !roster.isEmpty, state.groups[group] != roster else { return }
+        state.groups[group] = roster
+        save()
+    }
+
+    /// 这个人在某个群里那一份记忆。群聊压缩时写，单聊和群聊都读。
+    func setGroupNote(person name: String, group: String, text: String) {
+        let clean = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, !group.isEmpty else { return }
+        let index = state.ensurePerson(named: name)
+        state.people[index].groupNotes[group] = String(clean.suffix(1_200))
+        save()
+    }
+
     /// 删掉一条记错的事。
     ///
     /// 记忆页原本是完全只读的：手改会让记忆和实际发生过的事对不上。

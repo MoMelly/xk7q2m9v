@@ -162,6 +162,12 @@ final class ChatViewModel {
         let world = WorldStore.shared
         let names = relatedNames(for: character)
 
+        // 群成员表每次进群聊都同步一次：单聊时要靠它反查「他在哪些群里」，
+        // 成员被改名或删掉之后，留着旧名字会让已经退群的人继续收到群记忆。
+        if character.isGroup {
+            world.syncGroup(named: character.name, members: names)
+        }
+
         // 只取主聊天。西瓜皮的私信和转帖是另一条线，混进来之后模型会
         // 对着「刚从西瓜皮转来的那条帖子」继续往下聊，而且和
         // `hasPendingUserMessages`、`regenerate` 的口径对不上。
@@ -357,11 +363,14 @@ final class ChatViewModel {
         character.totalReplies += 1
         character.lastMessageAt = Date()
         // 这一轮谁真的开口了。群聊的状态增量要归他们，不能一律记在群主头上。
-        let speakers = Array(Set(lines.compactMap(\.speaker).filter { !$0.isEmpty })).sorted()
+        // `spoken` 保留顺序和重复次数：挑「说话最多的人」时要用。
+        let spoken = lines.compactMap(\.speaker).filter { !$0.isEmpty }
+        let speakers = Array(Set(spoken)).sorted()
         applySideEffects(
             meta,
             names: names,
             speakers: speakers,
+            spoken: spoken,
             character: character,
             context: context
         )
@@ -391,7 +400,9 @@ final class ChatViewModel {
     }
 
 
-    private func save(_ context: ModelContext) {
+    /// 落库。`internal` 而不是 `private`：记忆压缩拆在另一个文件里，
+    /// 那边也要用同一个入口，各写一份 try/catch 迟早有一处漏了。
+    func save(_ context: ModelContext) {
         do {
             try context.save()
         } catch {
@@ -401,69 +412,8 @@ final class ChatViewModel {
 
     // MARK: - 记忆压缩
 
-    /// 老消息压成一段摘要，原消息保留在库里但不再送进上下文。
-    ///
-    /// 摘要同时归档到人物级记忆：群聊和单聊读同一份，不会各存各的。
-    private func compressMemoryIfNeeded(
-        character: Companion,
-        context: ModelContext,
-        settings: SettingsStore
-    ) async {
-        let plan = settings.generationPlan
-        let cursor = character.memoryCursor ?? .distantPast
-        let pending = character.messages
-            .filter { $0.createdAt > cursor }
-            .sorted { $0.createdAt < $1.createdAt }
-
-        guard pending.count > plan.compressionThreshold else { return }
-
-        let batch = Array(pending.prefix(pending.count - plan.keepRecent))
-        guard !batch.isEmpty else { return }
-
-        let transcript = batch
-            .map { message -> String in
-                let who = message.role == .user ? "用户" : (message.speaker ?? character.name)
-                return "\(who)：\(message.text)"
-            }
-            .joined(separator: "\n")
-
-        let previous = character.memorySummary.trimmingCharacters(in: .whitespacesAndNewlines)
-        let prompt = """
-        \(PromptBuilder.memoryCompressionPrompt)
-
-        \(previous.isEmpty ? "" : "【已有的旧记忆】\n\(previous)\n")
-
-        【需要并入的新对话】
-        \(transcript)
-        """
-
-        let client = OpenAICompatibleClient(config: settings.config)
-
-        do {
-            let summary = try await client.complete([
-                ChatMessage(role: .system, text: "你是一个精确的对话记录整理者，只输出整理后的备忘正文。"),
-                ChatMessage(role: .user, text: prompt)
-            ])
-
-            let clean = summary.trimmingCharacters(in: .whitespacesAndNewlines)
-            character.memorySummary = clean
-            if let lastDate = batch.last?.createdAt {
-                character.memoryCursor = lastDate
-            }
-            save(context)
-
-            let world = WorldStore.shared
-            // 这是「整段重写」的结果，不是增量。用 append 的话每压一次就多一份，
-            // 1200 字的上限被几份旧摘要挤满，最新那份反而被切掉半截。
-            world.replaceMemorySummary(person: character.name, text: clean)
-            for name in relatedNames(for: character) {
-                world.recordFact(person: name, text: clean, sourceName: character.name)
-            }
-        } catch {
-            // 压缩失败不影响聊天，下次再压。
-            AppLog.storage.error("记忆压缩失败: \(error.localizedDescription, privacy: .public)")
-        }
-    }
+    // 实现在 `ChatViewModel+Memory.swift`：群聊要按人分层写，
+    // 那段规则比发送和落库复杂得多，留在主文件里挤掉了别的。
 
     func clearError() {
         errorText = nil

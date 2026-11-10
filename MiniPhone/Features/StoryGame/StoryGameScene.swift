@@ -11,6 +11,9 @@ struct StoryGameScene: View {
 
     @State private var viewModel = StoryGameViewModel()
     @State private var showSetup = false
+    /// 删档之后强制重建列表。存档是扫目录读出来的，删完不重算一遍，
+    /// 那一行会一直留在屏幕上，看着像没删掉。
+    @State private var reloadToken = 0
 
     var body: some View {
         Group {
@@ -21,7 +24,7 @@ struct StoryGameScene: View {
                     onBack: { viewModel.close() }
                 )
             } else {
-                AppScreen(title: "文游", surface: .light, onClose: onClose) {
+                AppScreen(title: "文游", surface: .paper, onClose: onClose) {
                     archiveList
                 }
                 .sheet(isPresented: $showSetup) {
@@ -46,23 +49,40 @@ struct StoryGameScene: View {
             if sessions.isEmpty {
                 emptyState
             } else {
-                List {
-                    ForEach(sessions) { session in
-                        Button {
-                            viewModel.resume(session, roster: StoryGameViewModel.roster(context: modelContext))
-                        } label: {
-                            row(session)
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(Array(sessions.enumerated()), id: \.element.id) { index, session in
+                            Button {
+                                viewModel.resume(
+                                    session,
+                                    roster: StoryGameViewModel.roster(context: modelContext)
+                                )
+                            } label: {
+                                row(session)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    StoryArchive.delete(session)
+                                    reloadToken += 1
+                                } label: {
+                                    Label("删掉这一局", systemImage: "trash")
+                                }
+                            }
+
+                            if index != sessions.count - 1 {
+                                Rectangle()
+                                    .fill(Theme.StoryPaper.rule.opacity(0.55))
+                                    .frame(height: 0.6)
+                                    .padding(.leading, 2)
+                            }
                         }
-                        .buttonStyle(.plain)
                     }
-                    .onDelete { indexSet in
-                        for index in indexSet {
-                            StoryArchive.delete(sessions[index])
-                        }
-                    }
+                    .padding(.horizontal, 22)
+                    .padding(.top, 12)
+                    .padding(.bottom, 28)
                 }
-                .listStyle(.plain)
-                .scrollContentBackground(.hidden)
+                .id(reloadToken)
             }
         }
     }
@@ -70,59 +90,79 @@ struct StoryGameScene: View {
     @Environment(\.modelContext) private var modelContext
 
     private var emptyState: some View {
-        VStack(spacing: PhoneMetrics.Space.m) {
-            Image(systemName: "book.pages")
-                .font(.system(size: 40))
-                .foregroundStyle(AppSurface.light.secondaryLabel)
+        VStack(spacing: 12) {
+            Text("❖")
+                .font(.system(size: 15))
+                .foregroundStyle(Theme.StoryPaper.vermilion.opacity(0.55))
+
             Text("还没有故事")
-                .font(.system(size: PhoneMetrics.FontSize.body, weight: .medium))
-                .foregroundStyle(AppSurface.light.label)
+                .font(Theme.serif(19, weight: .semibold))
+                .kerning(1.5)
+                .foregroundStyle(Theme.StoryPaper.ink)
+
             Text("写一条故事线，挑上角色，就能开场")
-                .font(.system(size: PhoneMetrics.FontSize.footnote))
-                .foregroundStyle(AppSurface.light.secondaryLabel)
+                .font(Theme.serif(12.5))
+                .foregroundStyle(Theme.StoryPaper.inkSoft)
 
             Button {
                 showSetup = true
             } label: {
                 Text("开一个新故事")
-                    .font(.system(size: PhoneMetrics.FontSize.sub, weight: .semibold))
-                    .foregroundStyle(Theme.deepGreen)
-                    .padding(.horizontal, PhoneMetrics.Space.l)
-                    .padding(.vertical, PhoneMetrics.Space.s)
-                    .background(Capsule().fill(Theme.mint))
+                    .font(Theme.serif(14, weight: .medium))
+                    .foregroundStyle(Theme.StoryPaper.paper)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 10)
+                    .background(Capsule().fill(Theme.StoryPaper.vermilion))
             }
             .buttonStyle(.plain)
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// 一局故事在目录里的一行。
+    ///
+    /// 不用 `List`：分组列表的底色、缩进、选中高亮都是系统给的，
+    /// 放在纸上会变成「纸里嵌了一段设置页」。这里只要一行字和一条细线。
     private func row(_ session: StorySession) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: PhoneMetrics.Space.xs) {
-                Text(session.title)
-                    .font(.system(size: PhoneMetrics.FontSize.body, weight: .semibold))
-                    .foregroundStyle(AppSurface.light.label)
-                if session.isEnded {
-                    Text("已结束")
-                        .font(.system(size: PhoneMetrics.FontSize.caption))
-                        .foregroundStyle(AppSurface.light.secondaryLabel)
-                }
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text("《\(session.title)》")
+                    .font(Theme.serif(16, weight: .semibold))
+                    .foregroundStyle(Theme.StoryPaper.ink)
+                    .lineLimit(1)
+
                 Spacer(minLength: 0)
-                Text(TimeFormat.callTime(session.updatedAt))
-                    .font(.system(size: PhoneMetrics.FontSize.caption))
-                    .foregroundStyle(AppSurface.light.secondaryLabel)
+
+                if session.isEnded {
+                    Text(session.endingLabel ?? "已结束")
+                        .font(Theme.serif(11))
+                        .foregroundStyle(Theme.StoryPaper.vermilion.opacity(0.85))
+                        .lineLimit(1)
+                } else {
+                    Text("在写")
+                        .font(Theme.serif(11))
+                        .foregroundStyle(Theme.StoryPaper.inkSoft)
+                }
             }
 
-            Text(session.characterNames.joined(separator: "、"))
-                .font(.system(size: PhoneMetrics.FontSize.caption))
-                .foregroundStyle(AppSurface.light.secondaryLabel)
+            Text(session.characterNames.joined(separator: " · "))
+                .font(.system(size: 11, weight: .medium))
+                .kerning(1.1)
+                .foregroundStyle(Theme.StoryPaper.vermilion.opacity(0.7))
 
             Text(session.premise)
-                .font(.system(size: PhoneMetrics.FontSize.caption))
-                .foregroundStyle(AppSurface.light.secondaryLabel)
-                .lineLimit(1)
+                .font(Theme.serif(12.5))
+                .foregroundStyle(Theme.StoryPaper.inkSoft)
+                .lineLimit(2)
+                .lineSpacing(3)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(TimeFormat.callTime(session.updatedAt))
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.StoryPaper.inkSoft.opacity(0.7))
         }
-        .padding(.vertical, PhoneMetrics.Space.xs)
+        .padding(.vertical, 14)
         .contentShape(Rectangle())
     }
 }
@@ -160,9 +200,12 @@ struct StorySetupPage: View {
                 }
                 .padding(PhoneMetrics.Space.m)
             }
-            .background(Theme.settingsBackground)
+            .background(Theme.StoryPaper.paper)
             .navigationTitle("新故事")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(Theme.StoryPaper.paper, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .tint(Theme.StoryPaper.vermilion)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("取消") { dismiss() }
@@ -201,23 +244,23 @@ struct StorySetupPage: View {
     private var premiseBlock: some View {
         VStack(alignment: .leading, spacing: PhoneMetrics.Space.xs) {
             Text("故事线")
-                .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .semibold))
-                .foregroundStyle(AppSurface.light.secondaryLabel)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.StoryPaper.inkSoft)
             TextEditor(text: $premise)
-                .font(.system(size: PhoneMetrics.FontSize.sub))
-                .foregroundStyle(AppSurface.light.label)
+                .font(Theme.serif(15))
+                .foregroundStyle(Theme.StoryPaper.ink)
                 .frame(minHeight: 96)
                 .scrollContentBackground(.hidden)
                 .padding(PhoneMetrics.Space.s)
                 .background(
                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                        .fill(AppSurface.light.rowSurface)
+                        .fill(Theme.StoryPaper.card)
                 )
                 .overlay(alignment: .topLeading) {
                     if premise.isEmpty {
                         Text("想玩什么？比如「放学后和她在天台看日落」")
-                            .font(.system(size: PhoneMetrics.FontSize.sub))
-                            .foregroundStyle(AppSurface.light.secondaryLabel)
+                            .font(Theme.serif(15))
+                            .foregroundStyle(Theme.StoryPaper.inkSoft)
                             .padding(PhoneMetrics.Space.s + 4)
                             .allowsHitTesting(false)
                     }
@@ -230,15 +273,15 @@ struct StorySetupPage: View {
     private var titleBlock: some View {
         VStack(alignment: .leading, spacing: PhoneMetrics.Space.xs) {
             Text("标题")
-                .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .semibold))
-                .foregroundStyle(AppSurface.light.secondaryLabel)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.StoryPaper.inkSoft)
             TextField("给这个故事起个名", text: $title)
-                .font(.system(size: PhoneMetrics.FontSize.sub))
-                .foregroundStyle(AppSurface.light.label)
+                .font(Theme.serif(15))
+                .foregroundStyle(Theme.StoryPaper.ink)
                 .padding(PhoneMetrics.Space.s)
                 .background(
                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                        .fill(AppSurface.light.rowSurface)
+                        .fill(Theme.StoryPaper.card)
                 )
         }
     }
@@ -248,8 +291,8 @@ struct StorySetupPage: View {
     private var rosterBlock: some View {
         VStack(alignment: .leading, spacing: PhoneMetrics.Space.xs) {
             Text("参与角色（1~3 个）")
-                .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .semibold))
-                .foregroundStyle(AppSurface.light.secondaryLabel)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Theme.StoryPaper.inkSoft)
 
             FlowChips(
                 items: roster.map { (id: $0.uid, label: $0.name) },
@@ -279,17 +322,17 @@ struct FlowChips: View {
                     toggle(item.id)
                 } label: {
                     Text(item.label)
-                        .font(.system(size: PhoneMetrics.FontSize.sub))
+                        .font(Theme.serif(15))
                         .lineLimit(1)
-                        .foregroundStyle(isSelected(item.id) ? Theme.deepGreen : AppSurface.light.label)
+                        .foregroundStyle(isSelected(item.id) ? Theme.StoryPaper.vermilion : Theme.StoryPaper.ink)
                         .padding(.horizontal, PhoneMetrics.Space.m)
                         .padding(.vertical, PhoneMetrics.Space.xs)
                         .frame(maxWidth: .infinity)
                         .background(
-                            Capsule().fill(isSelected(item.id) ? Theme.mint : AppSurface.light.rowSurface)
+                            Capsule().fill(isSelected(item.id) ? Theme.StoryPaper.card : Theme.StoryPaper.card)
                         )
                         .overlay {
-                            Capsule().strokeBorder(Theme.separator, lineWidth: 1)
+                            Capsule().strokeBorder(Theme.StoryPaper.rule, lineWidth: 1)
                         }
                 }
                 .buttonStyle(.plain)
