@@ -331,6 +331,9 @@ enum DataBackup {
             }
             try? FileManager.default.copyItem(at: file, to: destination.appendingPathComponent(file.lastPathComponent))
         }
+
+        // 文游存档、表情、壁纸、音乐、其它世界：都在 Documents 下的独立目录里。
+        exportFileStores(to: folder)
         return folder
     }
 
@@ -536,6 +539,9 @@ enum DataBackup {
         if payload.users != nil {
             extras.append("我的身份")
         }
+
+        // 文游存档、表情、壁纸、音乐、其它世界搬回来。
+        extras.append(contentsOf: restoreFileStores(from: folder))
 
         let suffix = extras.isEmpty ? "" : "，以及" + extras.joined(separator: "、")
         return "恢复了 \(payload.characters.count) 个角色、\(messageCount) 条消息、\(payload.notes?.count ?? 0) 条备忘录\(suffix)。"
