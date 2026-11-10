@@ -481,11 +481,21 @@ struct CharacterEditorView: View {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedName.isEmpty else { return }
 
+        // 重名直接拦下。世界状态是按名字存数据的——记忆、好感度、心情、
+        // 日程、手机全按名字查，两个同名角色会被合并成一个人，
+        // A 聊的内容会出现在 B 的提示词里，而且界面上看不出来。
+        let existing = (try? context.fetch(FetchDescriptor<Companion>())) ?? []
+        let myUID = character?.uid
+        if existing.contains(where: { $0.uid != myUID && $0.name == trimmedName }) {
+            importMessage = "已经有一个叫「\(trimmedName)」的角色了。同名会让两个人的记忆和好感度串在一起，换个名字。"
+            return
+        }
+
         let target: Companion
         if let character {
             target = character
         } else {
-            let existing = (try? context.fetch(FetchDescriptor<Companion>())) ?? []
+            // 上面那次重名检查已经把这批角色取出来了，不再查一遍。
             let nextIndex = (existing.map(\.sortIndex).max() ?? -1) + 1
             let created = Companion(
                 name: trimmedName,

@@ -366,3 +366,55 @@ P0–P5 范围内的代码（39 个 Swift 文件、4515 行）已在 Xcode 26.6 
 - **`@MainActor` 隔离**：`PromptBuilder` 是非隔离上下文，调不到 `WorldStore` 上的 static 方法。
   纯逻辑要提到独立 enum（`AffinityScale`），不能挂在 `@Observable` 类上。
 - **同文件并行多个 Edit 会静默漏写**：回执都是成功，磁盘上有的没落。只能串行改 + 逐个验证。
+
+---
+
+## 13. 第九轮（2026-11-10）：完整性审查
+
+这一轮没有新功能，只有两件事：撤掉一个做错的方向，把「群聊里只有一个人」这类
+逻辑 bug 一次性翻出来修掉。
+
+### 13.1 撤掉的
+
+| 条目 | 为什么 |
+|---|---|
+| F-13 西瓜皮 AI 配图 | 需求原意是「封面随机」，`NoteCover` 按标题和 `coverSeed` 现场排文字图，本来就不需要真图。按张收费的接口做进来只是一条额外的花钱路径，整套回滚（`FeedImageService` / `ImageGenClient` / `FeedImageStorage` / `FeedCover` / `FeedImagePage` / `WorldStore+FeedImage` 全删，`FeedNote.imageFile` 与设置项一并去掉） |
+
+### 13.2 找到并修掉的 bug
+
+「群聊里只有一个人」有三个各自独立的成因，叠在一起才那么像真的：
+
+| 问题 | 成因 | 改法 |
+|---|---|---|
+| 群里只有一个人说话 | `StoredMessage.asChatMessage` 构造历史时丢掉了 `speaker`，模型看到一串没有署名的 assistant 消息，分不清上一句是谁 | 加 `grouped` 参数，群聊时拼成 `名字：内容`；单聊不加，否则模型会学着带前缀 |
+| 群聊里「他」每次重启换人 | `relatedNames` 返回 `Array(Set(...))`，而 `WorldStore.context` 用 `names.first` 决定读谁的日程、手机、心情 | 会话自己的角色恒定排在第一位，其余成员排序 |
+| 群里其他成员没有设定 | `【角色】` 只写群主；设定集 `isEligible` 只放行群主 uid | `GroupMate`（名字 + 120 字人设 + uid）进提示词；`groupUIDs` 放行成员的设定集条目 |
+
+状态增量也一并按发言人归属：心情、心事、日程、记忆、当天日程、好感度，
+原来是「一律记在群主头上」，现在归属这一轮真正开口的那个人（多人同时说话才回落）。
+
+其余修掉的：
+
+| 位置 | 问题 |
+|---|---|
+| `StoryGameViewModel:299` | `characterNames[index]` 与 `characterUIDs` 平行数组不校验长度，存档手改过就下标越界；那个 `name` 变量取出来还没用上，直接删 |
+| `StoryGameScene` | 玩家名取「第一个身份」而不是默认身份；`Array(Set)` 让角色顺序每次开局都变 |
+| `CharacterEditorView` / `ConversationListView` | 改名和删角色只动 `Companion`，世界状态里按名字存的记忆、好感度、日程、手机全留成孤儿；补 `renamePerson` / `purgePerson` |
+| `CharacterDetailPage` | 「清空对话记录」只删消息和摘要，记忆条目和当天日程还在，用户以为没清干净 |
+| `DataBackup` | `personaUID` / `isFeedOnly` / `patSuffix` / 屏蔽贴纸 / `channelRaw` / `threadRaw` / `isPat` 七项没进备份，恢复后身份回落、路人作者变正式角色、私信塌回主聊天 |
+| `ChatViewModel` | 记忆压缩是「整段重写」却用 append，每压一次多一份，1200 字上限被旧摘要挤满；历史不过滤 `channel`，西瓜皮私信进了主聊天上下文 |
+| `HomeBoard` | 拖到边界翻页那两条返回路径没有 `layout.save()`，重启后图标回原位 |
+| `MemoryItem.collect` | 注释说「只取有概括的日子」，代码没过滤，空标题的日子混进记忆流 |
+| `SpeechService` | 音色按 `name.hashValue` 挑，Swift 的字符串哈希每进程重新播种，同一个角色重启一次换一个嗓子；改用项目里已有的 `StableSeed` |
+| `WorldStore.context` | 关系块直接读 `state.affinity[owner]`，没存过就是 nil，提示词里那一段不出现，而面板显示 30 |
+| `ProactiveFeedService` | 限流是全站 6 小时，一个人刚发过其他角色就轮不上；`FeedScene` 固定挑查询顺序第一个角色 |
+| `StoryGameViewModel.end` | 一局下来一个词表都没命中时没有结局标签，结局那一行整个不出现 |
+| `AnonymousBoxPage` / 引用 / 通话字幕 / 朗读 | 署名一律用会话角色名，群聊里全挂在群名上 |
+
+### 13.3 结构上的调整
+
+- `ChatViewModel` 644 行超上限，状态回写那一组（`recordDay` / `applySideEffects` /
+  `applyRefresh` / `groupMates` / `relatedNames`）拆到 `ChatViewModel+World.swift`。
+- `ChatView` 顶到 600 行，麦克风按钮拆到 `ChatView+Mic.swift`。
+- 新建 `WorldStore+Identity.swift`：改名迁移、删除清理、清空记忆。
+- 新建角色时拦重名：世界状态是按名字存的，同名会把两个人的记忆合成一份。

@@ -70,13 +70,15 @@ final class SpeechService {
         guard !chinese.isEmpty else {
             return AVSpeechSynthesisVoice(language: "zh-CN")
         }
-        let index = abs(name.hashValue) % chinese.count
+        // 用 `StableSeed`，不是 `hashValue`：后者每个进程重新播种，
+        // 同一个角色重启一次就换个嗓子。
+        let index = StableSeed.index(StableSeed.of(name), count: chinese.count)
         return chinese[index]
     }
 
     /// 0.9–1.1 之间微调音高。同一个音色配不同音高，听感上就是两个人。
     static func pitch(for name: String) -> Float {
-        let seed = abs(name.hashValue % 21)
+        let seed = StableSeed.index(StableSeed.of(name), count: 21)
         return 0.90 + Float(seed) / 100.0
     }
 
@@ -150,7 +152,8 @@ final class SpeechService {
         let engine = AVAudioEngine()
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
-        // 能离线就离线：边走边说的话，识别不依赖网络才跟得上。
+        // 关掉「只用离线识别」。开着的话，没下载过离线模型就直接失败；
+        // 联网识别够快，边走边说的延迟可以接受。
         request.requiresOnDeviceRecognition = false
 
         let input = engine.inputNode

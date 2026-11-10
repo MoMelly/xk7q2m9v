@@ -117,11 +117,15 @@ struct MemoryItem: Identifiable, Hashable {
             })
         }
 
-        items.append(contentsOf: days.map { day -> MemoryItem in
-            MemoryItem(
+        // 空概括的日子不进流：日程是本地排的，每天都有一条，
+        // 没聊过的那天标题是空的，滚下来全是空白条目。
+        items.append(contentsOf: days.compactMap { day -> MemoryItem? in
+            let text = day.summary.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { return nil }
+            return MemoryItem(
                 id: "day-\(day.dateKey)",
                 kind: .day,
-                text: day.summary.trimmingCharacters(in: .whitespacesAndNewlines),
+                text: text,
                 createdAt: day.generatedAt,
                 source: "\(TimeFormat.dayLabel(day.dateKey)) · \(day.mood.label)",
                 dateKey: day.dateKey

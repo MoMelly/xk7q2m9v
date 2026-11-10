@@ -289,6 +289,10 @@ final class StoryGameViewModel {
         let ending = current.dominantBranch
         if let ending {
             current.endingLabel = ending.endingTitle
+        } else {
+            // 一局下来一个词表都没命中是常事：用户的选择未必用得上那几个词。
+            // 留空的话结局那一行整个不出现，看着像没结束。
+            current.endingLabel = "故事停在这里"
         }
 
         if mode != .hidden, let tail = memoryTail(current) {
@@ -308,7 +312,8 @@ final class StoryGameViewModel {
                 case .hidden:
                     continue
                 }
-                let endingNote = ending.map { "。最后是「\($0.endingTitle)」：\($0.endingLine)" } ?? ""
+                let endingNote = ending.map { "。最后是「\($0.endingTitle)」：\($0.endingLine)" }
+                    ?? "。故事停在那里，没走到一个明确的结局。"
                 character.memorySummary = (character.memorySummary + "\n" + entry + endingNote)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 context.insert(character)

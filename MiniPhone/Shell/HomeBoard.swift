@@ -213,6 +213,12 @@ struct HomeBoard: View {
                     dragging = nil
                     return
                 }
+                // 落盘放在 defer 里：下面有三条返回路径，漏一条布局就白拖了——
+                // 拖到边界换页那两条原来就漏了，重启之后图标回到原位。
+                defer {
+                    dragging = nil
+                    layout.save()
+                }
                 let landing = value.location
                 // 拖到左/右边界外面 → 换到相邻页。
                 if landing.x < -18 {
@@ -220,15 +226,13 @@ struct HomeBoard: View {
                         layout.move(slot.id, toPage: pageIndex - 1, at: nil)
                         page = max(0, pageIndex - 1)
                     }
-                    dragging = nil
                     return
                 }
                 if landing.x > size.width + 18 {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
                         layout.move(slot.id, toPage: pageIndex + 1, at: nil)
-                        page = min(pages.count - 1, pageIndex + 1)
+                        page = min(max(0, pages.count - 1), pageIndex + 1)
                     }
-                    dragging = nil
                     return
                 }
 
@@ -252,8 +256,6 @@ struct HomeBoard: View {
                     }
                 }
 
-                dragging = nil
-                layout.save()
             }
     }
 

@@ -166,11 +166,10 @@ SF Pro。现有 `Theme.serif` 不用于系统 App 的界面标题，只留给信
 | `PasscodePad` | — | 锁屏四位数字键盘，错了整块抖一下清空 |
 | `RedPacketBubble` / `RedPacketSheet` | — | 红包卡与金额面板；金额存「分」，拆了才显示 |
 | `Haptics` | 各处自己 new 生成器 | 三档：`tap` / `select` / `warn`，不提供参数 |
-| `FeedCover` | 四处各写一遍的 `NoteCover` | 有 AI 配图就显示图（`scaledToFill` 居中裁），没有就回落文字封面；尺寸由调用方给 |
 | `AppIconPalette` | 设置页里散落的图标配色 | 图标本身的颜色单独一处，和 `scripts/make_alt_icons.py` 同一组值；它是「桌面那一格的颜色」，不是主题色 |
+| `NoteCover` | 四处各写一遍的封面 | 西瓜皮的封面**没有真图**：按标题、正文和 `coverSeed` 现场排文字卡。随机感来自 seed，不来自图片文件 |
 | `MoodColor.backdrop(_:)` | 看板自己写的一套渐变 | `MoodColor.of(_:)` 是 1pt 色条的实色，`backdrop` 是铺满一屏的底，两回事 |
 | `HomeBoard` / `HomeFolderViews` | 死的 `LazyVGrid` | 分页、长按抖动、拖拽换位、合并成文件夹；布局存 `HomeLayout`（UserDefaults） |
-| `FeedImageService` | — | 配图的开关、预算（一次两张）、失败退避都在这里；页面只负责显示 |
 
 **禁止**：
 

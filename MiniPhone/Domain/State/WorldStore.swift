@@ -515,7 +515,10 @@ final class WorldStore {
             phoneLines: phoneLines(for: owner),
             letterLines: letterLines(for: owner),
             listeningNow: listeningNow,
-            affinity: state.affinity[owner],
+            // 走 `affinity(for:)` 而不是直接下标：没存过的时候它给 30，
+            // 和状态面板上看到的是同一个数。直接取下标会拿到 nil，
+            // 提示词里那一整块「你们现在的关系」就不出现，新人开局没有分寸。
+            affinity: owner.isEmpty ? nil : affinity(for: owner),
             variables: state.variables
                 .sorted { $0.key < $1.key }
                 .prefix(12)
