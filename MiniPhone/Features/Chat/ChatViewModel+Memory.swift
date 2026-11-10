@@ -40,8 +40,9 @@ extension ChatViewModel {
         let world = WorldStore.shared
         let lastDate = batch.last?.createdAt
 
+        let compressed: Bool
         if character.isGroup {
-            await compressGroup(
+            compressed = await compressGroup(
                 character: character,
                 members: relatedNames(for: character).filter { $0 != character.name },
                 transcript: transcript,
@@ -49,7 +50,7 @@ extension ChatViewModel {
                 world: world
             )
         } else {
-            await compressSolo(
+            compressed = await compressSolo(
                 character: character,
                 transcript: transcript,
                 client: client,
@@ -57,10 +58,11 @@ extension ChatViewModel {
             )
         }
 
-        if let lastDate {
-            character.memoryCursor = lastDate
-            save(context)
-        }
+        // 游标只在压缩真的写成之后推进。失败时推了游标，这批老消息就
+        // 再也不会被 `createdAt > cursor` 选中，一次网络错误等于永久丢掉这段记忆。
+        guard compressed, let lastDate else { return }
+        character.memoryCursor = lastDate
+        save(context)
     }
 
     // MARK: - 一对一
@@ -70,7 +72,7 @@ extension ChatViewModel {
         transcript: String,
         client: OpenAICompatibleClient,
         world: WorldStore
-    ) async {
+    ) async -> Bool {
         let previous = character.memorySummary
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -89,15 +91,17 @@ extension ChatViewModel {
                 ChatMessage(role: .user, text: prompt)
             ])
             let clean = summary.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !clean.isEmpty else { return }
+            guard !clean.isEmpty else { return false }
 
             // 这是「整段重写」的结果，不是增量。用 append 的话每压一次就多一份，
             // 1200 字的上限被几份旧摘要挤满，最新那份反而被切掉半截。
             character.memorySummary = clean
             world.replaceMemorySummary(person: character.name, text: clean)
+            return true
         } catch {
             // 压缩失败不影响聊天，下次再压。
             AppLog.storage.error("记忆压缩失败: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 
@@ -117,7 +121,7 @@ extension ChatViewModel {
         transcript: String,
         client: OpenAICompatibleClient,
         world: WorldStore
-    ) async {
+    ) async -> Bool {
         let previous = world.memorySummary(for: character.name)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
@@ -137,7 +141,7 @@ extension ChatViewModel {
                 ChatMessage(role: .user, text: prompt)
             ])
             let digest = GroupDigest.parse(raw, members: members)
-            guard !digest.group.isEmpty else { return }
+            guard !digest.group.isEmpty else { return false }
 
             world.replaceMemorySummary(person: character.name, text: digest.group)
             for person in digest.people {
@@ -147,8 +151,10 @@ extension ChatViewModel {
                     text: person.text
                 )
             }
+            return true
         } catch {
             AppLog.storage.error("群聊记忆压缩失败: \(error.localizedDescription, privacy: .public)")
+            return false
         }
     }
 }

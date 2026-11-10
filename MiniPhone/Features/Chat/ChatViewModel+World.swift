@@ -74,11 +74,16 @@ extension ChatViewModel {
         let owners = speakers.filter { !$0.isEmpty }
         let owner = Self.mostFrequent(spoken) ?? (owners.count == 1 ? (owners.first ?? character.name) : character.name)
 
-        if let raw = meta.mood, let mood = Mood(rawValue: raw) {
+        // 群聊没解析出任何说话人时，owner 会退到群名上。心情、心事、日程和
+        // 个人事实都是「一个人」才有的状态，写成「周末饭局今天有点累」既对不上人，
+        // 之后单聊查那个成员也永远读不到。这种轮次只留群层面的共同记忆。
+        let hasSpeaker = !character.isGroup || owners.contains(owner)
+
+        if hasSpeaker, let raw = meta.mood, let mood = Mood(rawValue: raw) {
             world.updateMood(mood, reason: meta.moodReason ?? "", source: .chat, for: owner)
         }
 
-        if let voice = meta.voice, !voice.isEmpty {
+        if hasSpeaker, let voice = meta.voice, !voice.isEmpty {
             if character.isGroup {
                 // 群聊的心事按发言人分。原来整条写给群主，结果群里
                 // 每个人都只有群主一个心情，别人在单聊里永远读不到自己的心事。
@@ -96,9 +101,15 @@ extension ChatViewModel {
         }
 
         if let memory = meta.memory {
-            // 有明确说话人时只记给他。原先分给群里每一个人，
-            // 结果是「柏川记得阿岚说过的话」，而且记成自己说的。
-            for name in (owners.isEmpty ? names : owners) {
+            // 群聊没解析出说话人时只记群名下那一条：这句话确实在群里发生过，
+            // 但不能凭空摊给名单上的每个人。单聊照旧记给会话本人。
+            let targets: [String]
+            if character.isGroup {
+                targets = owners.isEmpty ? [character.name] : owners
+            } else {
+                targets = [names.first ?? character.name]
+            }
+            for name in targets where !name.isEmpty {
                 world.recordFact(person: name, text: memory, sourceName: owner)
             }
             // 群里共同发生的事还得记一份在群名下，否则单聊时读不到。
@@ -106,7 +117,7 @@ extension ChatViewModel {
                 world.recordFact(person: character.name, text: memory, sourceName: owner)
             }
         }
-        if let note = meta.scheduleNote, !note.isEmpty {
+        if hasSpeaker, let note = meta.scheduleNote, !note.isEmpty {
             // 日程是「谁今天干了什么」，只记给说话的人。
             world.recordFact(person: owner, text: "日程：\(note)", sourceName: owner)
         }
