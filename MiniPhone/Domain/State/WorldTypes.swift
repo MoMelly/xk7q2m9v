@@ -412,6 +412,9 @@ struct WorldState: Codable {
         case moods, locations
         case affinity, variables, questions
         case groups
+        /// 迁移中转站本身也要落盘。还没归属到某个角色的老火花如果只活在内存里，
+        /// 下一次 `save()` 写出去就没有它了，等真正归属时已经找不到。
+        case legacyCouple
         /// 旧字段，只读不写：解出老存档里的那一台手机 / 那一份火花 / 那一份心情 / 那一个地点。
         case phone, couple, mood, location
     }
@@ -447,6 +450,9 @@ struct WorldState: Codable {
         // 火花：老存档只有一份，先挂在 legacyCouple 上，
         // 等知道是谁了（下一次记火花时）再落到那个角色名下。
         couples = try container.decodeIfPresent([String: CoupleState].self, forKey: .couples) ?? [:]
+        // 先读上次没归完的那份，再让更老的 `couple` 键覆盖——老键代表的是
+        // 迁移还没开始的存档，优先级更高。
+        legacyCouple = try container.decodeIfPresent(CoupleState.self, forKey: .legacyCouple)
         let legacy = try container.decodeIfPresent(CoupleState.self, forKey: .couple)
         if couples.isEmpty, let legacy, !legacy.myDays.isEmpty || !legacy.theirDays.isEmpty {
             legacyCouple = legacy
@@ -480,6 +486,7 @@ struct WorldState: Codable {
         try container.encode(feedActivity, forKey: .feedActivity)
         try container.encode(phones, forKey: .phones)
         try container.encode(couples, forKey: .couples)
+        try container.encodeIfPresent(legacyCouple, forKey: .legacyCouple)
         try container.encode(affinity, forKey: .affinity)
         try container.encode(variables, forKey: .variables)
         try container.encode(questions, forKey: .questions)

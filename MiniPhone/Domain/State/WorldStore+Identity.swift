@@ -107,10 +107,10 @@ extension WorldStore {
             state.people[index].groupNotes.removeAll()
         }
         // 清的是群：成员各自那份群笔记也得清。
-        // 只清群账户的话，下次进群他照旧记得，界面上看着像没清干净。
-        if let members = state.groups[target] {
-            for member in members where member != target {
-                guard let index = state.people.firstIndex(where: { $0.name == member }) else { continue }
+        // 遍历全部人物而不是成员名单——退群、改名之后名单里已经没有的人，
+        // 身上仍留着这个群的笔记，按名单清会漏掉，群聊时照样被读进提示词。
+        if state.groups[target] != nil {
+            for index in state.people.indices {
                 state.people[index].groupNotes.removeValue(forKey: target)
             }
         }
@@ -134,6 +134,11 @@ extension WorldStore {
         state.questions.removeAll { $0.characterName == target }
         state.letters.removeAll { $0.fromName == target }
         state.feed.removeAll { $0.authorName == target }
+        // 他自己的帖子删了，他在别人帖子下的评论还在。评论只存署名不存 uid，
+        // 留着会让详情页按名字反查、凭空长出一个 isFeedOnly 角色。
+        for index in state.feed.indices {
+            state.feed[index].comments.removeAll { $0.authorName == target }
+        }
         state.feedInbox.removeAll { $0.companionName == target }
         state.feedActivity.removeAll { $0.companionName == target }
 
@@ -148,9 +153,9 @@ extension WorldStore {
         // 删的是群：成员各自那份「在这个群里」的笔记也要一起清。
         // 只删群账户的话，重建同名群时旧记忆会自己回来；
         // 清空群记忆那条路径（clearPersonMemory）已经处理过，删除这里漏了。
-        if let members = state.groups.removeValue(forKey: target) {
-            for member in members where member != target {
-                guard let index = state.people.firstIndex(where: { $0.name == member }) else { continue }
+        let removedGroup = state.groups.removeValue(forKey: target) != nil
+        if removedGroup {
+            for index in state.people.indices {
                 state.people[index].groupNotes.removeValue(forKey: target)
             }
         }

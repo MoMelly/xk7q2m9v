@@ -69,8 +69,11 @@ struct CharacterMemoryPage: View {
     // MARK: - 筛选
 
     private var visibleKinds: [MemoryItem.Kind] {
-        // 群没有心事和日子，这两个筛选留在上面只会多两颗恒为 0 的胶囊。
-        character.isGroup ? [.summary, .fact, .groupNote] : MemoryItem.Kind.allCases
+        // 群没有心事和日子，单人没有群视角。两边都只留真正可能出现的分类，
+        // 否则筛选条上会挂一颗永远为 0 的胶囊。
+        character.isGroup
+            ? [.summary, .fact, .groupNote]
+            : MemoryItem.Kind.allCases.filter { $0 != .groupNote }
     }
 
     private var filterStrip: some View {

@@ -104,6 +104,9 @@ enum DataBackup {
             var avatarFileName: String
             var isDefault: Bool
             var createdAt: Date
+            /// 别人拍我时名字后面的后缀。和 `Companion.patSuffix` 是同一类字段，
+            /// 那边备份了、这边漏了；缺键时按空串恢复。
+            var patSuffix: String?
         }
 
         /// 我自己的备忘录。角色记忆在世界状态里，不走这里。
@@ -284,7 +287,8 @@ enum DataBackup {
                         avatarImageKey: $0.avatarImageKey,
                         avatarFileName: $0.avatarFileName,
                         isDefault: $0.isDefault,
-                        createdAt: $0.createdAt
+                        createdAt: $0.createdAt,
+                        patSuffix: $0.patSuffix.isEmpty ? nil : $0.patSuffix
                     )
                 }
         )
@@ -504,6 +508,7 @@ enum DataBackup {
                 profile.avatarImageKey = item.avatarImageKey
                 profile.avatarFileName = item.avatarFileName
                 profile.createdAt = item.createdAt
+                profile.patSuffix = item.patSuffix ?? ""
                 context.insert(profile)
             }
         }
@@ -543,7 +548,16 @@ enum DataBackup {
         // 文游存档、表情、壁纸、音乐、其它世界搬回来。
         extras.append(contentsOf: restoreFileStores(from: folder))
 
+        // 动态和世界书也真的写库了。清单里不写的话，用户看不出这两块回来没有。
+        var parts = [
+            "\(payload.characters.count) 个角色",
+            "\(messageCount) 条消息",
+            "\(payload.notes?.count ?? 0) 条备忘录"
+        ]
+        if !payload.moments.isEmpty { parts.append("\(payload.moments.count) 条动态") }
+        if !payload.world.isEmpty { parts.append("\(payload.world.count) 条世界书") }
+
         let suffix = extras.isEmpty ? "" : "，以及" + extras.joined(separator: "、")
-        return "恢复了 \(payload.characters.count) 个角色、\(messageCount) 条消息、\(payload.notes?.count ?? 0) 条备忘录\(suffix)。"
+        return "恢复了 " + parts.joined(separator: "、") + suffix + "。"
     }
 }

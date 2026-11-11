@@ -21,7 +21,7 @@ struct DataPage: View {
             ScrollView {
                 VStack(spacing: PhoneMetrics.Space.xl) {
                     GroupedSection(
-                        footer: "导出的是一个文件夹：data.json、world-state.json，加上视频壁纸。恢复时选文件夹或里面的 json 都行。歌单随软件发，重装不用重新导。"
+                        footer: "导出的是一个文件夹：data.json、world-state.json、视频壁纸、头像照片，还有文游存档、自建表情、自选壁纸、导入的音乐和其它世界。恢复时会先清空现有数据，选文件前先确认是不是这一份。歌单随软件发，重装不用重新导。"
                     ) {
                         Button {
                             exportAll()

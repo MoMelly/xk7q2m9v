@@ -59,6 +59,9 @@ extension DataBackup {
             let source = folder.appendingPathComponent(name, isDirectory: true)
             guard FileManager.default.fileExists(atPath: source.path) else { continue }
 
+            // 目标目录可能还没建过（全新安装、用户没导入过音乐）。
+            // `copyItem` 不会自己建父目录，缺了整段静默失败。
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let count = copyContents(
                 from: source,
                 to: directory,
@@ -93,11 +96,17 @@ extension DataBackup {
                 try? FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
                 copied += copyContents(from: item, to: target)
             } else {
-                try? FileManager.default.copyItem(
-                    at: item,
-                    to: destination.appendingPathComponent(item.lastPathComponent)
-                )
-                copied += 1
+                let target = destination.appendingPathComponent(item.lastPathComponent)
+                // `copyItem` 遇到已存在的目标会抛错。不先删的话恢复就变成
+                // 「只补新文件」：备份里的同名文件一个都没落盘，界面还报恢复成功。
+                try? FileManager.default.removeItem(at: target)
+                do {
+                    try FileManager.default.copyItem(at: item, to: target)
+                    copied += 1
+                } catch {
+                    // 只数真的写进去的。按尝试次数计，清单上的「N 项」是虚的。
+                    AppLog.storage.error("备份写文件失败: \(item.lastPathComponent, privacy: .public)")
+                }
             }
         }
         return copied
