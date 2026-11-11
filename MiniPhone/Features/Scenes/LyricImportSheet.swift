@@ -133,7 +133,10 @@ struct LyricImportSheet: View {
         .environment(\.colorScheme, AppSurface.light.colorScheme)
         .fileImporter(
             isPresented: $showImporter,
-            allowedContentTypes: [.plainText, .text],
+            // .lrc 没有登记在系统的类型表里，它会被当成 public.data；
+            // 只放 .plainText/.text 的话文件选择器里根本看不到 .lrc 文件。
+            // 这里放开到任意文件，读进来再按后缀和内容判断。
+            allowedContentTypes: [.item],
             allowsMultipleSelection: false
         ) { result in
             handleFile(result)

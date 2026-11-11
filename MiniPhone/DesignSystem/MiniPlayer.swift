@@ -8,16 +8,13 @@ import SwiftUI
 /// 位置在右边缘、垂直 58% 处：聊天页的输入框在底部 12%，
 /// 通知横幅在顶部，这个位置两边都不挡。
 struct MiniPlayerOverlay: View {
-    let player: PlayerService
-
-    /// 截图流水线要直接拍到歌词页，正常启动读不到这个键。
-    @State private var expanded = UserDefaults.standard.string(forKey: "previewState") == "musicLyrics"
+    @Bindable var player: PlayerService
 
     var body: some View {
         ZStack {
-            if expanded {
+            if player.lyricsPresented {
                 LyricsPage(player: player) {
-                    expanded = false
+                    player.lyricsPresented = false
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.94)))
                 .zIndex(1)
@@ -26,7 +23,13 @@ struct MiniPlayerOverlay: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.8)))
             }
         }
-        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: expanded)
+        .animation(.spring(response: 0.36, dampingFraction: 0.86), value: player.lyricsPresented)
+        .onAppear {
+            // 截图流水线要直接拍到歌词页，正常启动读不到这个键。
+            if UserDefaults.standard.string(forKey: "previewState") == "musicLyrics" {
+                player.lyricsPresented = true
+            }
+        }
     }
 
     /// 贴右边缘、垂直 58%。用 `position` 而不是 Spacer 堆：
@@ -34,7 +37,7 @@ struct MiniPlayerOverlay: View {
     private var ball: some View {
         GeometryReader { proxy in
             Button {
-                expanded = true
+                player.lyricsPresented = true
             } label: {
                 ballFace
             }
@@ -56,7 +59,7 @@ struct MiniPlayerOverlay: View {
                 .padding(2.5)
 
             // 球面上也换成一张小唱片的样子，和歌词页右上角是同一个东西。
-            CompactDisc(size: 26, tint: Theme.IconTint.rose, spinning: player.isPlaying)
+            CompactDisc(size: 26, tint: TrackArt.tint(for: player.track?.id ?? ""), spinning: player.isPlaying)
         }
         .frame(width: 50, height: 50)
         .shadow(color: Color.black.opacity(0.2), radius: 9, y: 3)
@@ -158,6 +161,9 @@ struct LyricsPage: View {
 
     private var track: Track? { player.track }
 
+    /// 这首歌自己的颜色。唱片、进度点、背景光都用它，和列表里那颗封面对得上。
+    private var tint: Color { TrackArt.tint(for: track?.id ?? "") }
+
     /// 一起听的对象从播放器本身的邀请状态读。
     /// 以前这里取「第一个角色」，等于没邀请也写个名字上去——那是假的。
     private var companionName: String { player.partnerName ?? "" }
@@ -196,18 +202,24 @@ struct LyricsPage: View {
 
     private var backdrop: some View {
         ZStack {
+            // 液态玻璃底：材质 + 一层很薄的暗。
+            //
+            // 上一版在材质上又压了 62%→86% 的黑，几乎不透光，点进来看到的就是
+            // 一整块黑。玻璃得能透出后面的东西，透不出来就只是块黑布。
             Rectangle().fill(.ultraThinMaterial)
+
             LinearGradient(
-                colors: [Color.black.opacity(0.62), Color.black.opacity(0.86)],
+                colors: [Color.black.opacity(0.28), Color.black.opacity(0.44)],
                 startPoint: .top,
                 endPoint: .bottom
             )
-            // 顶部铺一点曲目封面的暖色，整页不至于死黑。
+
+            // 曲目自己的颜色从左上透进来，整页不至于冷冰冰一片灰。
             RadialGradient(
-                colors: [Theme.IconTint.pink.opacity(0.34), .clear],
+                colors: [tint.opacity(0.42), .clear],
                 center: .topLeading,
                 startRadius: 0,
-                endRadius: 320
+                endRadius: 340
             )
         }
     }
@@ -241,7 +253,7 @@ struct LyricsPage: View {
             Spacer(minLength: 0)
 
             // 右上角这张唱片就是原来的封面：同一块面积，换了个形状和位置。
-            CompactDisc(size: 74, tint: Theme.IconTint.rose, spinning: player.isPlaying, rotatesItself: true)
+            CompactDisc(size: 74, tint: tint, spinning: player.isPlaying, rotatesItself: true)
                 .shadow(color: Color.black.opacity(0.4), radius: 14, y: 6)
         }
         .padding(.horizontal, PhoneMetrics.Space.l)
@@ -263,7 +275,7 @@ struct LyricsPage: View {
             if !companionName.isEmpty {
                 HStack(spacing: 5) {
                     Circle()
-                        .fill(Theme.IconTint.rose.opacity(0.95))
+                        .fill(tint.opacity(0.95))
                         .frame(width: 5, height: 5)
 
                     // 暂停时写「一起在听」就是假话，只留「和谁一起听」。

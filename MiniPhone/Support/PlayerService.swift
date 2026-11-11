@@ -46,6 +46,12 @@ final class PlayerService {
     private(set) var partnerUID: UUID?
     private(set) var partnerName: String?
 
+    /// 歌词页展开着没有。
+    ///
+    /// 这个状态原来只活在悬浮球内部，所以只有点那个球才能进歌词页；
+    /// 音乐页的播放卡片点了没反应。提到这里之后，卡片和球是同一个开关。
+    var lyricsPresented = false
+
     /// 有对象、而且这会儿真的在放，才算「在一起听」。
     /// 只邀请没放歌算半截状态：界面上照样显示名字，但不进提示词。
     var isListeningTogether: Bool {

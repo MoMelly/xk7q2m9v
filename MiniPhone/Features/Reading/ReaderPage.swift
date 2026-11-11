@@ -13,10 +13,12 @@ struct ReaderPage: View {
     @AppStorage("reading.fontSize") private var fontSize: Double = 18
     @AppStorage("reading.lineSpacing") private var lineSpacing: Double = 9
     @AppStorage("reading.paper") private var paperRaw = ReaderPaper.cream.rawValue
+    /// 正文左右留白。原来写死 22，设置里改不了。
+    @AppStorage("reading.margin") private var margin: Double = 22
 
     @State private var chapters: [BookChapter] = []
     @State private var chapterIndex = 0
-    @State private var pages: [BookPage] = [BookPage(start: 0, texts: [])]
+    @State private var pages: [BookPage] = [BookPage(start: 0, text: "")]
     @State private var pageIndex = 0
     @State private var showChapters = false
     @State private var showSettings = false
@@ -30,10 +32,6 @@ struct ReaderPage: View {
     /// 测量用的字体必须和渲染的一模一样，否则每页最后会多一行或者漏一行。
     private var uiFont: UIFont {
         UIFont(name: "Songti SC", size: CGFloat(fontSize)) ?? UIFont.systemFont(ofSize: CGFloat(fontSize))
-    }
-
-    private var textFont: Font {
-        .custom("Songti SC", size: CGFloat(fontSize))
     }
 
     private var chapterTitle: String {
@@ -62,7 +60,7 @@ struct ReaderPage: View {
                     .onAppear { update(size) }
                     .onChange(of: size) { _, new in update(new) }
                 }
-                .padding(.horizontal, 22)
+                .padding(.horizontal, margin)
                 .padding(.top, 6)
                 .padding(.bottom, 44)
             }
@@ -91,25 +89,32 @@ struct ReaderPage: View {
         .onChange(of: pageIndex) { _, new in markRead(new) }
         .onChange(of: fontSize) { _, _ in rebuild() }
         .onChange(of: lineSpacing) { _, _ in rebuild() }
+        .onChange(of: margin) { _, _ in rebuild() }
         .onDisappear(perform: savePosition)
     }
 
     // MARK: - 页面
 
     private func pageBody(_ page: BookPage) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            ForEach(Array(page.texts.enumerated()), id: \.offset) { _, text in
-                Text(text)
-                    .font(textFont)
-                    .lineSpacing(CGFloat(lineSpacing))
-                    .foregroundStyle(paper.ink)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
+        PageTextView(
+            text: page.text,
+            font: uiFont,
+            lineSpacing: CGFloat(lineSpacing),
+            ink: UIColor(paper.ink)
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        // 点左右两侧翻页。真机上也是这么翻的：想翻就点，不想翻就滑。
+        .overlay(alignment: .leading) { tapZone(forward: false) }
+        .overlay(alignment: .trailing) { tapZone(forward: true) }
+    }
+
+    /// 边缘的点击区。只吃轻点，滑动照旧交给 TabView。
+    private func tapZone(forward: Bool) -> some View {
+        Color.clear
+            .frame(width: 68)
+            .contentShape(Rectangle())
+            .onTapGesture { turnPage(forward: forward) }
+            .accessibilityLabel(forward ? "下一页" : "上一页")
     }
 
     private var footer: some View {
@@ -193,7 +198,8 @@ struct ReaderPage: View {
         ReaderSettingsSheet(
             fontSize: $fontSize,
             lineSpacing: $lineSpacing,
-            paperRaw: $paperRaw
+            paperRaw: $paperRaw,
+            margin: $margin
         )
     }
 
@@ -228,7 +234,7 @@ struct ReaderPage: View {
         let all = book.paragraphs
         let upper = min(chapter.end, all.count)
         guard chapter.start < upper else {
-            pages = [BookPage(start: chapter.start, texts: [])]
+            pages = [BookPage(start: chapter.start, text: "")]
             pageIndex = 0
             return
         }
@@ -249,6 +255,21 @@ struct ReaderPage: View {
         guard let index = chapters.firstIndex(where: { $0.id == chapter.id }) else { return }
         chapterIndex = index
         rebuild(keep: chapter.start)
+    }
+
+    /// 点边缘翻一页。章末再点就进下一章，章首再点回上一章最后一页。
+    private func turnPage(forward: Bool) {
+        let target = forward ? pageIndex + 1 : pageIndex - 1
+        if pages.indices.contains(target) {
+            withAnimation(.easeOut(duration: 0.18)) { pageIndex = target }
+            return
+        }
+
+        let next = forward ? chapterIndex + 1 : chapterIndex - 1
+        guard chapters.indices.contains(next) else { return }
+        chapterIndex = next
+        rebuild(keep: chapters[next].start)
+        pageIndex = forward ? 0 : max(pages.count - 1, 0)
     }
 
     private func markRead(_ index: Int) {

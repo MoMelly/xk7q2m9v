@@ -46,11 +46,14 @@ struct ReaderSettingsSheet: View {
     @Binding var fontSize: Double
     @Binding var lineSpacing: Double
     @Binding var paperRaw: String
+    @Binding var margin: Double
 
     @Environment(\.dismiss) private var dismiss
 
     private let fontChoices: [Double] = [16, 18, 20, 22, 24]
     private let spacingChoices: [Double] = [6, 9, 13]
+    /// 左右留白。窄一点一页多几个字，宽一点更像纸书。
+    private let marginChoices: [Double] = [16, 22, 32]
 
     private var paper: ReaderPaper {
         ReaderPaper(rawValue: paperRaw) ?? .cream
@@ -77,6 +80,18 @@ struct ReaderSettingsSheet: View {
                             ForEach(spacingChoices, id: \.self) { spacing in
                                 choice(spacingTitle(spacing), active: Int(lineSpacing) == Int(spacing)) {
                                     lineSpacing = spacing
+                                }
+                            }
+                        }
+                        .padding(.horizontal, PhoneMetrics.Space.m)
+                        .padding(.vertical, PhoneMetrics.Space.s)
+                    }
+
+                    GroupedSection("页边距", footer: "改完这一页会重新排一遍，页码可能跟着变。") {
+                        HStack(spacing: 8) {
+                            ForEach(marginChoices, id: \.self) { value in
+                                choice(marginTitle(value), active: Int(margin) == Int(value)) {
+                                    margin = value
                                 }
                             }
                         }
@@ -153,6 +168,14 @@ struct ReaderSettingsSheet: View {
         switch value {
         case 6: return "紧"
         case 13: return "松"
+        default: return "中"
+        }
+    }
+
+    private func marginTitle(_ value: Double) -> String {
+        switch value {
+        case 16: return "窄"
+        case 32: return "宽"
         default: return "中"
         }
     }

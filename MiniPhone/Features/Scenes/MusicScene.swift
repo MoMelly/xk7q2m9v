@@ -218,18 +218,10 @@ struct MusicScene: View {
 
     private func nowPlayingBar(_ track: Track) -> some View {
         VStack(spacing: 0) {
-            RowDivider().padding(.leading, 0)
-
             HStack(spacing: PhoneMetrics.Space.s) {
                 RoundedRectangle(cornerRadius: PhoneMetrics.Radius.cover, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Theme.IconTint.pink, Theme.IconTint.orange],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 40, height: 40)
+                    .fill(TrackArt.gradient(for: track.id))
+                    .frame(width: 44, height: 44)
                     .overlay {
                         Image(systemName: "music.note")
                             .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .bold))
@@ -262,35 +254,51 @@ struct MusicScene: View {
             }
             .padding(.horizontal, PhoneMetrics.Space.m)
             .frame(height: 56)
+            // 点封面或标题就进歌词页。之前只有那个悬浮球能进，
+            // 这张卡片点了没反应——她说的「不合理」就是这条。
+            .contentShape(Rectangle())
+            .onTapGesture { player.lyricsPresented = true }
 
-                // 播放条上原来只有「播放/暂停」：想看进度得点开歌词页，
-                // 而那边也只有一条抓不住的细线。这里补上真正的进度条。
-                HStack(spacing: PhoneMetrics.Space.s) {
-                    Text(clock(player.displayElapsed))
-                        .frame(width: 34, alignment: .leading)
+            HStack(spacing: PhoneMetrics.Space.s) {
+                Text(clock(player.displayElapsed))
+                    .frame(width: 34, alignment: .leading)
 
-                    SeekBar(
-                        progress: player.progress,
-                        isScrubbing: player.isScrubbing,
-                        trackColor: Theme.separator,
-                        fillColor: Theme.tint,
-                        thumbColor: Theme.tint,
-                        barHeight: 3,
-                        hitHeight: 26,
-                        onScrubBegan: { player.beginScrub() },
-                        onScrub: { player.scrub(to: $0) },
-                        onScrubEnded: { player.endScrub() }
-                    )
+                SeekBar(
+                    progress: player.progress,
+                    isScrubbing: player.isScrubbing,
+                    trackColor: Color.white.opacity(0.28),
+                    fillColor: .white,
+                    thumbColor: .white,
+                    barHeight: 3,
+                    hitHeight: 26,
+                    onScrubBegan: { player.beginScrub() },
+                    onScrub: { player.scrub(to: $0) },
+                    onScrubEnded: { player.endScrub() }
+                )
 
-                    Text(remaining)
-                        .frame(width: 42, alignment: .trailing)
-                }
-                .font(.system(size: 10).monospacedDigit())
-                .foregroundStyle(Theme.secondaryLabel)
-                .padding(.horizontal, PhoneMetrics.Space.m)
-                .padding(.bottom, 6)
+                Text(remaining)
+                    .frame(width: 42, alignment: .trailing)
+            }
+            .font(.system(size: 10).monospacedDigit())
+            .foregroundStyle(.white.opacity(0.62))
+            .padding(.horizontal, PhoneMetrics.Space.m)
+            .padding(.bottom, 8)
+            .allowsHitTesting(true)
         }
-        .background(Theme.rowSurface)
+        // 原来是一块实色。改成液态玻璃：半透明材质 + 一层薄白 + 一圈高光边，
+        // 底下的列表和壁纸从缝里透上来。
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .fill(.ultraThinMaterial)
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .fill(Color.black.opacity(0.28))
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.8)
+            }
+        }
+        .padding(.horizontal, PhoneMetrics.Space.s)
+        .padding(.bottom, PhoneMetrics.Space.xs)
     }
 
     private func clock(_ seconds: Double) -> String {
