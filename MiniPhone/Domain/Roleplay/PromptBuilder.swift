@@ -14,6 +14,16 @@ struct GroupMate: Hashable {
     let persona: String
     /// 他的角色 uid。设定集条目是按 uid 绑角色的，群聊里要放行各成员的条目。
     let uid: UUID
+    /// 此刻的状态。群里每个人都有自己的一天，只给名字的话三个人都活在真空里：
+    /// 心情、在哪、今天排了什么。空串表示这一项没有。
+    var mood: String = ""
+    var location: String = ""
+    var schedule: String = ""
+    /// 跟你到哪一档。-1 表示还没存过，这句就不写。
+    var affinity: Int = -1
+    /// 设定集条件条目要按「这个人」判。按群判的话，成员身上带心情、地点、
+    /// 认识天数的条目永远不命中——因为群名既没有心情也没有地点。
+    var conditions: WorldBookResolver.Conditions?
 }
 
 enum PromptBuilder {
@@ -41,7 +51,8 @@ enum PromptBuilder {
             triggerText: triggerText,
             worldContext: worldContext,
             now: now,
-            groupUIDs: Set(groupMates.map(\.uid))
+            groupUIDs: Set(groupMates.map(\.uid)),
+            groupMates: groupMates
         )
 
         // 身份
@@ -144,11 +155,27 @@ enum PromptBuilder {
             """
             // 成员各自的设定。只给一串名字的话，模型分不出这些名字是谁，
             // 只好用同一个语气写所有人——群聊看着就像只有一个人在说话。
+            //
+            // 「此刻」这一行也是同理：没有它，三个人都活在真空里，谁都没有
+            // 自己的一天，聊起来只会围着用户的话转。
             if !groupMates.isEmpty {
-                let lines = groupMates.map { mate in
-                    "- \(mate.name)：" + (mate.persona.isEmpty ? "（没写具体设定，按名字和台词保持自己的语气）" : mate.persona)
+                let lines = groupMates.map { mate -> String in
+                    let head = "- \(mate.name)："
+                        + (mate.persona.isEmpty
+                            ? "（没写具体设定，按名字和台词保持自己的语气）"
+                            : mate.persona)
+                    var state: [String] = []
+                    if !mate.mood.isEmpty { state.append("心情\(mate.mood)") }
+                    if !mate.location.isEmpty { state.append("人在\(mate.location)") }
+                    if !mate.schedule.isEmpty { state.append("今天：\(mate.schedule)") }
+                    if mate.affinity >= 0 {
+                        state.append("跟你\(AffinityScale.stage(of: mate.affinity).label)")
+                    }
+                    guard !state.isEmpty else { return head }
+                    return head + "\n  此刻：" + state.joined(separator: "，")
                 }
                 groupText += "\n【群成员各自是什么人】\n" + lines.joined(separator: "\n")
+                groupText += "\n「此刻」是各人自己的状态，谁的事只归谁。"
             }
             blocks.append(groupText)
         }
@@ -223,55 +250,9 @@ enum PromptBuilder {
         return blocks.joined(separator: "\n\n")
     }
 
-    /// 一对一时用的状态块。心事可以长一点，因为只有一个人在说。
-    private static let soloMetaBlock = """
-    【附加状态块】
-    正文之后另起一行，输出一段机器可读的 JSON，以 <<<meta>>> 开头、<<<end>>> 结尾。
-    字段全部可选：mood（calm/glad/focused/tired/annoyed/low/excited）、moodReason、
-    voice（这一轮没说出口的一句心里话）、memory（这一轮新记住的一个事实）、
-    dayLog（这一轮聊完之后，用一句「今天」视角的话概括你们说了什么，25 字内）、
-    scheduleNote、moment（一条可以发出去的动态）、voiceResolvedID（某个心结被解开了就填它的 id）。
-    只有确实发生了变化才填对应字段，没有就输出 {}。
-    正文里不要提到这个块，也不要把它写进台词。
-    """
-
-    /// 群聊用的状态块。
-    ///
-    /// 和一对一那一版有三处硬性差别，都是被实测出来的：
-    /// 心事必须点名归属，否则一律落到群主头上，别人永远没有自己的心事；
-    /// 心事必须短，一个人一句潜台词，三条心事堆在一起群里就成了内心戏现场；
-    /// 群里不产动态——动态是「一个人的号」，一群人不共用一个号。
-    private static let groupMetaBlock = """
-    【附加状态块】
-    正文之后另起一行，输出一段机器可读的 JSON，以 <<<meta>>> 开头、<<<end>>> 结尾。
-    字段全部可选：
-    - mood：这一轮整体是什么气氛（calm/glad/focused/tired/annoyed/low/excited）。
-    - moodReason：一句话说明因为什么。
-    - voice：心事只写给这一轮真的说了话的人，一句话，格式是「名字：一句没说出口的潜台词」，
-      20 字以内，最多两条。没开口的人不要写。写成「阿岚：其实想留他吃饭」这种。
-    - memory：这一轮里新出现的、以后还用得上的一个事实（30 字以内）。
-    - dayLog：聊完之后用一句「今天」视角的话概括，25 字内。
-    - scheduleNote、voiceResolvedID 同平时。
-    群里不产出动态，不要填 moment。
-    只有确实发生了变化才填对应字段，没有就输出 {}。
-    正文里不要提到这个块，也不要把它写进台词。
-    """
-
-    /// 把「这个角色在西瓜皮做过什么」压成几行，聊天和私信共用。
-    ///
-    /// 只取本人、只取最近五条：inbox 全量塞进提示词会把当前对话挤掉，
-    /// 别人的活动也不该由他来记得。
-    static func feedActivityLines(state: WorldState, characterName: String) -> [String] {
-        let recent = state.feedActivity
-            .filter { $0.companionName == characterName }
-            .sorted { $0.createdAt > $1.createdAt }
-            .prefix(5)
-            .reversed()
-        return recent.map { item in
-            let label = item.kind == .postShare ? "转了一篇帖子" : "发了一条私信"
-            return "\(label)：\(item.summary)"
-        }
-    }
+    // 两段状态块（`soloMetaBlock` / `groupMetaBlock`）和 `feedActivityLines`
+    // 都在 `PromptBuilder+Meta.swift`：那两块是整段固定文本，塞在这里会把
+    // 文件顶过 600 行上限。这里只剩调用点。
 
     /// 刷新的指令。
     ///
@@ -490,7 +471,8 @@ enum PromptBuilder {
         triggerText: String,
         worldContext: WorldContext?,
         now: Date,
-        groupUIDs: Set<UUID> = []
+        groupUIDs: Set<UUID> = [],
+        groupMates: [GroupMate] = []
     ) -> WorldBookResolver.Resolved {
         let conditions = WorldBookResolver.Conditions.build(
             hour: CharacterClock.calendar.component(.hour, from: now),
@@ -499,12 +481,20 @@ enum PromptBuilder {
             since: character.createdAt,
             now: now
         )
+        // 群成员的条目按各自的状态判。成员没带条件时退回这一轮的条件，
+        // 所以单聊和「群主自己的条目」走的是同一条老路。
+        var memberConditions: [UUID: WorldBookResolver.Conditions] = [:]
+        for mate in groupMates {
+            guard let scoped = mate.conditions else { continue }
+            memberConditions[mate.uid] = scoped
+        }
         return WorldBookResolver.resolve(
             entries: entries,
             character: character,
             triggerText: triggerText,
             conditions: conditions,
-            groupUIDs: groupUIDs
+            groupUIDs: groupUIDs,
+            memberConditions: memberConditions
         )
     }
 

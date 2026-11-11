@@ -126,8 +126,8 @@ extension DataBackup {
                 builtInKey: item.builtInKey,
                 fileName: item.fileName
             )
-            // uid 在外面被引用吗？现在没有，但保留原值能让「同一份备份恢复两次」
-            // 得到同一批记录，排查问题时不至于每次都是新 id。
+            // 保留原 uid：目前没有外部引用它，但同一份备份恢复两次应该得到
+            // 同一批记录，排查「是不是又恢复了一遍」时才不会每次都是新 id。
             sticker.uid = item.uid
             sticker.createdAt = item.createdAt
             context.insert(sticker)

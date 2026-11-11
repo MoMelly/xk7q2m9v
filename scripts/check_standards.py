@@ -35,6 +35,8 @@ COLOR_LITERAL_ALLOWED = {
 # 状态块标记只允许出现在装配方和解析器里。
 META_TAG_ALLOWED = {
     "MiniPhone/Domain/Roleplay/PromptBuilder.swift",
+    # 状态块的两段固定文本从 PromptBuilder 拆出来了，仍是装配方的一部分。
+    "MiniPhone/Domain/Roleplay/PromptBuilder+Meta.swift",
     "MiniPhone/Domain/State/GenerationPlan.swift",
 }
 

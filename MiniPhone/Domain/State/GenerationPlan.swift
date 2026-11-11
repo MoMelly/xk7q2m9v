@@ -16,7 +16,7 @@ enum BillingMode: String, Codable, CaseIterable, Identifiable {
 
     var detail: String {
         switch self {
-        case .perCall: return "后台任务并进同一轮回复，压缩记忆不再单独调用"
+        case .perCall: return "后台任务并进同一轮回复；记忆攒够一批才单独压一次"
         case .perToken: return "压短上下文，压缩记忆按阈值单独调用"
         }
     }
@@ -29,9 +29,17 @@ struct GenerationPlan {
     /// 按次时把副产物合进正文后的元数据块，所以不再单独发起压缩调用。
     var mergesSideEffects: Bool { mode == .perCall }
 
-    /// 按量时把上下文压短，按次时把阈值抬高到几乎不触发独立压缩。
+    /// 按量时把上下文压短，按次时窗口略宽——反正一次请求的价钱和长度无关，
+    /// 没必要为了省 token 把记忆挤出去。
     var contextWindow: Int { mode == .perCall ? 28 : 40 }
-    var compressionThreshold: Int { mode == .perCall ? 10_000 : 40 }
+
+    /// 攒到多少条未压缩消息才压一次。
+    ///
+    /// 按次计费原来写的是 10000，意思是「永不触发」——省下了那次调用，代价是
+    /// 群共同摘要和各人的群笔记永远不生成，只剩一条条零散事实。60 条约等于
+    /// 三十轮，多一次调用的钱换回整段记忆，这个交易更划算。
+    var compressionThreshold: Int { mode == .perCall ? 60 : 40 }
+
     var keepRecent: Int { 20 }
 }
 

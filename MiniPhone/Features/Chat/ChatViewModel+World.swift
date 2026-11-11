@@ -250,6 +250,9 @@ extension ChatViewModel {
     func groupMates(for character: Companion, context: ModelContext) -> [GroupMate] {
         guard character.isGroup else { return [] }
         let roster = (try? context.fetch(FetchDescriptor<Companion>())) ?? []
+        let world = WorldStore.shared
+        let now = Date()
+        let hour = CharacterClock.calendar.component(.hour, from: now)
         return relatedNames(for: character)
             .filter { $0 != character.name }
             .compactMap { name in
@@ -257,7 +260,27 @@ extension ChatViewModel {
                 let persona = mate.persona
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                     .replacingOccurrences(of: "\n", with: " ")
-                return GroupMate(name: name, persona: String(persona.prefix(120)), uid: mate.uid)
+                let mood = world.mood(for: name)
+                let location = world.location(for: name)
+                return GroupMate(
+                    name: name,
+                    persona: String(persona.prefix(120)),
+                    uid: mate.uid,
+                    mood: mood?.mood.label ?? "",
+                    location: location,
+                    schedule: world.todaySchedule(for: name)?
+                        .items.map(\.title).joined(separator: "、") ?? "",
+                    // 没存过就写 -1。`affinity(for:)` 的默认 30 是「刚认识」，
+                    // 写进群里会让所有人看起来都停在同一个刻度上。
+                    affinity: world.state.affinity[name] ?? -1,
+                    conditions: WorldBookResolver.Conditions.build(
+                        hour: hour,
+                        mood: mood?.mood,
+                        location: location,
+                        since: mate.createdAt,
+                        now: now
+                    )
+                )
             }
     }
 

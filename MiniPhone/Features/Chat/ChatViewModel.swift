@@ -396,9 +396,9 @@ final class ChatViewModel {
             ReplyNotifier.notifyReply(characterName: character.name, text: lastText)
         }
 
-        // 按次计费时状态增量已经在同一次回复里带回，不再单独发起压缩调用。
-        guard !plan.mergesSideEffects else { return }
-
+        // 记忆压缩两种计费都要跑。按次计费原来在这里直接 return，省下那次调用，
+        // 代价是群共同摘要和各人的群笔记永远不生成——按次的人用久了只剩一堆零散事实。
+        // 频率交给 `compressionThreshold` 管：按次攒到 60 条才压一次。
         Task { @MainActor [weak self] in
             await self?.compressMemoryIfNeeded(
                 character: character,

@@ -16,7 +16,7 @@ enum WorldBookResolver {
 
     /// 一次解析需要的全部状态。传值而不是传 `WorldContext`：
     /// 这里只关心「判断条件用得上的那几个」，带整个 context 会让测试和预览都得造一整套。
-    struct Conditions {
+    struct Conditions: Hashable {
         var hour: Int
         var mood: Mood?
         var location: String
@@ -45,13 +45,18 @@ enum WorldBookResolver {
         character: Companion,
         triggerText: String,
         conditions: Conditions,
-        groupUIDs: Set<UUID> = []
+        groupUIDs: Set<UUID> = [],
+        memberConditions: [UUID: Conditions] = [:]
     ) -> Resolved {
         let haystack = triggerText.lowercased()
 
         let picked = entries.filter { entry in
-            isEligible(entry, character: character, groupUIDs: groupUIDs)
-                && matches(entry, haystack: haystack, conditions: conditions)
+            guard isEligible(entry, character: character, groupUIDs: groupUIDs) else { return false }
+            // 条目绑在谁身上，就按那个人的状态判。群聊里「现在几点」大家一样，
+            // 心情、地点、认识天数却各是各的：拿群的条件去判成员的条目，
+            // 那一整类「他在图书馆时才生效」的设定永远不会出现。
+            let scoped = entry.characterUID.flatMap { memberConditions[$0] } ?? conditions
+            return matches(entry, haystack: haystack, conditions: scoped)
         }
 
         // 排序：优先级高的先出现；同级时全局条目在前（世界观立住，细节再补），
