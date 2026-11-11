@@ -11,6 +11,17 @@ enum Theme {
     /// 错误提示用的暖红。压暗过，深色底上不刺眼。
     static let warning = Color(red: 1.0, green: 0.62, blue: 0.55)
 
+    /// 阅读页的纸。三种底各有自己的墨色，
+    /// 夜里用纸白会把整页照成一块灯板，所以夜间是深纸配灰白字。
+    enum ReadPaper {
+        static let paper = Color(red: 0.98, green: 0.97, blue: 0.94)
+        static let paperInk = Color(red: 0.16, green: 0.15, blue: 0.13)
+        static let cream = Color(red: 0.95, green: 0.91, blue: 0.82)
+        static let creamInk = Color(red: 0.22, green: 0.18, blue: 0.12)
+        static let night = Color(red: 0.09, green: 0.09, blue: 0.10)
+        static let nightInk = Color(red: 0.76, green: 0.75, blue: 0.72)
+    }
+
     /// 设置页与场景页的浅色体系。
     ///
     /// 外壳是深色模式，这些必须写成绝对色值，不能用 `.primary` 之类会跟着配色方案

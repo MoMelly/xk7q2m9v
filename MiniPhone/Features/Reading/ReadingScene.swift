@@ -14,6 +14,8 @@ struct ReadingScene: View {
 
     @State private var showImporter = false
     @State private var importError: String?
+    /// 等二次确认的删除目标。
+    @State private var deleteTarget: ReadingBook?
 
     var body: some View {
         AppScreen(
@@ -49,6 +51,24 @@ struct ReadingScene: View {
         } message: {
             Text(importError ?? "")
         }
+        .alert(
+            "删除这本书？",
+            isPresented: Binding(
+                get: { deleteTarget != nil },
+                set: { if !$0 { deleteTarget = nil } }
+            ),
+            presenting: deleteTarget
+        ) { book in
+            Button("删除", role: .destructive) { performDelete(book) }
+            Button("取消", role: .cancel) { deleteTarget = nil }
+        } message: { book in
+            Text("「\(book.title)」和读到哪儿都会删掉，书里的文字不会留在本机。")
+        }
+    }
+
+    private func performDelete(_ book: ReadingBook) {
+        context.delete(book)
+        try? context.save()
     }
 
     // MARK: - 书架
@@ -57,12 +77,29 @@ struct ReadingScene: View {
         ScrollView {
             VStack(spacing: PhoneMetrics.Space.s) {
                 ForEach(books) { book in
-                    NavigationLink {
-                        ReaderPage(book: book)
-                    } label: {
-                        row(book)
+                    HStack(spacing: 0) {
+                        NavigationLink {
+                            ReaderPage(book: book)
+                        } label: {
+                            row(book)
+                        }
+                        .buttonStyle(.plain)
+
+                        // 书上原来没有任何删除入口。放在行尾，比长按菜单好找。
+                        Menu {
+                            Button(role: .destructive) {
+                                deleteTarget = book
+                            } label: {
+                                Label("删除这本书", systemImage: "trash")
+                            }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(AppSurface.light.secondaryLabel)
+                                .frame(width: 40, height: 44)
+                                .contentShape(Rectangle())
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, PhoneMetrics.Space.m)
@@ -161,73 +198,5 @@ struct ReadingScene: View {
         if let text = String(data: data, encoding: String.Encoding(rawValue: gb)) { return text }
 
         return String(data: data, encoding: .utf16)
-    }
-}
-
-/// 读书页。
-///
-/// 衬线正文、段落留白、进度按段落记。字号四档，存在本地，
-/// 关了再开还是上次那个大小。
-struct ReaderPage: View {
-    @Bindable var book: ReadingBook
-
-    @Environment(\.modelContext) private var context
-    @AppStorage("reading.fontSize") private var fontSize: Double = 18
-
-    private var paragraphs: [String] { book.paragraphs }
-
-    var body: some View {
-        AppPage(title: book.title, surface: .light) {
-            ScrollViewReader { proxy in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 14) {
-                        ForEach(Array(paragraphs.enumerated()), id: \.offset) { index, text in
-                            Text(text)
-                                .font(.system(size: fontSize, design: .serif))
-                                .lineSpacing(9)
-                                .foregroundStyle(AppSurface.light.label)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .id(index)
-                                .onAppear { markRead(index) }
-                        }
-
-                        Text("读完了")
-                            .font(.system(size: 12))
-                            .foregroundStyle(AppSurface.light.secondaryLabel)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, PhoneMetrics.Space.xl)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, PhoneMetrics.Space.m)
-                }
-                .onAppear {
-                    guard !paragraphs.isEmpty else { return }
-                    let target = min(book.paragraphIndex, paragraphs.count - 1)
-                    proxy.scrollTo(target, anchor: .top)
-                }
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    ForEach([16.0, 18.0, 20.0, 22.0], id: \.self) { size in
-                        Button("\(Int(size)) 号") { fontSize = size }
-                    }
-                } label: {
-                    Image(systemName: "textformat.size")
-                }
-            }
-        }
-        .onDisappear {
-            book.lastReadAt = Date()
-            try? context.save()
-        }
-    }
-
-    /// 只往前进不退：往回翻的时候不该把进度改回去。
-    private func markRead(_ index: Int) {
-        guard index > book.paragraphIndex else { return }
-        book.paragraphIndex = index
-        book.lastReadAt = Date()
     }
 }

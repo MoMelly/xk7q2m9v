@@ -9,12 +9,6 @@ struct GlassClock: View {
     let text: String
     var fontSize: CGFloat = PhoneMetrics.lockClockFontSize
 
-    /// 高光扫过的位置，-1 在左外侧，1 在右外侧。
-    ///
-    /// 静止的玻璃看起来就是一层毛玻璃贴纸；真的液态玻璃会有一道很慢的高光
-    /// 从左上划到右下。这个值只驱动那一道光，不碰字本身。
-    @State private var sweep: CGFloat = -1.2
-
     private var glyph: some View {
         Text(text)
             .font(.system(size: fontSize, weight: .medium, design: .rounded))
@@ -30,13 +24,6 @@ struct GlassClock: View {
             .opacity(0)
             .overlay { glassLayers }
             .accessibilityLabel(text)
-            .onAppear {
-                // 一轮六秒半，回位是一次性的瞬移而不是倒着划回去——
-                // 倒着划会看出是动画在循环，不是光在玻璃上走。
-                withAnimation(.linear(duration: 6.5).repeatForever(autoreverses: false)) {
-                    sweep = 1.2
-                }
-            }
     }
 
     private var glassLayers: some View {
@@ -46,9 +33,12 @@ struct GlassClock: View {
                 .fill(.ultraThinMaterial)
                 .mask(glyph)
 
-            // 整体提亮，否则深色壁纸上字会发灰，读不出时间。
+            // 字心：一层实心白。
+            //
+            // 只有材质 + 几层半透明白的话，浅色壁纸（比如粉色）上整组数字
+            // 会糊成一片霜，时间根本读不出来。玻璃感留给高光，可读性交给这一层。
             glyph
-                .foregroundStyle(.white.opacity(0.30))
+                .foregroundStyle(.white.opacity(0.92))
 
             // 锐内边：让笔画边缘catch到光，玻璃的厚度感靠这一层。
             glyph
@@ -62,14 +52,15 @@ struct GlassClock: View {
                 .blur(radius: 7)
                 .mask(glyph)
 
-            // 自上而下的反射，上半亮、下半收。
+            // 自上而下的反射，上半亮、下半收。透明度压到很浅，
+            // 否则最后一道渐变会把上面的字心又冲淡。
             glyph
                 .foregroundStyle(
                     LinearGradient(
                         stops: [
-                            .init(color: .white.opacity(0.62), location: 0),
-                            .init(color: .white.opacity(0.20), location: 0.55),
-                            .init(color: .white.opacity(0.06), location: 1)
+                            .init(color: .white.opacity(0.30), location: 0),
+                            .init(color: .white.opacity(0.08), location: 0.55),
+                            .init(color: .clear, location: 1)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
@@ -79,31 +70,31 @@ struct GlassClock: View {
             specular
         }
         .compositingGroup()
-        .shadow(color: .black.opacity(0.30), radius: 18, y: 7)
-        .shadow(color: .black.opacity(0.16), radius: 2, y: 1)
+        .shadow(color: .black.opacity(0.38), radius: 16, y: 6)
+        .shadow(color: .black.opacity(0.22), radius: 3, y: 1)
         .shadow(color: .white.opacity(0.18), radius: 1, y: -1)
     }
 
-    /// 扫过去的那道光。
+    /// 斜着切的一道静态高光。
     ///
-    /// 斜着切而不是横着扫：数字的笔画是竖的，横向扫会在笔画之间断成几截，
-    /// 看着像几条互不相干的亮线。
+    /// 玻璃的质感靠它，但它不移动。原来这道光每 6.5 秒从左扫到右、
+    /// 再瞬间跳回左边重新扫——整个数字的白色部分看起来就在左右来回晃。
+    /// 锁屏时钟是一块表，不是一块灯牌。
     private var specular: some View {
         glyph
             .foregroundStyle(
                 LinearGradient(
                     stops: [
                         .init(color: .white.opacity(0), location: 0),
-                        .init(color: .white.opacity(0.55), location: 0.46),
-                        .init(color: .white.opacity(0.75), location: 0.5),
-                        .init(color: .white.opacity(0.55), location: 0.54),
+                        .init(color: .white.opacity(0.40), location: 0.42),
+                        .init(color: .white.opacity(0.52), location: 0.5),
+                        .init(color: .white.opacity(0.40), location: 0.58),
                         .init(color: .white.opacity(0), location: 1)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
             )
-            .offset(x: sweep * fontSize * 1.6)
             .mask(glyph)
             .blendMode(.plusLighter)
             .allowsHitTesting(false)

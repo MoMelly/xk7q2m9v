@@ -45,6 +45,11 @@ final class SpeechService {
 
         stopSpeaking()
 
+        // 不配会话的话 TTS 走默认环境音，静音键一开就只剩嘴动没声音。
+        let session = AVAudioSession.sharedInstance()
+        try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+        try? session.setActive(true)
+
         let utterance = AVSpeechUtterance(string: clean)
         utterance.voice = Self.voice(for: name)
         utterance.rate = rate

@@ -44,6 +44,10 @@ struct CallOverlay: View {
     @State private var draft = ""
     @State private var didStart = false
     @State private var pulse = false
+    /// 把对方的话念出来。关掉只剩字幕。
+    @State private var voiceEnabled = true
+    /// 已经念过的消息，翻记录回看不重复念。
+    @State private var spokenIDs: Set<UUID> = []
     /// 通话里也能发表情。跟聊天页同一个入口位置，学一次就够。
     @State private var showStickers = false
     @FocusState private var isTyping: Bool
@@ -75,12 +79,7 @@ struct CallOverlay: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(
-                colors: [Theme.deepGreen, Theme.ink],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            callBackdrop
 
             VStack(spacing: 0) {
                 header
@@ -90,7 +89,32 @@ struct CallOverlay: View {
             }
         }
         .onAppear(perform: start)
+        .onDisappear { SpeechService.shared.stopSpeaking() }
+        .onChange(of: lines.count) { _, _ in speakLatestIfNeeded() }
         .statusBarHidden(true)
+    }
+
+    /// 通话背景。
+    ///
+    /// 原来是一块从深绿到近黑的渐变：一进来整屏全黑，看着像界面没加载出来。
+    /// 现在铺角色头像、重模糊压暗，再盖一层渐变，至少能看出在跟谁通话。
+    private var callBackdrop: some View {
+        ZStack {
+            Color.black
+
+            AvatarBubble(character: character, size: 620)
+                .blur(radius: 40)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            Color.black.opacity(0.42)
+
+            LinearGradient(
+                colors: [Color.black.opacity(0.08), Color.black.opacity(0.82)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        }
+        .ignoresSafeArea()
     }
 
     // MARK: - 顶部
@@ -174,11 +198,20 @@ struct CallOverlay: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 10) {
                     if lines.isEmpty && model.displayedStreamingText.isEmpty {
-                        Text("接通了，等对方开口。")
-                            .font(.system(size: 12))
-                            .foregroundStyle(Theme.cream.opacity(0.45))
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 20)
+                        VStack(spacing: 8) {
+                            ProgressView()
+                                .tint(Theme.mint)
+
+                            Text("接通了，等他先开口")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(Theme.cream.opacity(0.92))
+
+                            Text("说过的每一句都会留在聊天记录里。")
+                                .font(.system(size: 11))
+                                .foregroundStyle(Theme.cream.opacity(0.5))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 24)
                     }
 
                     ForEach(lines) { message in
@@ -259,6 +292,27 @@ struct CallOverlay: View {
             }
 
             HStack(spacing: 10) {
+                // 通话原来一点声音都没有：界面是静音的，字幕还得自己盯。
+                // 这一颗控制要不要把对方那句念出来。
+                Button {
+                    voiceEnabled.toggle()
+                    if !voiceEnabled {
+                        SpeechService.shared.stopSpeaking()
+                    } else {
+                        speakLatestIfNeeded(force: true)
+                    }
+                } label: {
+                    Image(systemName: voiceEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
+                        .font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(voiceEnabled ? Theme.deepGreen : Theme.cream.opacity(0.6))
+                        .frame(width: 38, height: 38)
+                        .background(
+                            Circle().fill(voiceEnabled ? Theme.mint : .white.opacity(0.10))
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(voiceEnabled ? "关掉人声" : "打开人声")
+
                 Button {
                     withAnimation(.easeInOut(duration: 0.18)) {
                         showStickers.toggle()
@@ -368,6 +422,15 @@ struct CallOverlay: View {
         Task {
             await model.beginCall(character: character, context: context, settings: settings)
         }
+    }
+
+    /// 有新台词就念一遍。同一条只念一次，翻记录回看不重复。
+    private func speakLatestIfNeeded(force: Bool = false) {
+        guard voiceEnabled else { return }
+        guard let latest = lines.last(where: { $0.role != .user }) else { return }
+        if !force, spokenIDs.contains(latest.uid) { return }
+        spokenIDs.insert(latest.uid)
+        SpeechService.shared.speak(latest.text, as: latest.speaker ?? character.name)
     }
 
     private func sendLine() {

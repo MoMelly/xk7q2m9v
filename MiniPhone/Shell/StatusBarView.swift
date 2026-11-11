@@ -9,6 +9,9 @@ struct StatusBarView: View {
     /// 传了就按传的来；不传跟着日夜：日间深字，夜间白字。
     /// 原来固定白色，浅色壁纸上全靠一层黑阴影硬撑，远看是一排灰点。
     var tint: Color? = nil
+    /// 锁屏上不显示时间。系统锁屏本来就把时间交给大时钟，
+    /// 上面再挂一个小号的一模一样的 10:36，看起来像画重了。
+    var showsClock: Bool = true
 
     private let horizontalPadding: CGFloat = 28
 
@@ -29,10 +32,14 @@ struct StatusBarView: View {
     var body: some View {
         TimelineView(.everyMinute) { context in
             HStack(spacing: 0) {
-                Text(TimeFormat.clock(context.date))
-                    .font(.system(size: 15, weight: .semibold))
-                    .monospacedDigit()
-                    .frame(width: 56, alignment: .leading)
+                if showsClock {
+                    Text(TimeFormat.clock(context.date))
+                        .font(.system(size: 15, weight: .semibold))
+                        .monospacedDigit()
+                        .frame(width: 56, alignment: .leading)
+                } else {
+                    Color.clear.frame(width: 56, height: 18)
+                }
 
                 Spacer(minLength: 0)
 

@@ -260,6 +260,13 @@ struct PhoneShellView: View {
             BuiltInStickers.ensure(in: context)
             StickerLibrary.shared.reload(context: context)
             retirePortraitAvatars()
+
+            // 只有正常启动才种。截图流水线自己摆数据，
+            // 两条种子叠在一起，画面上会多出一堆没预期的会话。
+            if UserDefaults.standard.string(forKey: "previewState") == nil {
+                FirstRunSeed.runIfNeeded(context: context, world: world, companions: companions)
+            }
+
             PreviewSeeder(
                 state: Self.previewState,
                 companions: companions,

@@ -50,20 +50,27 @@ struct CharacterVoicesSheet: View {
         VStack(alignment: .leading, spacing: PhoneMetrics.Space.xs) {
             Text(title)
                 .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
-                .foregroundStyle(Theme.secondaryLabel)
+                .foregroundStyle(.white.opacity(0.62))
                 .padding(.leading, 4)
 
             VStack(spacing: 0) {
                 ForEach(Array(voices.enumerated()), id: \.element.id) { index, voice in
                     row(voice, dim: dim)
                     if index != voices.count - 1 {
-                        RowDivider().padding(.leading, PhoneMetrics.Space.m)
+                        RowDivider(surface: .glass).padding(.leading, PhoneMetrics.Space.m)
                     }
                 }
             }
             .background {
+                // 液态玻璃。这一页的底永远是深绿渐变，卡片就不能用随主题翻转的
+                // `rowSurface`——白天它是白卡，夜里它是深卡，深卡配深底就成了
+                // 一整块墨绿色、字全糊在里面。
                 RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                    .fill(Theme.rowSurface)
+                    .fill(.ultraThinMaterial)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                            .strokeBorder(.white.opacity(0.14), lineWidth: 0.8)
+                    }
             }
         }
     }
@@ -72,13 +79,13 @@ struct CharacterVoicesSheet: View {
         HStack(alignment: .top, spacing: PhoneMetrics.Space.s) {
             Image(systemName: dim ? "checkmark.circle" : "quote.opening")
                 .font(.system(size: 11))
-                .foregroundStyle(dim ? Theme.secondaryLabel.opacity(0.5) : Theme.tint)
+                .foregroundStyle(dim ? .white.opacity(0.4) : Theme.mint)
                 .padding(.top, 3)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(voice.text)
                     .font(.system(size: PhoneMetrics.FontSize.sub))
-                    .foregroundStyle(dim ? Theme.secondaryLabel : Theme.label)
+                    .foregroundStyle(dim ? .white.opacity(0.55) : .white.opacity(0.95))
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(spacing: 6) {
@@ -88,7 +95,7 @@ struct CharacterVoicesSheet: View {
                     }
                 }
                 .font(.system(size: PhoneMetrics.FontSize.caption))
-                .foregroundStyle(Theme.secondaryLabel.opacity(0.7))
+                .foregroundStyle(.white.opacity(0.45))
             }
 
             Spacer(minLength: 0)
@@ -101,15 +108,15 @@ struct CharacterVoicesSheet: View {
         VStack(spacing: PhoneMetrics.Space.s) {
             Image(systemName: "quote.bubble")
                 .font(.system(size: 34, weight: .light))
-                .foregroundStyle(Theme.secondaryLabel.opacity(0.6))
+                .foregroundStyle(.white.opacity(0.45))
 
             Text("还没记下什么")
                 .font(.system(size: PhoneMetrics.FontSize.body, weight: .semibold))
-                .foregroundStyle(Theme.label)
+                .foregroundStyle(.white.opacity(0.95))
 
             Text("他有些话不会说出口。聊得多了，\n这里会攒下他没讲的那些。")
                 .font(.system(size: PhoneMetrics.FontSize.footnote))
-                .foregroundStyle(Theme.secondaryLabel)
+                .foregroundStyle(.white.opacity(0.62))
                 .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)

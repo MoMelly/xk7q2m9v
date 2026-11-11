@@ -16,6 +16,12 @@ struct MusicScene: View {
     private var player: PlayerService { .shared }
     @State private var showImporter = false
     @State private var notice: String?
+    /// 点行尾「…」打开的那首歌。
+    @State private var menuTarget: Track?
+    /// 等二次确认的删除目标。
+    @State private var deleteTarget: Track?
+    /// 正在导入歌词的那首。
+    @State private var lyricTarget: Track?
 
     private var current: Track? {
         world.state.currentTrack
@@ -65,6 +71,41 @@ struct MusicScene: View {
         } message: {
             Text(notice ?? "")
         }
+        .confirmationDialog(
+            "这首歌",
+            isPresented: Binding(
+                get: { menuTarget != nil },
+                set: { if !$0 { menuTarget = nil } }
+            ),
+            presenting: menuTarget
+        ) { track in
+            Button("现在播放") { toggle(track) }
+            Button("导入歌词") { lyricTarget = track }
+            if MusicLibrary.isDeletable(track) {
+                Button("删除这首歌", role: .destructive) { deleteTarget = track }
+            }
+            Button("取消", role: .cancel) { menuTarget = nil }
+        } message: { track in
+            Text(track.title)
+        }
+        .alert(
+            "删除这首歌？",
+            isPresented: Binding(
+                get: { deleteTarget != nil },
+                set: { if !$0 { deleteTarget = nil } }
+            ),
+            presenting: deleteTarget
+        ) { track in
+            Button("删除", role: .destructive) { performDelete(track) }
+            Button("取消", role: .cancel) { deleteTarget = nil }
+        } message: { track in
+            Text("「\(track.title)」会从这台设备上删掉，配的歌词一起清掉。随包发布的歌删不了。")
+        }
+        .sheet(item: $lyricTarget) { track in
+            LyricImportSheet(track: track) {
+                player.reloadLyrics()
+            }
+        }
     }
 
     // MARK: - 歌曲
@@ -84,49 +125,61 @@ struct MusicScene: View {
     }
 
     private func songRow(_ track: Track) -> some View {
-        Button {
-            toggle(track)
-        } label: {
-            HStack(spacing: PhoneMetrics.Space.s) {
-                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.cover, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Theme.IconTint.pink, Theme.IconTint.orange],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+        HStack(spacing: 0) {
+            Button {
+                toggle(track)
+            } label: {
+                HStack(spacing: PhoneMetrics.Space.s) {
+                    RoundedRectangle(cornerRadius: PhoneMetrics.Radius.cover, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Theme.IconTint.pink, Theme.IconTint.orange],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        Image(systemName: "music.note")
-                            .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .bold))
-                            .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .overlay {
+                            Image(systemName: "music.note")
+                                .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(track.title)
+                            .font(.system(size: PhoneMetrics.FontSize.body))
+                            .foregroundStyle(player.track?.id == track.id ? Theme.tint : Theme.label)
+                            .lineLimit(1)
+                        Text(track.artist)
+                            .font(.system(size: PhoneMetrics.FontSize.footnote))
+                            .foregroundStyle(Theme.secondaryLabel)
+                            .lineLimit(1)
                     }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(track.title)
-                        .font(.system(size: PhoneMetrics.FontSize.body))
-                        .foregroundStyle(player.track?.id == track.id ? Theme.tint : Theme.label)
-                        .lineLimit(1)
-                    Text(track.artist)
-                        .font(.system(size: PhoneMetrics.FontSize.footnote))
-                        .foregroundStyle(Theme.secondaryLabel)
-                        .lineLimit(1)
+                    Spacer(minLength: PhoneMetrics.Space.xs)
                 }
+                .padding(.leading, PhoneMetrics.Space.m)
+                .frame(minHeight: PhoneMetrics.Row.detailed)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(track.title)，\(track.artist)")
 
-                Spacer(minLength: PhoneMetrics.Space.xs)
-
+            // 行尾这颗原来只是装饰：画了个「…」，点下去还是播放，删不掉也导不了歌词。
+            // 现在它是真的菜单入口。
+            Button {
+                menuTarget = track
+            } label: {
                 Image(systemName: playingID(of: track) ? "speaker.wave.2.fill" : "ellipsis")
                     .font(.system(size: PhoneMetrics.FontSize.footnote))
                     .foregroundStyle(playingID(of: track) ? Theme.tint : Theme.secondaryLabel.opacity(0.7))
-                    .frame(width: 28)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-            .padding(.horizontal, PhoneMetrics.Space.m)
-            .frame(minHeight: PhoneMetrics.Row.detailed)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityLabel("更多，\(track.title)")
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(track.title)，\(track.artist)")
+        .padding(.trailing, PhoneMetrics.Space.xs)
     }
 
     private var emptyLibrary: some View {
@@ -208,9 +261,59 @@ struct MusicScene: View {
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, PhoneMetrics.Space.m)
-            .frame(height: 60)
+            .frame(height: 56)
+
+                // 播放条上原来只有「播放/暂停」：想看进度得点开歌词页，
+                // 而那边也只有一条抓不住的细线。这里补上真正的进度条。
+                HStack(spacing: PhoneMetrics.Space.s) {
+                    Text(clock(player.displayElapsed))
+                        .frame(width: 34, alignment: .leading)
+
+                    SeekBar(
+                        progress: player.progress,
+                        isScrubbing: player.isScrubbing,
+                        trackColor: Theme.separator,
+                        fillColor: Theme.tint,
+                        thumbColor: Theme.tint,
+                        barHeight: 3,
+                        hitHeight: 26,
+                        onScrubBegan: { player.beginScrub() },
+                        onScrub: { player.scrub(to: $0) },
+                        onScrubEnded: { player.endScrub() }
+                    )
+
+                    Text(remaining)
+                        .frame(width: 42, alignment: .trailing)
+                }
+                .font(.system(size: 10).monospacedDigit())
+                .foregroundStyle(Theme.secondaryLabel)
+                .padding(.horizontal, PhoneMetrics.Space.m)
+                .padding(.bottom, 6)
         }
         .background(Theme.rowSurface)
+    }
+
+    private func clock(_ seconds: Double) -> String {
+        guard seconds.isFinite, seconds >= 0 else { return "0:00" }
+        let total = Int(seconds.rounded())
+        return String(format: "%d:%02d", total / 60, total % 60)
+    }
+
+    private var remaining: String {
+        guard player.duration > 0 else { return "-0:00" }
+        return "-" + clock(max(player.duration - player.displayElapsed, 0))
+    }
+
+    private func performDelete(_ track: Track) {
+        do {
+            if player.track?.id == track.id { player.stop() }
+            try MusicLibrary.delete(track)
+            tracks = MusicLibrary.allTracks()
+            player.reloadQueue()
+            notice = "删了「\(track.title)」"
+        } catch {
+            notice = "删不掉：\(error.localizedDescription)"
+        }
     }
 
     // MARK: - 播放

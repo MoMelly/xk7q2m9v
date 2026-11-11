@@ -12,6 +12,8 @@ struct GroupedRow: View {
     var value: String?
     var showsChevron: Bool = false
     var surface: AppSurface = .light
+    /// 标题色。默认跟表面走；删除这类危险操作传红色。
+    var titleTint: Color? = nil
 
     init(
         symbol: String? = nil,
@@ -20,7 +22,8 @@ struct GroupedRow: View {
         subtitle: String? = nil,
         value: String? = nil,
         showsChevron: Bool = false,
-        surface: AppSurface = .light
+        surface: AppSurface = .light,
+        titleTint: Color? = nil
     ) {
         self.symbol = symbol
         self.symbolTint = symbolTint
@@ -29,6 +32,7 @@ struct GroupedRow: View {
         self.value = value
         self.showsChevron = showsChevron
         self.surface = surface
+        self.titleTint = titleTint
     }
 
     var body: some View {
@@ -47,7 +51,7 @@ struct GroupedRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.system(size: PhoneMetrics.FontSize.body))
-                    .foregroundStyle(surface.label)
+                    .foregroundStyle(titleTint ?? surface.label)
                 if let subtitle {
                     Text(subtitle)
                         .font(.system(size: PhoneMetrics.FontSize.footnote))

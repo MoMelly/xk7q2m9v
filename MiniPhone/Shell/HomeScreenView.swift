@@ -21,6 +21,8 @@ struct HomeScreenView: View {
     @State private var layout = HomeLayout.load()
     @State private var page = 0
     @State private var editing = false
+    /// 下面那排（心情 + 音乐）是不是放在「今天」上面。编辑模式下上下拖一下能换。
+    @AppStorage("shell.widgetPairFirst") private var pairFirst = false
 
     var body: some View {
         ZStack {
@@ -71,20 +73,45 @@ struct HomeScreenView: View {
 
     private var widgetStack: some View {
         VStack(spacing: HomeWidgetSize.gap) {
-            HomeTodayWidget(schedule: world.state.schedule) {
-                openApp("calendar")
-            }
-
-            HStack(spacing: HomeWidgetSize.gap) {
-                HomeMoodWidget(mood: world.primaryMood, owner: world.primaryName) {
-                    openApp("messages")
-                }
-                HomeMusicWidget(track: world.state.currentTrack, playing: musicPlaying) {
-                    openApp("music")
-                }
+            if pairFirst {
+                widgetPair
+                todayWidget
+            } else {
+                todayWidget
+                widgetPair
             }
         }
         .padding(.horizontal, 20)
+        // 三块组件原来钉死在上面，怎么拖都不动。现在编辑模式下上下拖一下，
+        // 「今天」和下面那排能换位置。
+        .gesture(widgetDrag)
+    }
+
+    private var todayWidget: some View {
+        HomeTodayWidget(schedule: world.state.schedule) {
+            openApp("calendar")
+        }
+    }
+
+    private var widgetPair: some View {
+        HStack(spacing: HomeWidgetSize.gap) {
+            HomeMoodWidget(mood: world.primaryMood, owner: world.primaryName) {
+                openApp("messages")
+            }
+            HomeMusicWidget(track: world.state.currentTrack, playing: musicPlaying) {
+                openApp("music")
+            }
+        }
+    }
+
+    private var widgetDrag: some Gesture {
+        DragGesture(minimumDistance: 14)
+            .onEnded { value in
+                guard editing, abs(value.translation.height) > 44 else { return }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.84)) {
+                    pairFirst.toggle()
+                }
+            }
     }
 
     /// 组件点开对应的 App。找不到就当没点——主屏不该因为一个 id 崩掉。
@@ -103,6 +130,10 @@ struct HomeScreenView: View {
             onOpen(app)
         }
         .padding(.horizontal, 20)
+        // 编辑模式下删除角标是画在格子外面的，上面留一点，
+        // 免得第一排的角标压到小组件下沿（之前两块是叠在一起的）。
+        .padding(.top, editing ? 8 : 0)
+        .animation(.easeOut(duration: 0.18), value: editing)
     }
 
     /// 编辑模式下的退出按钮。点空白也能退，但一个看得见的入口更稳。

@@ -63,6 +63,24 @@ enum MusicLibrary {
         return count
     }
 
+    /// 只有自己导进来的能删。随包的音频在 App 包里，删了下次启动又会冒出来。
+    static func isDeletable(_ track: Track) -> Bool {
+        track.fileName.hasPrefix(documentPrefix)
+    }
+
+    /// 删掉一条导入的音频，连带它那份歌词。
+    static func delete(_ track: Track) throws {
+        guard isDeletable(track), let url = url(for: track) else { return }
+        try FileManager.default.removeItem(at: url)
+
+        // 同名 .lrc 一起清掉，不然重新导入同一首会挂上一份旧歌词。
+        let lrc = url.deletingPathExtension().appendingPathExtension("lrc")
+        if FileManager.default.fileExists(atPath: lrc.path) {
+            try? FileManager.default.removeItem(at: lrc)
+        }
+        LyricStore.delete(for: track)
+    }
+
     private static func tracks(in directory: URL, prefix: String) -> [Track] {
         let files = (try? FileManager.default.contentsOfDirectory(
             at: directory,

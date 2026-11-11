@@ -34,7 +34,10 @@ struct AppIconTile: View {
                     .font(.system(size: 11, weight: .regular))
                     .foregroundStyle(labelColor)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.62)
+                    // 文字原来被压在图标那 60pt 的宽度里，四个字以上就开始截。
+                    // 格子比图标宽一圈，名字也用上这一圈。
+                    .frame(width: size * 1.12)
                     .shadow(color: labelShadow, radius: 2, y: 1)
             }
         }

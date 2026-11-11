@@ -24,7 +24,7 @@ struct LockScreenView: View {
             WallpaperBackdrop(selection: selection, videoEnabled: videoWallpaperEnabled)
 
             VStack(spacing: 0) {
-                StatusBarView()
+                StatusBarView(showsClock: false)
 
                 Spacer(minLength: 0).frame(height: 18)
 

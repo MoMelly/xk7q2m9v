@@ -132,29 +132,59 @@ struct FeedDetailPage: View {
                 .padding(.vertical, PhoneMetrics.Space.s)
 
             ForEach(current.comments) { comment in
-                HStack(alignment: .top, spacing: PhoneMetrics.Space.xs) {
-                    FeedAvatar(
-                        name: comment.authorName,
-                        isCharacter: comment.isCharacter,
-                        size: 22
-                    )
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(comment.authorName)
-                            .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
-                            .foregroundStyle(AppSurface.light.secondaryLabel)
-                        Text(comment.text)
-                            .font(.system(size: PhoneMetrics.FontSize.sub))
-                            .foregroundStyle(AppSurface.light.label)
-                            .fixedSize(horizontal: false, vertical: true)
+                // 角色说的评论点了能进他的主页——评论区里看到一个人，
+                // 下一步一定想知道这人是谁。
+                if comment.isCharacter {
+                    NavigationLink {
+                        FeedAuthorPage(
+                            authorName: comment.authorName,
+                            authorUID: nil,
+                            world: world,
+                            settings: settings
+                        )
+                    } label: {
+                        commentRow(comment)
                     }
-
-                    Spacer(minLength: 0)
+                    .buttonStyle(.plain)
+                } else {
+                    commentRow(comment)
                 }
-                .padding(.horizontal, PhoneMetrics.Space.m)
-                .padding(.vertical, PhoneMetrics.Space.xs)
             }
         }
+    }
+
+    private func commentRow(_ comment: NoteComment) -> some View {
+        HStack(alignment: .top, spacing: PhoneMetrics.Space.xs) {
+            FeedAvatar(
+                name: comment.authorName,
+                isCharacter: comment.isCharacter,
+                size: 22
+            )
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(comment.authorName)
+                        .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
+                        .foregroundStyle(AppSurface.light.secondaryLabel)
+
+                    if comment.isCharacter {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 8, weight: .semibold))
+                            .foregroundStyle(AppSurface.light.secondaryLabel.opacity(0.5))
+                    }
+                }
+
+                Text(comment.text)
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, PhoneMetrics.Space.m)
+        .padding(.vertical, PhoneMetrics.Space.xs)
+        .contentShape(Rectangle())
     }
 
     private var shareButton: some View {

@@ -154,6 +154,8 @@ struct LyricsPage: View {
     let player: PlayerService
     var onClose: () -> Void
 
+    @State private var showLyricImport = false
+
     private var track: Track? { player.track }
 
     /// 一起听的对象从播放器本身的邀请状态读。
@@ -183,6 +185,13 @@ struct LyricsPage: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.glass, style: .continuous))
         .ignoresSafeArea()
+        .sheet(isPresented: $showLyricImport) {
+            if let track {
+                LyricImportSheet(track: track) {
+                    player.reloadLyrics()
+                }
+            }
+        }
     }
 
     private var backdrop: some View {
@@ -205,14 +214,29 @@ struct LyricsPage: View {
 
     private var topBar: some View {
         HStack(alignment: .top) {
-            Button(action: onClose) {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.8))
-                    .frame(width: 38, height: 38)
-                    .background(Circle().fill(Color.white.opacity(0.12)))
+            HStack(spacing: 10) {
+                Button(action: onClose) {
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Color.white.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+
+                // 有歌词的时候也要能换一份：这一颗放在关闭旁边，不占歌词的位置。
+                Button {
+                    showLyricImport = true
+                } label: {
+                    Image(systemName: "text.quote")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .frame(width: 38, height: 38)
+                        .background(Circle().fill(Color.white.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("导入歌词")
             }
-            .buttonStyle(.plain)
 
             Spacer(minLength: 0)
 
@@ -328,11 +352,24 @@ struct LyricsPage: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.white.opacity(0.7))
 
-            Text("把同名 .lrc 放在音频旁边，这里就会跟着唱到哪儿滚到哪儿。")
+            Text("带时间轴的 .lrc 会逐行高亮，\n纯文本也会按播放进度往下走。")
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.4))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, PhoneMetrics.Space.xl)
+
+            Button {
+                showLyricImport = true
+            } label: {
+                Text("导入歌词")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 22)
+                    .frame(height: 36)
+                    .background(Capsule().fill(Color.white.opacity(0.16)))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 60)
@@ -341,32 +378,17 @@ struct LyricsPage: View {
     // MARK: - 控制
 
     private var controls: some View {
-        VStack(spacing: 5) {
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(Color.white.opacity(0.18))
-                        .frame(height: 3.5)
-
-                    Capsule()
-                        .fill(Color.white.opacity(0.82))
-                        .frame(width: max(proxy.size.width * player.progress, 3.5), height: 3.5)
-                }
-                .frame(height: 3.5)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onEnded { value in
-                            guard player.duration > 0 else { return }
-                            let ratio = min(max(value.location.x / proxy.size.width, 0), 1)
-                            player.seek(to: ratio * player.duration)
-                        }
-                )
-            }
-            .frame(height: 12)
+        VStack(spacing: 0) {
+            SeekBar(
+                progress: player.progress,
+                isScrubbing: player.isScrubbing,
+                onScrubBegan: { player.beginScrub() },
+                onScrub: { player.scrub(to: $0) },
+                onScrubEnded: { player.endScrub() }
+            )
 
             HStack {
-                Text(clock(player.elapsed))
+                Text(clock(player.displayElapsed))
                 Spacer(minLength: 0)
                 Text(remaining)
             }
@@ -414,6 +436,6 @@ struct LyricsPage: View {
 
     private var remaining: String {
         guard player.duration > 0 else { return "-0:00" }
-        return "-" + clock(max(player.duration - player.elapsed, 0))
+        return "-" + clock(max(player.duration - player.displayElapsed, 0))
     }
 }

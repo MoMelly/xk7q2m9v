@@ -11,17 +11,19 @@ struct MyProfilePage: View {
     let settings: SettingsStore
 
     @Environment(\.modelContext) private var context
-    @State private var showAvatarPicker = false
-    @State private var showChatLook = false
     /// 正在编辑的次级页。宿主没有导航栈，「信息」页自己拼的顶栏加 tabBar
     /// 也不适合被推入，所以次级菜单全走模态。
+    ///
+    /// 原来这一页挂了三个 `.sheet`（聊天外观、头像、字段编辑），
+    /// 同一层视图上挂多个 sheet，iOS 只会保证最后一个能弹出来——
+    /// 名字和简介点了没反应就是这个原因。现在收成一个枚举驱动。
     @State private var activeEditor: ActiveEditor?
     /// 拍一拍后缀的编辑框。用 alert 带一个输入框，够用，不再单开一页。
     @State private var showPatEditor = false
     @State private var patDraft = ""
 
     enum ActiveEditor: String, Identifiable {
-        case name, signature, status, symbol, tint
+        case name, signature, bio, status, symbol, tint, avatar, chatLook
         var id: String { rawValue }
     }
 
@@ -69,6 +71,24 @@ struct MyProfilePage: View {
 
                     RowDivider(surface: .glass)
 
+                    // 简介之前只存在于「设置 → 我的人设」，资料页里根本没有入口，
+                    // 所以在这一页怎么找都改不了。提示词读的也是同一个字段。
+                    Button {
+                        activeEditor = .bio
+                    } label: {
+                        GroupedRow(
+                            symbol: "text.alignleft",
+                            symbolTint: Theme.IconTint.indigo,
+                            title: "简介",
+                            value: profile.bio.isEmpty ? "没写" : profile.bio,
+                            showsChevron: true,
+                            surface: .glass
+                        )
+                    }
+                    .buttonStyle(.plain)
+
+                    RowDivider(surface: .glass)
+
                     Button {
                         activeEditor = .name
                     } label: {
@@ -91,7 +111,7 @@ struct MyProfilePage: View {
                     glass: true
                 ) {
                     Button {
-                        showAvatarPicker = true
+                        activeEditor = .avatar
                     } label: {
                         GroupedRow(
                             symbol: "photo.on.rectangle",
@@ -144,7 +164,7 @@ struct MyProfilePage: View {
                     glass: true
                 ) {
                     Button {
-                        showChatLook = true
+                        activeEditor = .chatLook
                     } label: {
                         GroupedRow(
                             symbol: "paintbrush.fill",
@@ -197,7 +217,43 @@ struct MyProfilePage: View {
         } message: {
             Text("会显示成「\(profile.name)\(patDraft.trimmingCharacters(in: .whitespaces).isEmpty ? "的头像" : patDraft)」。")
         }
-        .sheet(isPresented: $showChatLook) {
+        .sheet(item: $activeEditor) { editor in
+            editorPage(editor)
+                .environment(\.colorScheme, .light)
+                .onDisappear(perform: save)
+        }
+    }
+
+    /// 所有次级页。每个 case 自己带导航栈和「完成」——
+    /// 统一在这层套 NavigationStack 的话，头像选择器（它自带一个）会套两层。
+    @ViewBuilder
+    private func editorPage(_ editor: ActiveEditor) -> some View {
+        switch editor {
+        case .name:
+            fieldPage("名字", placeholder: "我", text: $profile.name)
+        case .signature:
+            fieldPage("签名", placeholder: "一句话", text: $profile.signature)
+        case .bio:
+            fieldPage("简介", placeholder: "写点关于自己的", text: $profile.bio, multiline: true)
+        case .status:
+            NavigationStack {
+                ProfileStatusPage(profile: profile).toolbar { doneButton }
+            }
+        case .symbol:
+            NavigationStack {
+                ProfileSymbolPage(profile: profile).toolbar { doneButton }
+            }
+        case .tint:
+            NavigationStack {
+                ProfileTintPage(profile: profile).toolbar { doneButton }
+            }
+        case .avatar:
+            AvatarPickerSheet(
+                fallbackNote: "不用照片时，显示首字或符号头像。",
+                imageKey: $profile.avatarImageKey,
+                fileName: $profile.avatarFileName
+            )
+        case .chatLook:
             NavigationStack {
                 ScrollView {
                     ChatBackgroundSection(settings: settings)
@@ -207,51 +263,32 @@ struct MyProfilePage: View {
                 .background(AppSurface.light.background.ignoresSafeArea())
                 .navigationTitle("聊天背景与气泡")
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("完成") { showChatLook = false }
-                    }
-                }
+                .toolbar { doneButton }
             }
-        }
-        .sheet(isPresented: $showAvatarPicker) {
-            AvatarPickerSheet(
-                fallbackNote: "不用照片时，显示首字或符号头像。",
-                imageKey: $profile.avatarImageKey,
-                fileName: $profile.avatarFileName
-            )
-            .onDisappear(perform: save)
-        }
-        .sheet(item: $activeEditor) { editor in
-            NavigationStack {
-                editorPage(editor)
-            }
-            .environment(\.colorScheme, .light)
-            .onDisappear(perform: save)
         }
     }
 
-    @ViewBuilder
-    private func editorPage(_ editor: ActiveEditor) -> some View {
-        let base = Group {
-            switch editor {
-            case .name:
-                ProfileFieldPage(title: "名字", placeholder: "我", text: $profile.name)
-            case .signature:
-                ProfileFieldPage(title: "签名", placeholder: "一句话", text: $profile.signature)
-            case .status:
-                ProfileStatusPage(profile: profile)
-            case .symbol:
-                ProfileSymbolPage(profile: profile)
-            case .tint:
-                ProfileTintPage(profile: profile)
-            }
+    private func fieldPage(
+        _ title: String,
+        placeholder: String,
+        text: Binding<String>,
+        multiline: Bool = false
+    ) -> some View {
+        NavigationStack {
+            ProfileFieldPage(
+                title: title,
+                placeholder: placeholder,
+                text: text,
+                multiline: multiline
+            )
+            .toolbar { doneButton }
         }
+    }
 
-        base.toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                Button("完成") { activeEditor = nil }
-            }
+    @ToolbarContentBuilder
+    private var doneButton: some ToolbarContent {
+        ToolbarItem(placement: .confirmationAction) {
+            Button("完成") { activeEditor = nil }
         }
     }
 
@@ -262,7 +299,7 @@ struct MyProfilePage: View {
     private var header: some View {
         VStack(spacing: PhoneMetrics.Space.xs) {
             Button {
-                showAvatarPicker = true
+                activeEditor = .avatar
             } label: {
                 currentAvatar
             }
@@ -328,6 +365,8 @@ struct ProfileFieldPage: View {
     let title: String
     let placeholder: String
     @Binding var text: String
+    /// 简介这种要写几句话的字段给更高的输入框。
+    var multiline: Bool = false
 
     @Environment(\.modelContext) private var context
     @FocusState private var isFocused: Bool
@@ -344,9 +383,10 @@ struct ProfileFieldPage: View {
                 .font(.system(size: PhoneMetrics.FontSize.body))
                 .foregroundStyle(AppSurface.light.label)
                 .tint(Theme.retroGreen)
-                .lineLimit(1...4)
+                .lineLimit(multiline ? 2...10 : 1...4)
                 .padding(.horizontal, PhoneMetrics.Space.m)
-                .frame(minHeight: PhoneMetrics.Row.detailed)
+                .frame(minHeight: multiline ? 120 : PhoneMetrics.Row.detailed, alignment: .topLeading)
+                .padding(.vertical, multiline ? PhoneMetrics.Space.s : 0)
                 .focused($isFocused)
             }
             .padding(.top, PhoneMetrics.Space.s)

@@ -13,6 +13,7 @@ struct DataPage: View {
     /// 点错一次就是全部重来，中间必须有一道门。
     @State private var pendingRestore: URL?
     @State private var alertText: String?
+    @State private var showWipe = false
 
     private struct ShareItem: Identifiable {
         let id = UUID()
@@ -46,6 +47,23 @@ struct DataPage: View {
                                 symbol: "square.and.arrow.down",
                                 symbolTint: Theme.IconTint.green,
                                 title: "从备份恢复"
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    GroupedSection(
+                        "危险操作",
+                        footer: "角色、聊天记录、备忘录、动态、书和阅读位置、世界设定、本机头像与音乐全部删掉，撤销不了。删完重开 App 会回到刚装好的样子：两个角色和一个群。想留一份就先在上面导出。"
+                    ) {
+                        Button {
+                            showWipe = true
+                        } label: {
+                            GroupedRow(
+                                symbol: "trash",
+                                symbolTint: Theme.IconTint.rose,
+                                title: "删除全部数据",
+                                titleTint: Theme.IconTint.rose
                             )
                         }
                         .buttonStyle(.plain)
@@ -88,6 +106,26 @@ struct DataPage: View {
             Button("好") { alertText = nil }
         } message: {
             Text(alertText ?? "")
+        }
+        .confirmationDialog(
+            "删除全部数据？",
+            isPresented: $showWipe,
+            titleVisibility: .visible
+        ) {
+            Button("删除全部数据", role: .destructive) { performWipe() }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("这一下删掉就回不来了，包括所有聊天和记忆。想留一份先导出。")
+        }
+    }
+
+    private func performWipe() {
+        do {
+            try WipeService.run(context: context)
+            world.reload()
+            alertText = "已经清空。重开 App 会回到刚装好的样子。"
+        } catch {
+            alertText = "清空失败：\(error.localizedDescription)"
         }
     }
 

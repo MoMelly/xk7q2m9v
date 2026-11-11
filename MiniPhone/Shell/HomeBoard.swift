@@ -13,6 +13,10 @@ struct HomeBoard: View {
     /// 拖动中的那一格。
     @State private var dragging: String?
     @State private var dragLocation: CGPoint = .zero
+    /// 按下时手指的点。图标按相对位移跟手，才不会在第一次 `onChanged`
+    /// 就瞬移到手指下面——那一下跳完就再也看不出「我把图标拎起来了」。
+    @State private var dragOrigin: CGPoint = .zero
+    @State private var dragStartedAt: Date?
     @State private var openFolder: HomeSlot.Folder?
     /// 翻页用的瞬时位移。松手后归零，由 `page` 接手。
     @State private var swipeOffset: CGFloat = 0
@@ -72,19 +76,30 @@ struct HomeBoard: View {
                     .frame(width: metrics.cellWidth, height: metrics.cellHeight)
                     .offset(x: metrics.origin(at: position).x, y: metrics.origin(at: position).y)
                     .zIndex(dragging == slot.id ? 10 : 0)
-                    .scaleEffect(dragging == slot.id ? 1.12 : 1)
-                    .offset(dragging == slot.id ? dragOffset(from: metrics, position: position) : .zero)
+                    // 拎起来的样子：放大一点、投影加深、跟手平移。
+                    // 原来只有 1.12 的缩放，没有影子也没有位移差，
+                    // 拖起来跟没拖一样——看不出这颗图标是「活的」。
+                    .scaleEffect(dragging == slot.id ? 1.15 : 1)
+                    .animation(.spring(response: 0.26, dampingFraction: 0.74), value: dragging)
+                    .shadow(
+                        color: .black.opacity(dragging == slot.id ? 0.32 : 0),
+                        radius: dragging == slot.id ? 18 : 0,
+                        y: dragging == slot.id ? 10 : 0
+                    )
+                    // offset 放在 animation 之后：拖动位移不能有动画，
+                    // 否则图标是「追」手指，慢半拍，看着就像没跟上。
+                    .offset(dragging == slot.id ? dragTranslation : .zero)
                     .gesture(iconGesture(slot: slot, page: index, metrics: metrics, size: size))
             }
         }
         .frame(width: size.width, height: size.height, alignment: .topLeading)
     }
 
-    private func dragOffset(from metrics: PhoneBoardMetrics, position: Int) -> CGSize {
-        let origin = metrics.origin(at: position)
-        return CGSize(
-            width: dragLocation.x - origin.x - metrics.cellWidth / 2,
-            height: dragLocation.y - origin.y - metrics.cellHeight / 2
+    /// 手指相对按下位置的位移。跟手用它，落点另算。
+    private var dragTranslation: CGSize {
+        CGSize(
+            width: dragLocation.x - dragOrigin.x,
+            height: dragLocation.y - dragOrigin.y
         )
     }
 
@@ -137,10 +152,14 @@ struct HomeBoard: View {
     private func removeBadge(_ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: "minus.circle.fill")
-                .font(.system(size: 19))
+                .font(.system(size: 18))
                 .symbolRenderingMode(.palette)
-                .foregroundStyle(.white, Color.black.opacity(0.55))
-                .offset(x: -7, y: -7)
+                .foregroundStyle(.white, Color.black.opacity(0.62))
+                // 命中区放大到 28，但图形只 18：原来 19 的图形压在图标左上角
+                // 那一块本来就有的描边里，看起来像和图标糊在一起。
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+                .offset(x: -11, y: -11)
         }
         .buttonStyle(.plain)
     }
@@ -205,6 +224,8 @@ struct HomeBoard: View {
                 // 第一次动起来就直接拖：不需要再按一次。
                 if dragging == nil {
                     dragging = slot.id
+                    dragOrigin = value.startLocation
+                    dragStartedAt = Date()
                 }
                 dragLocation = value.location
             }
@@ -238,21 +259,44 @@ struct HomeBoard: View {
 
                 let target = metrics.slotIndex(at: landing)
                 let slots = pages[safe: pageIndex] ?? []
-                if let target, target < slots.count {
-                    let other = slots[target]
-                    if other.id != slot.id {
-                        if other.isFolder || slot.isFolder {
-                            // 拖进文件夹：单独处理，保持文件夹名。
-                            appendIntoFolder(slot: slot, folder: other, page: pageIndex)
-                        } else {
-                            withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) {
-                                layout.merge(slot.id, into: other.id)
-                            }
+
+                guard let target, target < slots.count else {
+                    if let target {
+                        withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) {
+                            layout.move(slot.id, toPage: pageIndex, at: target)
                         }
                     }
-                } else if let target {
+                    return
+                }
+
+                let other = slots[target]
+                guard other.id != slot.id else { return }
+
+                // 判断是不是「压在正中间、并且按住了一会儿」。
+                //
+                // 原来只要落点在某格里就合并成文件夹。八个图标铺满两行，
+                // 几乎任何落点都在别人身上——于是每次「挪个位置」都变成建文件夹，
+                // 桌面上凭空长出一堆。现在只有真压在中心、又停住了才合并。
+                let center = metrics.center(at: target)
+                let distance = hypot(landing.x - center.x, landing.y - center.y)
+                let held = Date().timeIntervalSince(dragStartedAt ?? Date())
+                let wantsFolder = distance < metrics.cellWidth * 0.26 && held > 0.45
+
+                if wantsFolder, other.isFolder || slot.isFolder {
+                    // 拖进文件夹：单独处理，保持文件夹名。
+                    appendIntoFolder(slot: slot, folder: other, page: pageIndex)
+                } else if wantsFolder {
                     withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) {
-                        layout.move(slot.id, toPage: pageIndex, at: target)
+                        layout.merge(slot.id, into: other.id)
+                    }
+                } else {
+                    // 换位。同页往前挪时，移除自己会让目标下标前移一位。
+                    var insertAt = target
+                    if let from = slots.firstIndex(where: { $0.id == slot.id }), from < target {
+                        insertAt = target - 1
+                    }
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) {
+                        layout.move(slot.id, toPage: pageIndex, at: insertAt)
                     }
                 }
 
@@ -328,6 +372,16 @@ struct PhoneBoardMetrics {
         return CGPoint(
             x: CGFloat(col) * (cellWidth + hSpacing),
             y: CGFloat(row) * (cellHeight + vSpacing)
+        )
+    }
+
+    /// 格子中心（按图标本身算，不含下面那行名字）。
+    /// 判断「有没有真的压在这一格上」用它。
+    func center(at index: Int) -> CGPoint {
+        let point = origin(at: index)
+        return CGPoint(
+            x: point.x + cellWidth / 2,
+            y: point.y + PhoneMetrics.iconSize / 2
         )
     }
 
