@@ -426,8 +426,11 @@ struct WorldState: Codable {
         schedule = try container.decodeIfPresent(DaySchedule.self, forKey: .schedule)
         // 老存档里的 mood / location 只有一份，没有归属，猜不出是谁的。
         // 心情是半小时就会变的临时状态，与其瞎猜给一个人，不如让它自己重新长出来。
-        _ = try container.decodeIfPresent(MoodState.self, forKey: .mood)
-        _ = try container.decodeIfPresent(String.self, forKey: .location)
+        // 这两个字段的值本来就要丢掉，用 `try?` 而不是 `try`：
+        // 老存档里结构对不上时，一次抛错会让整份 WorldState 退回空表，
+        // 表现成「记忆全没了」，而这里根本不需要这份数据。
+        _ = try? container.decodeIfPresent(MoodState.self, forKey: .mood)
+        _ = try? container.decodeIfPresent(String.self, forKey: .location)
         moods = try container.decodeIfPresent([String: MoodState].self, forKey: .moods) ?? [:]
         locations = try container.decodeIfPresent([String: String].self, forKey: .locations) ?? [:]
         currentTrack = try container.decodeIfPresent(Track.self, forKey: .currentTrack)
@@ -443,7 +446,7 @@ struct WorldState: Codable {
         feedInbox = try container.decodeIfPresent([FeedInboxItem].self, forKey: .feedInbox) ?? []
         feedActivity = try container.decodeIfPresent([FeedActivity].self, forKey: .feedActivity) ?? []
         // 手机：老存档只有一台，搬进数组；新存档直接读数组。
-        let legacyPhone = try container.decodeIfPresent(CharacterPhone.self, forKey: .phone)
+        let legacyPhone = (try? container.decodeIfPresent(CharacterPhone.self, forKey: .phone)) ?? nil
         phones = try container.decodeIfPresent([CharacterPhone].self, forKey: .phones)
             ?? legacyPhone.map { [$0] }
             ?? []
@@ -453,7 +456,7 @@ struct WorldState: Codable {
         // 先读上次没归完的那份，再让更老的 `couple` 键覆盖——老键代表的是
         // 迁移还没开始的存档，优先级更高。
         legacyCouple = try container.decodeIfPresent(CoupleState.self, forKey: .legacyCouple)
-        let legacy = try container.decodeIfPresent(CoupleState.self, forKey: .couple)
+        let legacy = (try? container.decodeIfPresent(CoupleState.self, forKey: .couple)) ?? nil
         if couples.isEmpty, let legacy, !legacy.myDays.isEmpty || !legacy.theirDays.isEmpty {
             legacyCouple = legacy
         }

@@ -66,7 +66,8 @@ extension WorldStore {
         moveKey(&state.locations, from: from, to: to)
         moveKey(&state.affinity, from: from, to: to)
         moveKey(&state.couples, from: from, to: to)
-        moveKey(&state.refreshTurns, from: from, to: to)
+        // `refreshTurns` 的键是页面（"shop" / "feed"），不是人名。
+        // 以前把它一起搬，角色恰好叫 shop 时会把西瓜皮的刷新计数搬走。
 
         // 群成员表。成员改名了但表里还是旧名字，单聊就反查不到他在哪个群。
         // 先收集键再改：遍历字典的同时写它，Swift 那边是未定义行为。
@@ -146,7 +147,7 @@ extension WorldStore {
         state.locations.removeValue(forKey: target)
         state.affinity.removeValue(forKey: target)
         state.couples.removeValue(forKey: target)
-        state.refreshTurns.removeValue(forKey: target)
+        // 同上：刷新计数按页面存，不按人名。这里删会误伤同名的页面键。
 
         // 群：删的是群就整条删掉；删的是人就从所有群的成员名单里摘出去。
         // 留着名字的话，单聊反查时还会命中一个已经不存在的人。
