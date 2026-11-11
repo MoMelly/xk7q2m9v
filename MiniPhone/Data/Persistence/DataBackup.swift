@@ -8,7 +8,11 @@ import SwiftData
 enum DataBackup {
     /// v3：消息补 imageSeed（模拟图），角色补上传头像，新增「我的」身份列表，
     /// 备份目录里带上用户上传的头像照片文件。重装前导出才真正是一份全量。
-    static let currentVersion = 3
+    ///
+    /// v11：表情库和书架进备份。版本号之前一直停在 3，字段却已经追加到 v10，
+    /// 于是「版本号」不再能说明任何事——一份 v3 的旧备份和一份带世界书条件、
+    /// 带红包的备份长得一样。这里按字段的轮次重新对齐，之后每加字段就跟着加。
+    static let currentVersion = 11
 
     enum BackupError: LocalizedError {
         case unsupportedVersion(Int)
@@ -155,6 +159,11 @@ enum DataBackup {
         var notes: [Note]?
         /// v3 新增。「我的」里的全部身份。
         var users: [User]?
+        /// v11 新增。表情库。图片文件本来就在 `stickers/` 里跟着备份走，
+        /// 但库里这些记录一直没备，恢复完变成「文件在、列表空」。
+        var stickers: [Sticker]?
+        /// v11 新增。我导入的 txt 和读到的位置。正文只在库里，丢了就真没了。
+        var books: [Book]?
     }
 
     // MARK: - 导出
@@ -165,7 +174,6 @@ enum DataBackup {
         let moments = (try? context.fetch(FetchDescriptor<MomentPost>())) ?? []
         let world = (try? context.fetch(FetchDescriptor<WorldEntry>())) ?? []
         let notes = (try? context.fetch(FetchDescriptor<NoteItem>())) ?? []
-        let users = (try? context.fetch(FetchDescriptor<UserProfile>())) ?? []
 
         let payload = Payload(
             version: currentVersion,
@@ -271,26 +279,11 @@ enum DataBackup {
                         updatedAt: $0.updatedAt
                     )
                 },
-            users: users
-                .sorted { $0.createdAt < $1.createdAt }
-                .map {
-                    Payload.User(
-                        uid: $0.uid,
-                        name: $0.name,
-                        signature: $0.signature,
-                        bio: $0.bio,
-                        tagsRaw: $0.tagsRaw,
-                        statusText: $0.statusText,
-                        statusStickerName: $0.statusStickerName,
-                        avatarTintRaw: $0.avatarTintRaw,
-                        avatarSymbol: $0.avatarSymbol,
-                        avatarImageKey: $0.avatarImageKey,
-                        avatarFileName: $0.avatarFileName,
-                        isDefault: $0.isDefault,
-                        createdAt: $0.createdAt,
-                        patSuffix: $0.patSuffix.isEmpty ? nil : $0.patSuffix
-                    )
-                }
+            users: exportUsers(context: context),
+            // 表情和书走独立的读取函数：这两张表的映射一长串，
+            // 塞进这个字面量会把导出那段撑到读不下去。
+            stickers: exportStickers(context: context),
+            books: exportBooks(context: context)
         )
 
         let encoder = JSONEncoder()
@@ -513,6 +506,22 @@ enum DataBackup {
             }
         }
 
+        // 表情库和书架。旧备份里没有这两段，缺哪段就整段跳过——
+        // 不能顺手清掉，否则「恢复一份老备份」会把现在手上的表情和书清空。
+        if payload.stickers != nil || payload.books != nil {
+            clearLibrary(
+                context: context,
+                stickers: payload.stickers != nil,
+                books: payload.books != nil
+            )
+        }
+        if let stickers = payload.stickers {
+            restoreStickers(stickers, context: context)
+        }
+        if let books = payload.books {
+            restoreBooks(books, context: context)
+        }
+
         try context.save()
 
         var extras: [String] = []
@@ -556,6 +565,13 @@ enum DataBackup {
         ]
         if !payload.moments.isEmpty { parts.append("\(payload.moments.count) 条动态") }
         if !payload.world.isEmpty { parts.append("\(payload.world.count) 条世界书") }
+        // 表情和书也真写库了。不报出来的话，用户没法确认「自建表情回来了没有」。
+        if let stickers = payload.stickers, !stickers.isEmpty {
+            parts.append("\(stickers.count) 个表情")
+        }
+        if let books = payload.books, !books.isEmpty {
+            parts.append("\(books.count) 本书")
+        }
 
         let suffix = extras.isEmpty ? "" : "，以及" + extras.joined(separator: "、")
         return "恢复了 " + parts.joined(separator: "、") + suffix + "。"
