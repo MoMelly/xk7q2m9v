@@ -162,7 +162,11 @@ extension WorldStore {
             // 走 `affinity(for:)` 而不是直接下标：没存过的时候它给 30，
             // 和状态面板上看到的是同一个数。直接取下标会拿到 nil，
             // 提示词里那一整块「你们现在的关系」就不出现，新人开局没有分寸。
-            affinity: owner.isEmpty ? nil : affinity(for: owner),
+            //
+            // 群必须留空：群名从没进过 affinity 表，`affinity(for:)` 一律返回
+            // 默认 30，于是群聊提示词里凭空多出一句「你们现在的关系」——而成员
+            // 各自可能早就 60 多了。群的刻度不属于群，属于每个成员。
+            affinity: (owner.isEmpty || isGroupChat) ? nil : affinity(for: owner),
             variables: state.variables
                 .sorted { $0.key < $1.key }
                 .prefix(12)
