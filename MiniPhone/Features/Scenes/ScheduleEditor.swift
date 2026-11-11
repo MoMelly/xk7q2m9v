@@ -53,7 +53,7 @@ struct ScheduleEditor: View {
                                 .frame(height: 44)
                                 .background {
                                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                                        .fill(Theme.rowSurface)
+                                        .fill(AppSurface.light.rowSurface)
                                 }
                         }
                         .buttonStyle(.plain)
@@ -61,7 +61,7 @@ struct ScheduleEditor: View {
                 }
                 .padding(PhoneMetrics.Space.m)
             }
-            .background(Theme.backgroundGradient)
+            .background(AppSurface.light.background)
             .navigationTitle(original == nil ? "添加安排" : "这条安排")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -90,7 +90,7 @@ struct ScheduleEditor: View {
                 .frame(height: 44)
                 .background {
                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                        .fill(Theme.rowSurface)
+                        .fill(AppSurface.light.rowSurface)
                 }
         }
     }
@@ -108,7 +108,7 @@ struct ScheduleEditor: View {
             .clipped()
             .background {
                 RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                    .fill(Theme.rowSurface)
+                    .fill(AppSurface.light.rowSurface)
             }
         }
     }
@@ -128,12 +128,12 @@ struct ScheduleEditor: View {
                             Text(item.label)
                                 .font(.system(size: 10))
                         }
-                        .foregroundStyle(mood == item ? .white : Theme.secondaryLabel)
+                        .foregroundStyle(mood == item ? .white : AppSurface.light.secondaryLabel)
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
                         .background {
                             RoundedRectangle(cornerRadius: PhoneMetrics.Radius.block, style: .continuous)
-                                .fill(mood == item ? MoodColor.of(item) : Theme.rowSurface)
+                                .fill(mood == item ? MoodColor.of(item) : AppSurface.light.rowSurface)
                         }
                     }
                     .buttonStyle(.plain)
@@ -151,7 +151,7 @@ struct ScheduleEditor: View {
                 .padding(PhoneMetrics.Space.s)
                 .background {
                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                        .fill(Theme.rowSurface)
+                        .fill(AppSurface.light.rowSurface)
                 }
         }
     }
@@ -159,7 +159,7 @@ struct ScheduleEditor: View {
     private func label(_ text: String) -> some View {
         Text(text)
             .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
-            .foregroundStyle(Theme.secondaryLabel)
+            .foregroundStyle(AppSurface.light.secondaryLabel)
             .padding(.leading, 4)
     }
 

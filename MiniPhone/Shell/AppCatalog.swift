@@ -63,10 +63,10 @@ enum AppCatalog {
                  colors: [Color(red: 1.0, green: 0.97, blue: 0.80), Color(red: 1.0, green: 0.92, blue: 0.60)],
                  destination: .scene(.notes),
                  symbolTint: Color(red: 0.56, green: 0.42, blue: 0.12)),
-        PhoneApp(id: "photos", name: "照片", symbol: "photo.fill",
-                 colors: [Color(red: 1.0, green: 0.88, blue: 0.44), Color(red: 0.98, green: 0.54, blue: 0.48)],
-                 destination: .scene(.photoLibrary),
-                 symbolTint: .white),
+        // 「照片」这一格撤掉了。那个 App 是我自己加的，她没有要过：
+        // 打开只有一屏空宫格，她也问过「这个 APP 到底干嘛的」。
+        // 聊天发图、壁纸选图、头像选图各有自己的选择器，不经过它。
+        // 页面代码留在原处，以后真需要「给角色看照片」再挂回来。
 
         PhoneApp(id: "letters", name: "信件", symbol: "envelope.fill",
                  colors: [Color(red: 0.38, green: 0.78, blue: 1.0), Color(red: 0.14, green: 0.52, blue: 0.96)],

@@ -18,7 +18,8 @@ struct HomeScreenView: View {
     /// 隐藏模式：三块组件都不显示。日程和「他在听什么」比壁纸更容易露馅。
     var hidesWidgets: Bool = false
 
-    @State private var layout = HomeLayout.load()
+    // 读出来先滤一遍：图标清单变动之后，旧布局里会留着已经撤掉的 App。
+    @State private var layout = HomeLayout.load().pruned()
     @State private var page = 0
     @State private var editing = false
     /// 下面那排（心情 + 音乐）是不是放在「今天」上面。编辑模式下上下拖一下能换。

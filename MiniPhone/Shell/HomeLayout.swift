@@ -61,6 +61,22 @@ struct HomeLayout: Codable {
         })
     }
 
+    /// 去掉已经不存在的 App。
+    ///
+    /// 图标清单是会变的：这一版撤掉了「照片」，而旧布局里还留着那一格。
+    /// 不做这一步，桌面上就多一个永远点不开的空白格子。
+    func pruned() -> HomeLayout {
+        let known = Set((AppCatalog.home + AppCatalog.dock).map(\.id))
+        var next = self
+        for index in next.pages.indices {
+            next.pages[index] = next.pages[index].filter { slot in
+                !slot.appIDs.isEmpty && slot.appIDs.allSatisfy { known.contains($0) }
+            }
+        }
+        next.pages = next.pages.filter { !$0.isEmpty }
+        return HomeLayout(pages: next.pages)
+    }
+
     static func load() -> HomeLayout {
         guard let data = UserDefaults.standard.data(forKey: storageKey),
               let decoded = try? JSONDecoder().decode(HomeLayout.self, from: data),
