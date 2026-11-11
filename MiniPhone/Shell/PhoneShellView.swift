@@ -236,6 +236,11 @@ struct PhoneShellView: View {
         }
         .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isLocked)
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: world.pendingNotices)
+        // 整机圆角。App 页、控制中心、通知都是铺到屏幕边缘的矩形，
+        // 不裁这一层，展开动效和全屏页的四角都是尖的。
+        .clipShape(
+            RoundedRectangle(cornerRadius: PhoneMetrics.screenCornerRadius, style: .continuous)
+        )
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .task { @MainActor in
@@ -355,12 +360,16 @@ struct PhoneShellView: View {
                 height: start.height + (full.height - start.height) * t
             )
 
-            RoundedRectangle(
-                cornerRadius: PhoneMetrics.iconCornerRadius * (1 - t),
-                style: .continuous
-            )
-            .frame(width: max(rect.width, 1), height: max(rect.height, 1))
-            .position(x: rect.midX, y: rect.midY)
+            // 圆角按 t² 收，不是按 t 收。
+            //
+            // 线性收的时候，图块才涨了两成就只剩不到一成圆角，四角在整段动画里
+            // 都是尖的——看着就像一块直角矩形从图标位置弹开。按平方收的话，
+            // 前八成时间一直保持着圆角，最后两成快速收平，才是真机那个观感。
+            let radius = PhoneMetrics.iconCornerRadius * (1 - t * t)
+
+            RoundedRectangle(cornerRadius: max(radius, 0), style: .continuous)
+                .frame(width: max(rect.width, 1), height: max(rect.height, 1))
+                .position(x: rect.midX, y: rect.midY)
         }
     }
 

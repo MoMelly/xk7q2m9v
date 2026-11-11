@@ -10,13 +10,18 @@ struct HomeBoard: View {
     @Binding var editing: Bool
     let onOpen: (PhoneApp) -> Void
 
-    /// 拖动中的那一格。
+    /// 被拎起来的那一格。
     @State private var dragging: String?
-    @State private var dragLocation: CGPoint = .zero
-    /// 按下时手指的点。图标按相对位移跟手，才不会在第一次 `onChanged`
-    /// 就瞬移到手指下面——那一下跳完就再也看不出「我把图标拎起来了」。
-    @State private var dragOrigin: CGPoint = .zero
-    @State private var dragStartedAt: Date?
+    /// 手指现在在板上的位置。
+    @State private var finger: CGPoint = .zero
+    /// 按下点相对被拖格子左上角的偏移。
+    ///
+    /// 换位会让格子换到别的下标，格子原点跟着变；手指没动。
+    /// 用「手指 − 这个偏移」反算图标该画在哪，换位前后绝对位置不变，
+    /// 看着才不会每换一次位就跳一下。
+    @State private var grip: CGSize = .zero
+    /// 鼠标悬停语义：手指当前压在哪一格上，用来判要不要换位。
+    @State private var hover: Int?
     @State private var openFolder: HomeSlot.Folder?
     /// 翻页用的瞬时位移。松手后归零，由 `page` 接手。
     @State private var swipeOffset: CGFloat = 0
@@ -39,12 +44,16 @@ struct HomeBoard: View {
             .clipped()
             .contentShape(Rectangle())
             .gesture(pagingGesture(size: size))
-            .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.45).onEnded { _ in
-                    withAnimation(.easeOut(duration: 0.18)) { editing = true }
-                }
-            )
-            .simultaneousGesture(exitEditingTap)
+            // 编辑模式下点一下空白退出。
+            //
+            // 上一版这里挂的是 simultaneousGesture(TapGesture)：它会跟图标上的
+            // 拖动手势一起响应，于是「按下去准备拖」这一下先被它判成轻点、
+            // 把编辑状态退掉了，第二次再按就没有编辑模式可拖——她说的
+            // 「只有第一次点击有效果」就是这条。
+            .onTapGesture { location in
+                guard editing, dragging == nil else { return }
+                exitEditing(at: location, metrics: PhoneBoardMetrics(size: size))
+            }
         }
         .frame(height: PhoneBoardMetrics.boardHeight)
         .sheet(item: $openFolder) { folder in
@@ -72,34 +81,42 @@ struct HomeBoard: View {
 
         return ZStack(alignment: .topLeading) {
             ForEach(Array(slots.enumerated()), id: \.element.id) { position, slot in
+                let origin = metrics.origin(at: position)
+                let lifted = dragging == slot.id
+
                 slotView(slot, editing: editing, jigglePhase: position)
                     .frame(width: metrics.cellWidth, height: metrics.cellHeight)
-                    .offset(x: metrics.origin(at: position).x, y: metrics.origin(at: position).y)
-                    .zIndex(dragging == slot.id ? 10 : 0)
-                    // 拎起来的样子：放大一点、投影加深、跟手平移。
-                    // 原来只有 1.12 的缩放，没有影子也没有位移差，
-                    // 拖起来跟没拖一样——看不出这颗图标是「活的」。
-                    .scaleEffect(dragging == slot.id ? 1.15 : 1)
-                    .animation(.spring(response: 0.26, dampingFraction: 0.74), value: dragging)
+                    .offset(x: origin.x, y: origin.y)
+                    // 换位时被挤开的格子滑过去。这一行必须排在拖动位移**之前**：
+                    // 它只该动「排在网格里的第几格」，不该把手指带出来的那段也动画化。
+                    .animation(.spring(response: 0.30, dampingFraction: 0.82), value: position)
+                    // 拎起来的样子：放大、投影加深。没有这两样，拖起来跟没拖一样，
+                    // 看不出这颗图标已经脱离桌面了。
+                    .scaleEffect(lifted ? 1.12 : 1)
                     .shadow(
-                        color: .black.opacity(dragging == slot.id ? 0.32 : 0),
-                        radius: dragging == slot.id ? 18 : 0,
-                        y: dragging == slot.id ? 10 : 0
+                        color: .black.opacity(lifted ? 0.34 : 0),
+                        radius: lifted ? 22 : 0,
+                        y: lifted ? 12 : 0
                     )
-                    // offset 放在 animation 之后：拖动位移不能有动画，
-                    // 否则图标是「追」手指，慢半拍，看着就像没跟上。
-                    .offset(dragging == slot.id ? dragTranslation : .zero)
+                    .animation(.spring(response: 0.24, dampingFraction: 0.72), value: lifted)
+                    // offset 放在动画之后：跟手的那段位移不能有动画，
+                    // 否则图标是「追」手指，慢半拍，手感就是钝的。
+                    .offset(lifted ? dragOffset(origin: origin) : .zero)
+                    .zIndex(lifted ? 100 : Double(position))
                     .gesture(iconGesture(slot: slot, page: index, metrics: metrics, size: size))
             }
         }
         .frame(width: size.width, height: size.height, alignment: .topLeading)
     }
 
-    /// 手指相对按下位置的位移。跟手用它，落点另算。
-    private var dragTranslation: CGSize {
+    /// 手指把图标带出来多远。
+    ///
+    /// 只跟手指和按下点，跟格子现在排在第几格无关。所以换位之后
+    /// 图标在屏幕上的绝对位置不变，手指下面是同一颗图标。
+    private func dragOffset(origin: CGPoint) -> CGSize {
         CGSize(
-            width: dragLocation.x - dragOrigin.x,
-            height: dragLocation.y - dragOrigin.y
+            width: finger.x - grip.width - origin.x,
+            height: finger.y - grip.height - origin.y
         )
     }
 
@@ -196,16 +213,13 @@ struct HomeBoard: View {
             }
     }
 
-    /// 编辑模式下点空白退出。真机是点一下桌面任意位置。
-    private var exitEditingTap: some Gesture {
-        TapGesture()
-            .onEnded {
-                guard editing else { return }
-                withAnimation(.easeOut(duration: 0.18)) {
-                    editing = false
-                    dragging = nil
-                }
-            }
+    /// 点一下退出编辑。
+    private func exitEditing(at point: CGPoint, metrics: PhoneBoardMetrics) {
+        withAnimation(.easeOut(duration: 0.18)) {
+            editing = false
+        }
+        dragging = nil
+        hover = nil
     }
 
     // MARK: - 手势：拖一格
@@ -216,91 +230,126 @@ struct HomeBoard: View {
         metrics: PhoneBoardMetrics,
         size: CGSize
     ) -> some Gesture {
-        // 用整块板的坐标系：手势挂在每一格上，`.local` 拿到的是那一格自己的
-        // 角落，既算不出落点也判断不了「拖出边界翻页」。
-        DragGesture(minimumDistance: 8, coordinateSpace: .named("homeBoard"))
+        // 长按和拖动必须是同一个手势。
+        //
+        // 上一版拆成两段：长按 0.45 秒松手才进编辑，之后要再按一次才开始拖。
+        // 中间那次「重新按下」就是慢半拍的来源；而且第二次按下的头几十毫秒
+        // 手指还没动，容易被整板上的轻点判成「点空白退出编辑」，
+        // 于是每次只有第一下有用。用 sequenced 串起来，按满 0.3 秒手指一动就走。
+        LongPressGesture(minimumDuration: 0.30, maximumDistance: 14)
+            .sequenced(
+                before: DragGesture(minimumDistance: 0, coordinateSpace: .named("homeBoard"))
+            )
             .onChanged { value in
-                guard editing else { return }
-                // 第一次动起来就直接拖：不需要再按一次。
+                guard case .second(true, let drag) = value else { return }
                 if dragging == nil {
-                    dragging = slot.id
-                    dragOrigin = value.startLocation
-                    dragStartedAt = Date()
+                    beginDrag(slot: slot, page: pageIndex, metrics: metrics, at: drag?.startLocation)
                 }
-                dragLocation = value.location
+                guard let drag else { return }
+                finger = drag.location
+                retarget(drag.location, page: pageIndex, metrics: metrics)
             }
             .onEnded { value in
-                guard editing, dragging == slot.id else {
-                    dragging = nil
-                    return
-                }
-                // 落盘放在 defer 里：下面有三条返回路径，漏一条布局就白拖了——
-                // 拖到边界换页那两条原来就漏了，重启之后图标回到原位。
-                defer {
-                    dragging = nil
-                    layout.save()
-                }
-                let landing = value.location
-                // 拖到左/右边界外面 → 换到相邻页。
-                if landing.x < -18 {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                        layout.move(slot.id, toPage: pageIndex - 1, at: nil)
-                        page = max(0, pageIndex - 1)
-                    }
-                    return
-                }
-                if landing.x > size.width + 18 {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                        layout.move(slot.id, toPage: pageIndex + 1, at: nil)
-                        page = min(max(0, pages.count - 1), pageIndex + 1)
-                    }
-                    return
-                }
-
-                let target = metrics.slotIndex(at: landing)
-                let slots = pages[safe: pageIndex] ?? []
-
-                guard let target, target < slots.count else {
-                    if let target {
-                        withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) {
-                            layout.move(slot.id, toPage: pageIndex, at: target)
-                        }
-                    }
-                    return
-                }
-
-                let other = slots[target]
-                guard other.id != slot.id else { return }
-
-                // 判断是不是「压在正中间、并且按住了一会儿」。
-                //
-                // 原来只要落点在某格里就合并成文件夹。八个图标铺满两行，
-                // 几乎任何落点都在别人身上——于是每次「挪个位置」都变成建文件夹，
-                // 桌面上凭空长出一堆。现在只有真压在中心、又停住了才合并。
-                let center = metrics.center(at: target)
-                let distance = hypot(landing.x - center.x, landing.y - center.y)
-                let held = Date().timeIntervalSince(dragStartedAt ?? Date())
-                let wantsFolder = distance < metrics.cellWidth * 0.26 && held > 0.45
-
-                if wantsFolder, other.isFolder || slot.isFolder {
-                    // 拖进文件夹：单独处理，保持文件夹名。
-                    appendIntoFolder(slot: slot, folder: other, page: pageIndex)
-                } else if wantsFolder {
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) {
-                        layout.merge(slot.id, into: other.id)
-                    }
-                } else {
-                    // 换位。同页往前挪时，移除自己会让目标下标前移一位。
-                    var insertAt = target
-                    if let from = slots.firstIndex(where: { $0.id == slot.id }), from < target {
-                        insertAt = target - 1
-                    }
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) {
-                        layout.move(slot.id, toPage: pageIndex, at: insertAt)
-                    }
-                }
-
+                var landing: CGPoint?
+                if case .second(true, let drag) = value { landing = drag?.location }
+                finishDrag(landing, page: pageIndex, metrics: metrics, size: size)
             }
+    }
+
+    /// 拎起来的那一下。记下「手指按在格子里的哪个位置」，之后图标就按这个
+    /// 关系跟着手指走，不会在拎起来的瞬间跳到手指中心。
+    private func beginDrag(
+        slot: HomeSlot,
+        page pageIndex: Int,
+        metrics: PhoneBoardMetrics,
+        at point: CGPoint?
+    ) {
+        guard let index = pages[safe: pageIndex]?.firstIndex(where: { $0.id == slot.id })
+        else { return }
+        let origin = metrics.origin(at: index)
+        let grab = point ?? CGPoint(x: origin.x + metrics.cellWidth / 2, y: origin.y)
+        grip = CGSize(width: grab.x - origin.x, height: grab.y - origin.y)
+        finger = grab
+        dragging = slot.id
+        hover = index
+        if !editing {
+            withAnimation(.easeOut(duration: 0.16)) { editing = true }
+        }
+    }
+
+    /// 手指移到哪，就把被拖的格子排到哪一格。
+    ///
+    /// 换位发生在拖动过程中，不是松手那一刻——被挤开的图标是用弹簧推走的，
+    /// 所以看到的是「旁边让位」，不是「松手后整排突然重排」。
+    private func retarget(_ point: CGPoint, page pageIndex: Int, metrics: PhoneBoardMetrics) {
+        guard let movingID = dragging,
+              let slots = pages[safe: pageIndex],
+              let target = metrics.slotIndex(at: point),
+              target < slots.count
+        else {
+            hover = nil
+            return
+        }
+
+        let other = slots[target]
+        // 文件夹不参与实时换位：拖到文件夹上是「并进去」，那是松手才算的事。
+        guard !other.isFolder, other.id != movingID else {
+            hover = target
+            return
+        }
+        guard hover != target else { return }
+        hover = target
+
+        withAnimation(.spring(response: 0.30, dampingFraction: 0.82)) {
+            layout.move(movingID, toPage: pageIndex, at: target)
+        }
+    }
+
+    /// 松手。位置在拖动中已经定好，这里只处理跨页和「并进文件夹」。
+    private func finishDrag(
+        _ landing: CGPoint?,
+        page pageIndex: Int,
+        metrics: PhoneBoardMetrics,
+        size: CGSize
+    ) {
+        guard let movingID = dragging else { return }
+        let point = landing ?? finger
+
+        defer {
+            dragging = nil
+            hover = nil
+            layout.save()
+        }
+
+        // 拖出左右边界：换到相邻页，追加到那页末尾。
+        if point.x < -26, pageIndex > 0 {
+            withAnimation(.spring(response: 0.30, dampingFraction: 0.85)) {
+                layout.move(movingID, toPage: pageIndex - 1, at: nil)
+                page = pageIndex - 1
+            }
+            return
+        }
+        if point.x > size.width + 26, pageIndex < pages.count - 1 {
+            withAnimation(.spring(response: 0.30, dampingFraction: 0.85)) {
+                layout.move(movingID, toPage: pageIndex + 1, at: nil)
+                page = pageIndex + 1
+            }
+            return
+        }
+
+        guard let target = metrics.slotIndex(at: point),
+              let slots = pages[safe: pageIndex],
+              target < slots.count
+        else { return }
+
+        let other = slots[target]
+        // 只有「拖到已有的文件夹上」才并进去。
+        //
+        // 上一版只要压在某格中心够久就把两个 App 合成新文件夹，实际用起来
+        // 每次想挪位置都会长出一个文件夹。合并不是主诉，先按她抱怨的方向关掉。
+        guard case .folder = other, other.id != movingID else { return }
+        guard let moving = slots.first(where: { $0.id == movingID }) else { return }
+        appendIntoFolder(slot: moving, folder: other, page: pageIndex)
     }
 
     /// 把一个图标塞进已有文件夹。

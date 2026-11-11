@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// 西瓜皮里的「我」。
 ///
@@ -9,7 +10,17 @@ struct FeedProfilePage: View {
     let settings: SettingsStore
     var onCompose: () -> Void
 
+    @Environment(\.modelContext) private var context
+    @Query private var profiles: [UserProfile]
+
     @State private var backdropVariant = 0
+    @State private var cover: UIImage?
+    @State private var showEditor = false
+
+    /// 名字、简介、头像都读「我」那份身份，不另存。
+    private var profile: UserProfile? {
+        profiles.first(where: { $0.isDefault }) ?? profiles.first
+    }
 
     private var myNotes: [FeedNote] {
         world.state.feed
@@ -37,6 +48,14 @@ struct FeedProfilePage: View {
                 .padding(.bottom, PhoneMetrics.Space.xl)
             }
             .ignoresSafeArea(edges: .top)
+            .onAppear { cover = FeedProfileStore.loadCover() }
+            .sheet(isPresented: $showEditor) {
+                if let profile {
+                    FeedIdentityEditor(profile: profile) {
+                        cover = FeedProfileStore.loadCover()
+                    }
+                }
+            }
         }
     }
 
@@ -44,7 +63,16 @@ struct FeedProfilePage: View {
 
     private func banner(height: CGFloat) -> some View {
         ZStack(alignment: .bottomTrailing) {
-            ProfileBackdrop(variant: backdropVariant, height: height)
+            // 自己设的封面优先；没设才用内置渐变。
+            if let cover {
+                Image(uiImage: cover)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: nil, height: height)
+                    .clipped()
+            } else {
+                ProfileBackdrop(variant: backdropVariant, height: height)
+            }
 
             HStack(spacing: PhoneMetrics.Space.xs) {
                 Text("我的主页")
@@ -55,9 +83,9 @@ struct FeedProfilePage: View {
                     .background(Capsule().fill(Color.black.opacity(0.18)))
 
                 Button {
-                    backdropVariant += 1
+                    showEditor = true
                 } label: {
-                    Label("换一张", systemImage: "photo")
+                    Label("编辑资料", systemImage: "pencil")
                         .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
@@ -75,21 +103,14 @@ struct FeedProfilePage: View {
     private var identity: some View {
         VStack(alignment: .leading, spacing: PhoneMetrics.Space.xs) {
             HStack(alignment: .bottom, spacing: PhoneMetrics.Space.s) {
-                ZStack {
-                    Circle()
-                        .fill(Theme.Watermelon.pith)
-                    WatermelonMark(size: 38)
-                }
-                .frame(width: 66, height: 66)
-                .overlay(
-                    Circle().strokeBorder(AppSurface.light.rowSurface, lineWidth: 3)
-                )
-                .offset(y: -33)
+                avatarView
+                    .offset(y: -33)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("我")
+                    Text(displayName)
                         .font(.system(size: 19, weight: .semibold))
                         .foregroundStyle(AppSurface.light.label)
+                        .lineLimit(1)
 
                     Text("西瓜号：xgpi_0001")
                         .font(.system(size: PhoneMetrics.FontSize.caption))
@@ -101,11 +122,49 @@ struct FeedProfilePage: View {
             }
             .padding(.horizontal, PhoneMetrics.Space.m)
 
-            Text("这个号只发我自己的东西。")
+            Text(bioText)
                 .font(.system(size: PhoneMetrics.FontSize.sub))
-                .foregroundStyle(AppSurface.light.label)
+                // 没写简介时用次色，一眼能分出「这是提示」还是「我写的话」。
+                .foregroundStyle(
+                    trimmedBio.isEmpty
+                        ? AppSurface.light.secondaryLabel
+                        : AppSurface.light.label
+                )
                 .padding(.horizontal, PhoneMetrics.Space.m)
+                .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var displayName: String {
+        let name = (profile?.name ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? "我" : name
+    }
+
+    private var trimmedBio: String {
+        (profile?.bio ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var bioText: String {
+        trimmedBio.isEmpty ? "点上面「编辑资料」，写一句介绍。" : trimmedBio
+    }
+
+    private var avatarView: some View {
+        ZStack {
+            Circle().fill(Theme.Watermelon.pith)
+
+            if let fileName = profile?.avatarFileName, !fileName.isEmpty,
+               let image = AvatarPhoto.load(fileName: fileName) {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else if let key = profile?.avatarImageKey, !key.isEmpty,
+                      let image = UIImage(named: key) {
+                Image(uiImage: image).resizable().scaledToFill()
+            } else {
+                WatermelonMark(size: 38)
+            }
+        }
+        .frame(width: 66, height: 66)
+        .clipShape(Circle())
+        .overlay(Circle().strokeBorder(AppSurface.light.rowSurface, lineWidth: 3))
     }
 
     private var stats: some View {

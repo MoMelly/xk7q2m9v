@@ -19,13 +19,24 @@ enum WipeService {
 
     private static let ownedFiles = [
         "world-state.json",
-        "raw-replies.json"
+        "raw-replies.json",
+        "feed-cover.jpg"
     ]
 
     static func run(context: ModelContext) throws {
-        // 先删消息再删角色：两者之间是关系属性，反过来会留下悬空的引用。
-        try context.delete(model: StoredMessage.self)
-        try context.delete(model: Companion.self)
+        // 消息和角色必须一条一条删，不能用 `context.delete(model:)`。
+        //
+        // 那个接口走的是 batch delete：直接下一条 SQL 把行抹掉，不经过
+        // Core Data 的关系维护。而 `StoredMessage.character` 是必填的 to-one，
+        // 角色没了这条关系就得置空才合法，批量删不会置空——整笔操作直接报
+        // constraint trigger violation，一条都没删成。逐个删才会走关系规则。
+        for message in try context.fetch(FetchDescriptor<StoredMessage>()) {
+            context.delete(message)
+        }
+        for companion in try context.fetch(FetchDescriptor<Companion>()) {
+            context.delete(companion)
+        }
+        // 剩下这几个身上没有必填关系，批量删没问题。
         try context.delete(model: MomentPost.self)
         try context.delete(model: NoteItem.self)
         try context.delete(model: ReadingBook.self)

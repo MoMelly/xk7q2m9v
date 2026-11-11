@@ -11,6 +11,13 @@ enum PhoneMetrics {
     /// 图标圆角。iOS 用的是超椭圆，圆角半径约为边长的 22.4%。
     static let iconCornerRadius: CGFloat = 13.5
 
+    /// 屏幕四角。
+    ///
+    /// 真机是硬件把屏幕四角切圆的，App 内部不用管；但在这台「手机」里，
+    /// App 页是一整块矩形铺到屏幕边缘，展开的那一瞬间和全屏之后四角都是尖的，
+    /// 和主屏的圆角壁纸对不上。给外壳补一层同样的圆角，两边就接住了。
+    static let screenCornerRadius: CGFloat = 54
+
     /// 主屏网格列数。
     static let gridColumns = 4
 
