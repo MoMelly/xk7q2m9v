@@ -72,7 +72,7 @@ struct PreviewSeeder {
 #if DEBUG
         PlayerService.shared.stagePreview(
             track: track,
-            lyrics: LyricsLoader.parse(Self.previewLRC)
+            lyrics: LyricsLoader.parse(Self.previewLRC).lines
         )
         // 截图里要能看到「和谁一起在听」。真机上这一步来自聊天里的邀请，
         // 冷启动点不到按钮，这里直接把状态摆好。

@@ -272,6 +272,9 @@ struct FeedDetailPage: View {
         world.addComment(noteID: note.id, text: text)
         draft = ""
         isFocused = false
+
+        // 我评论完之后要有人接。作者回我，在场的人也会互相接话。
+        Task { await FeedCommentService.reply(to: note.id, settings: settings) }
     }
 }
 
