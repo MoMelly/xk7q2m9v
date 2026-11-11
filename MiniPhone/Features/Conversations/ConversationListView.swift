@@ -30,6 +30,8 @@ struct ConversationListView: View {
         }
     }()
     @State private var query = ""
+    /// 消息列表的两种顺序。默认按最近说话排，人多了切到按名字。
+    @State private var byName = false
     @State private var callKind: CallKind?
     @State private var callTarget: Companion?
     @State private var callModel = ChatViewModel()
@@ -226,18 +228,77 @@ struct ConversationListView: View {
                 emptyState
                 Spacer(minLength: 0)
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 10) {
-                        ForEach(visibleCharacters) { character in
-                            row(character)
+                VStack(spacing: 0) {
+                    orderSwitch
+
+                    ScrollView {
+                        if byName {
+                            groupedMessages
+                        } else {
+                            LazyVStack(spacing: 10) {
+                                ForEach(visibleCharacters) { character in
+                                    row(character)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.top, 4)
+                            .padding(.bottom, 24)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 24)
                 }
             }
         }
+    }
+
+    /// 「按时间 / 按名字」。会话默认按最近说话排，那是每天都要用的顺序；
+    /// 角色攒到十几个之后，找一个不常聊的人只能靠搜，所以留一个分组入口。
+    private var orderSwitch: some View {
+        HStack(spacing: 6) {
+            ForEach([false, true], id: \.self) { value in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.16)) { byName = value }
+                } label: {
+                    Text(value ? "按名字" : "按时间")
+                        .font(.system(size: 11, weight: byName == value ? .semibold : .regular))
+                        .foregroundStyle(byName == value ? Theme.deepGreen : Theme.cream.opacity(0.6))
+                        .padding(.horizontal, 12)
+                        .frame(height: 26)
+                        .background(
+                            Capsule().fill(byName == value ? Theme.mint : Theme.cream.opacity(0.08))
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+
+    private var groupedMessages: some View {
+        LazyVStack(alignment: .leading, spacing: 0) {
+            ForEach(ContactGrouping.sections(visibleCharacters)) { section in
+                HStack(spacing: 8) {
+                    Text(section.id)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Theme.mint)
+
+                    Rectangle()
+                        .fill(Theme.mint.opacity(0.18))
+                        .frame(height: 1)
+                }
+                .padding(.top, 10)
+                .padding(.bottom, 6)
+
+                ForEach(section.items) { character in
+                    row(character)
+                        .padding(.bottom, 8)
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 24)
     }
 
     // MARK: - 通话
@@ -351,47 +412,13 @@ struct ConversationListView: View {
     // MARK: - 联系人
 
     private var contactsList: some View {
-        ScrollView {
-            VStack(spacing: 10) {
-                ForEach(visibleCharacters) { character in
-                    HStack(spacing: 12) {
-                        AvatarBubble(character: character, size: 44)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(character.name)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(Theme.cream)
-                            Text(character.signature.isEmpty ? character.tags.joined(separator: " · ") : character.signature)
-                                .font(.system(size: 11))
-                                .foregroundStyle(Theme.cream.opacity(0.55))
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: 0)
-                        Button("聊天") { opened = character }
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(Theme.deepGreen)
-                            .padding(.horizontal, 12)
-                            .frame(height: 28)
-                            .background(Capsule().fill(Theme.mint))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(12)
-                    .glassSurface(cornerRadius: 18)
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("「我的人设」和「世界」在桌面的设置里")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Theme.cream.opacity(0.8))
-                    Text("通话记录、角色资料都从这几个格子进去，不用长按。")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.cream.opacity(0.45))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-                .glassSurface(cornerRadius: 18)
+        ContactDirectoryView(
+            characters: visibleCharacters,
+            footer: "「我的人设」和「世界」在桌面的设置里。通话记录、角色资料都在信息里，不用长按。"
+        ) { character in
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                opened = character
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
         }
     }
 

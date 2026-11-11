@@ -31,6 +31,9 @@ extension DataBackup {
         var paragraphCount: Int
         var addedAt: Date
         var lastReadAt: Date?
+        /// 批注。老备份里没有这一段，所以是可选：缺了就当这本书没批注，
+        /// 不能让它把整本书的解码带崩。
+        var notesRaw: String?
     }
 
     // MARK: - 导出
@@ -89,7 +92,8 @@ extension DataBackup {
                     paragraphIndex: $0.paragraphIndex,
                     paragraphCount: $0.paragraphCount,
                     addedAt: $0.addedAt,
-                    lastReadAt: $0.lastReadAt
+                    lastReadAt: $0.lastReadAt,
+                    notesRaw: $0.notesRaw.isEmpty ? nil : $0.notesRaw
                 )
             }
     }
@@ -144,6 +148,7 @@ extension DataBackup {
             book.paragraphCount = max(1, book.paragraphs.count)
             book.paragraphIndex = min(item.paragraphIndex, book.paragraphCount)
             book.lastReadAt = item.lastReadAt
+            book.notesRaw = item.notesRaw ?? ""
             context.insert(book)
         }
     }

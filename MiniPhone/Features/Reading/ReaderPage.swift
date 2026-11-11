@@ -20,10 +20,29 @@ struct ReaderPage: View {
     @State private var chapterIndex = 0
     @State private var pages: [BookPage] = [BookPage(start: 0, text: "")]
     @State private var pageIndex = 0
-    @State private var showChapters = false
-    @State private var showSettings = false
+    /// 阅读页只有一个 sheet 出口。四个 `.sheet` 挂在同一个视图上时系统只认最后一个，
+    /// 所以目录、排版、写批注、看批注都走这一个枚举。
+    @State private var sheet: ReaderSheet?
+    /// 正在写的那条批注正文。切页不该丢它，所以提在页面这一层。
+    @State private var draft = ""
     @State private var contentSize: CGSize = .zero
     @State private var prepared = false
+
+    private enum ReaderSheet: Identifiable {
+        case chapters
+        case settings
+        case write(String)
+        case read(BookNote)
+
+        var id: String {
+            switch self {
+            case .chapters: return "chapters"
+            case .settings: return "settings"
+            case .write(let sentence): return "write-\(sentence)"
+            case .read(let note): return "read-\(note.id.uuidString)"
+            }
+        }
+    }
 
     private var paper: ReaderPaper {
         ReaderPaper(rawValue: paperRaw) ?? .cream
@@ -69,22 +88,28 @@ struct ReaderPage: View {
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button {
-                    showChapters = true
+                    sheet = .chapters
                 } label: {
                     Image(systemName: "list.bullet")
                 }
                 .accessibilityLabel("目录")
 
                 Button {
-                    showSettings = true
+                    sheet = .settings
                 } label: {
                     Image(systemName: "textformat.size")
                 }
                 .accessibilityLabel("排版")
             }
         }
-        .sheet(isPresented: $showChapters) { chapterSheet }
-        .sheet(isPresented: $showSettings) { settingsSheet }
+        .sheet(item: $sheet) { item in
+            switch item {
+            case .chapters: chapterSheet
+            case .settings: settingsSheet
+            case .write(let sentence): writeSheet(sentence)
+            case .read(let note): readSheet(note)
+            }
+        }
         .onAppear(perform: prepare)
         .onChange(of: pageIndex) { _, new in markRead(new) }
         .onChange(of: fontSize) { _, _ in rebuild() }
@@ -100,12 +125,27 @@ struct ReaderPage: View {
             text: page.text,
             font: uiFont,
             lineSpacing: CGFloat(lineSpacing),
-            ink: UIColor(paper.ink)
+            ink: UIColor(paper.ink),
+            marked: markedSentences(in: page),
+            onMark: { sentence in
+                // 已经批过的句子再长按，带出原来那条，改而不是叠。
+                draft = book.note(for: sentence)?.text ?? ""
+                sheet = .write(sentence)
+            },
+            onOpenNote: { sentence in
+                guard let note = book.note(for: sentence) else { return }
+                sheet = .read(note)
+            }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         // 点左右两侧翻页。真机上也是这么翻的：想翻就点，不想翻就滑。
         .overlay(alignment: .leading) { tapZone(forward: false) }
         .overlay(alignment: .trailing) { tapZone(forward: true) }
+    }
+
+    /// 这一页要标出来的句子。批注跟着句子走，所以只判断这句在不在本页正文里。
+    private func markedSentences(in page: BookPage) -> [String] {
+        book.notes.map(\.sentence).filter { page.text.contains($0) }
     }
 
     /// 边缘的点击区。只吃轻点，滑动照旧交给 TabView。
@@ -125,7 +165,7 @@ struct ReaderPage: View {
             Spacer(minLength: 0)
 
             Button {
-                showChapters = true
+                sheet = .chapters
             } label: {
                 HStack(spacing: 4) {
                     Text(chapterTitle)
@@ -152,7 +192,7 @@ struct ReaderPage: View {
                     ForEach(chapters) { chapter in
                         Button {
                             jump(to: chapter)
-                            showChapters = false
+                            sheet = nil
                         } label: {
                             HStack(spacing: PhoneMetrics.Space.s) {
                                 Text(chapter.title)
@@ -186,7 +226,7 @@ struct ReaderPage: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("好") { showChapters = false }
+                    Button("好") { sheet = nil }
                 }
             }
         }
@@ -201,6 +241,24 @@ struct ReaderPage: View {
             paperRaw: $paperRaw,
             margin: $margin
         )
+    }
+
+    // MARK: - 批注
+
+    private func writeSheet(_ sentence: String) -> some View {
+        ReaderNoteEditor(sentence: sentence, draft: $draft) { text in
+            book.addNote(BookNote(sentence: sentence, text: text))
+            try? context.save()
+            sheet = nil
+        }
+    }
+
+    private func readSheet(_ note: BookNote) -> some View {
+        ReaderNoteView(note: note) {
+            book.removeNote(id: note.id)
+            try? context.save()
+            sheet = nil
+        }
     }
 
     // MARK: - 分页

@@ -409,6 +409,8 @@ final class ReadingBook {
     var paragraphCount: Int = 0
     var addedAt: Date = Date()
     var lastReadAt: Date?
+    /// 批注，JSON 存 `[BookNote]`。老存档没有这个字段，读出来就是空数组。
+    var notesRaw: String = ""
 
     init(title: String, body: String) {
         self.uid = UUID()
