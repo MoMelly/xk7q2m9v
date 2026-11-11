@@ -63,13 +63,19 @@ enum DefaultAssistant {
     ]
 
     /// 只在库里一个角色都没有时写入。用户删光角色之后不会硬塞回来。
+    ///
+    /// 判断用名字而不是「库里非空」：首次安装时两个种子都在启动路径上跑，
+    /// 谁先入库不该决定另一个能不能种。
     static func ensure(in context: ModelContext) {
         let existing = (try? context.fetch(FetchDescriptor<Companion>())) ?? []
-        if existing.isEmpty {
+        if existing.contains(where: { $0.name == name }) {
+            upgrade(existing, in: context)
+        } else if existing.isEmpty {
             seed(in: context)
-            return
+        } else {
+            // 库里有别的角色，说明不是第一次启动；用户删过小助手就不补。
+            UserDefaults.standard.set(revision, forKey: revisionKey)
         }
-        upgrade(existing, in: context)
     }
 
     private static func seed(in context: ModelContext) {

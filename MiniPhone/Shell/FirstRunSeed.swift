@@ -8,14 +8,19 @@ import SwiftData
 /// 这里放两个能直接聊的人，加一个两人都在的群。
 @MainActor
 enum FirstRunSeed {
-    private static let key = "seed.firstRun.v1"
+    /// 第二版：v1 装出来的机器只剩一个小助手（种子顺序打架），
+    /// 换个键让手上那台也能补上两个人一个群。守卫会挡住已经有角色的人。
+    private static let key = "seed.firstRun.v2"
 
     static func runIfNeeded(context: ModelContext, world: WorldStore, companions: [Companion]) {
         guard !UserDefaults.standard.bool(forKey: key) else { return }
         UserDefaults.standard.set(true, forKey: key)
 
-        // 库里有东西就说明不是第一次（老版本升级、或者手动导过），不插手。
-        guard companions.isEmpty else { return }
+        // 库里已经有别人就说明不是第一次（老版本升级、或者手动导过），不插手。
+        //
+        // 小助手不算别人：它在启动时比这里早一步入库，用 `isEmpty` 判断会让
+        // 这两个人和一个群永远种不进去——装完只剩一个小助手。
+        guard companions.allSatisfy({ $0.name == DefaultAssistant.name }) else { return }
 
         let shen = companion(
             context: context,
