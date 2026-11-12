@@ -12,9 +12,11 @@ struct ChatView: View {
     var onExit: () -> Void
 
     @Environment(\.modelContext) var context
-    @Query private var messages: [StoredMessage]
+    // 这两个不写 `private`：消息行那几段判断拆到了 `ChatView+Row.swift`，
+    // 同一类型的 extension 跨文件访问不到文件级私有成员。
+    @Query var messages: [StoredMessage]
     /// 拍一拍要用名字：「小绿 拍了拍 陆沉 的脑门」。
-    @Query(sort: \UserProfile.createdAt, order: .forward) private var profiles: [UserProfile]
+    @Query(sort: \UserProfile.createdAt, order: .forward) var profiles: [UserProfile]
 
     @State var viewModel = ChatViewModel()
     @State var draft = ""
