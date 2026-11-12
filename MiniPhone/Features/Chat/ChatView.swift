@@ -130,7 +130,14 @@ struct ChatView: View {
                 }
                 composer
             }
+            // 键盘起来时只抬内容的下沿：标题留在顶部，输入条浮到键盘上面。
+            //
+            // 之前交给系统的自动避让，整块内容一起往上躲：标题被顶出屏幕，
+            // 底部输入条反而压在键盘后面看不见。这一层不理键盘，
+            // 位置由 `KeyboardInset` 算，抬多少是确定的。
+            .keyboardLift()
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
             seedGreetingIfNeeded()
             // 截图流水线要拍表情面板 / 角色详情 / 通话这些层，冷启动点不到按钮，
@@ -148,7 +155,13 @@ struct ChatView: View {
             case "chatPhoto":
                 showPhotos = true
                 isComposerActive = true
-            case "charDetail", "board", "statePanel", "anonBox", "worldEntries", "groupDetail", "groupMemory":
+            case "chatKeyboard":
+                // 拍「键盘起来以后」的样子：模拟器冷启动弹不出软键盘，
+                // 用一个假高度把输入条抬到该在的位置。正常启动读不到这个键。
+                isComposerActive = true
+                KeyboardInset.shared.debugHeight = 336
+                isInputFocused = true
+            case "charDetail", "board", "statePanel", "anonBox", "worldEntries", "groupDetail", "groupMemory", "groupMembers":
                 // board / statePanel / anonBox 是再往下压一层的页面，截图流水线
                 // 没有手势可用，先把详情页打开，由它自己决定要不要直接落到那一层。
                 // worldEntries 再深一级：详情 → 编辑器 → 世界书列表，逐层自己开。
@@ -177,7 +190,10 @@ struct ChatView: View {
             guard wasStreaming, !isStreaming, settings.speakReplies else { return }
             guard let last = messages.last, last.role == .assistant, !last.text.isEmpty else { return }
             // 群聊按说话人取名，不然群里所有人共用一个声音。
-            SpeechService.shared.speak(last.text, as: last.speaker ?? character.name)
+            // 音色和语速跟着那个人自己的设置走，没设过才按名字自动挑。
+            let speaker = last.speaker ?? character.name
+            let voice = voiceProfile(for: speaker)
+            SpeechService.shared.speak(last.text, as: speaker, voiceID: voice.id, rate: voice.rate)
         }
         .onChange(of: SpeechService.shared.transcript) { _, text in
             // 识别到一半就往输入框里填，说完直接发，不用再改一遍。
@@ -322,6 +338,11 @@ struct ChatView: View {
             }
             .onChange(of: viewModel.streamingText) { _, _ in
                 proxy.scrollTo("bottom", anchor: .bottom)
+            }
+            // 输入条一抬，可视区就短了一截。最后一条不跟上去，
+            // 键盘上沿会正好压住刚聊的那半句。
+            .onChange(of: KeyboardInset.shared.lift) { _, _ in
+                scrollToBottom(proxy)
             }
             .onAppear { scrollToBottom(proxy, animated: false) }
         }

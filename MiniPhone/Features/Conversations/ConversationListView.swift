@@ -20,6 +20,8 @@ struct ConversationListView: View {
     @State private var showCreator = ["chatEditor", "avatarPicker"]
         .contains(UserDefaults.standard.string(forKey: "previewState") ?? "")
     @State private var showCallHistory = false
+    /// 截图：冷启动点不到加号菜单，直接把这层建群页弹出来。
+    @State private var showGroupCreator = UserDefaults.standard.string(forKey: "previewState") == "groupNew"
     @State private var pendingDelete: Companion?
     /// 截图用的启动 Tab，只影响预览状态，不落盘。
     @State private var tab: Tab = {
@@ -96,6 +98,20 @@ struct ConversationListView: View {
         .sheet(isPresented: $showCreator) {
             CharacterEditorView(character: nil, onFinish: { showCreator = false })
         }
+        // 加号原来直接开「新建角色」。建群本来也能建——角色编辑器里有个
+        // 「群聊」开关——但那条路要先造一个空角色、再手打一串成员名，
+        // 没人会把它当成「新建群聊」。这里给两条明路。
+        .sheet(isPresented: $showGroupCreator) {
+            GroupEditorView(
+                onCreate: { group in
+                    showGroupCreator = false
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.86)) {
+                        opened = group
+                    }
+                },
+                onCancel: { showGroupCreator = false }
+            )
+        }
         .sheet(isPresented: $showCallHistory) {
             CallScene(world: world, onClose: { showCallHistory = false })
         }
@@ -167,7 +183,19 @@ struct ConversationListView: View {
 
             Spacer(minLength: 0)
 
-            GlassIconButton(symbol: "plus") { showCreator = true }
+            GlassMenuButton(symbol: "plus") {
+                Button {
+                    showCreator = true
+                } label: {
+                    Label("新建角色", systemImage: "person.badge.plus")
+                }
+
+                Button {
+                    showGroupCreator = true
+                } label: {
+                    Label("新建群聊", systemImage: "person.2.badge.plus")
+                }
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 6)

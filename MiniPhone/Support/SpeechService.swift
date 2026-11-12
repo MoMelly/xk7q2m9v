@@ -41,7 +41,7 @@ final class SpeechService {
     ///
     /// 先洗一遍：`[表情:嫌弃]`、`[图:窗外的雨]` 这种标记读出来是噪音，
     /// 括号里的旁白也不读——那是动作，不是他说的话。
-    func speak(_ text: String, as name: String, rate: Float? = nil) {
+    func speak(_ text: String, as name: String, voiceID: String? = nil, rate: Float? = nil) {
         let clean = Self.spokenForm(of: text)
         guard !clean.isEmpty else { return }
 
@@ -53,7 +53,8 @@ final class SpeechService {
         try? session.setActive(true)
 
         let utterance = AVSpeechUtterance(string: clean)
-        utterance.voice = Self.voice(for: name)
+        // 角色自己选过音色就用它，没选过按名字挑一个固定的。
+        utterance.voice = Self.voice(id: voiceID) ?? Self.voice(for: name)
         utterance.rate = rate ?? defaultRate
         utterance.pitchMultiplier = Self.pitch(for: name)
         utterance.postUtteranceDelay = 0.02
@@ -71,9 +72,7 @@ final class SpeechService {
 
     /// 音色表在真机上才有值；模拟器里也可能空，空了就用系统默认中文音。
     static func voice(for name: String) -> AVSpeechSynthesisVoice? {
-        let chinese = AVSpeechSynthesisVoice.speechVoices()
-            .filter { $0.language.hasPrefix("zh") }
-            .sorted { $0.name < $1.name }
+        let chinese = chineseVoices
         guard !chinese.isEmpty else {
             return AVSpeechSynthesisVoice(language: "zh-CN")
         }
@@ -81,6 +80,37 @@ final class SpeechService {
         // 同一个角色重启一次就换个嗓子。
         let index = StableSeed.index(StableSeed.of(name), count: chinese.count)
         return chinese[index]
+    }
+
+    /// 系统里所有中文音色，按质量从高到低、再按名字排。
+    ///
+    /// 给「TA 的声音」那一页列出来挑。数量按系统装了什么变，
+    /// 真机上一般有婷婷、美佳、语舒几档，模拟器里可能只有一条。
+    static var chineseVoices: [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix("zh") }
+            .sorted { lhs, rhs in
+                if lhs.quality.rawValue != rhs.quality.rawValue {
+                    return lhs.quality.rawValue > rhs.quality.rawValue
+                }
+                return lhs.name < rhs.name
+            }
+    }
+
+    static func voice(id: String?) -> AVSpeechSynthesisVoice? {
+        guard let id, !id.isEmpty else { return nil }
+        return AVSpeechSynthesisVoice(identifier: id)
+    }
+
+    /// 一档音色怎么写在界面上：「婷婷（中文（中国大陆））」。
+    static func displayName(of voice: AVSpeechSynthesisVoice) -> String {
+        let localized = Locale(identifier: "zh_CN").localizedString(forIdentifier: voice.language)
+        return localized.map { "\(voice.name)（\($0)）" } ?? voice.name
+    }
+
+    /// 只要名字，不带地区。列表行尾放得下。
+    static func voiceShortName(id: String?) -> String? {
+        voice(id: id)?.name
     }
 
     /// 这个角色会用到的系统音色叫什么。

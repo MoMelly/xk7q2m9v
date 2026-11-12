@@ -71,6 +71,15 @@ final class Companion {
     /// 空串表示用默认的「的肩膀」。
     var patSuffix: String = ""
 
+    /// 这个角色念台词用的系统音色 id。
+    ///
+    /// 空串是「按名字自动挑」——老存档和没设过的角色走这条，同一个名字
+    /// 每次挑到同一档，不会重启一次换一个嗓子。设过之后就用选中的那一档。
+    var voiceID: String = ""
+
+    /// 单独给这个角色设的朗读语速。0 表示跟设置里的全局语速。
+    var voiceRate: Double = 0
+
     var wakeHour: Int = 7
     var sleepHour: Int = 23
 

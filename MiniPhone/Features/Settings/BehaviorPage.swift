@@ -55,7 +55,7 @@ struct BehaviorPage: View {
                     // 这两条是「别被人看见」，跟上面「别让他看见」不是一件事。
                     GroupedSection(
                         "语音",
-                        footer: "念和听都走系统自带的音色与识别器，不打包任何模型，也不花钱。同一个角色每次都是同一个嗓门——音色按名字挑，重启也不会换人。标记（[表情:…]）和括号里的旁白不念。"
+                        footer: "念和听都走系统自带的音色与识别器，不打包任何模型，也不花钱。音色是每个角色自己的：在哪个人那儿听见的嗓子，就在那个人的详情页里换（TA 的 → TA 的声音），群里也按说话人分。标记（[表情:…]）和括号里的旁白不念。"
                     ) {
                         Toggle(isOn: Binding(
                             get: { settings.speakReplies },
@@ -71,41 +71,6 @@ struct BehaviorPage: View {
                         .tint(Theme.tint)
                         .padding(.horizontal, PhoneMetrics.Space.m)
                         .frame(minHeight: PhoneMetrics.Row.single)
-
-                        RowDivider()
-
-                        // 「读出来的语音是什么」这个问题，光给一个开关答不上来。
-                        // 把主角色实际用的那档系统音色写出来，再给一颗试听。
-                        GroupedRow(
-                            symbol: "waveform",
-                            symbolTint: Theme.IconTint.pink,
-                            title: "当前音色",
-                            subtitle: "\(voiceSampleName)用的这一档",
-                            value: SpeechService.voiceName(for: voiceSampleName)
-                        )
-
-                        RowDivider()
-
-                        Button {
-                            SpeechService.shared.defaultRate = Float(settings.voiceRate)
-                            SpeechService.shared.speak(voiceSampleLine, as: voiceSampleName)
-                        } label: {
-                            HStack(spacing: PhoneMetrics.Space.s) {
-                                Image(systemName: "play.circle")
-                                    .font(.system(size: 17, weight: .medium))
-                                    .foregroundStyle(Theme.tint)
-
-                                Text("试听一句")
-                                    .font(.system(size: PhoneMetrics.FontSize.body))
-                                    .foregroundStyle(Theme.label)
-
-                                Spacer(minLength: 0)
-                            }
-                            .padding(.horizontal, PhoneMetrics.Space.m)
-                            .frame(minHeight: PhoneMetrics.Row.single)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
 
                         RowDivider()
 
@@ -184,21 +149,6 @@ struct BehaviorPage: View {
         }
         .onChange(of: settings.allowPhoneLookups) { _, _ in settings.persist() }
         .onChange(of: settings.allowPrivatePeek) { _, _ in settings.persist() }
-    }
-
-    // MARK: - 试听
-
-    /// 试听用主角色的嗓子。没有角色时退回一句中性名字，
-    /// `SpeechService` 会按名字哈希挑，照样有声音。
-    private var voiceSampleName: String {
-        let name = WorldStore.shared.primaryName
-        return name.isEmpty ? "小绿" : name
-    }
-
-    /// 挑一句没有标记、没有旁白的话。带标记的样本会被 `spokenForm` 洗掉，
-    /// 试听就听不出区别了。
-    private var voiceSampleLine: String {
-        "今天有点冷，你出门记得多穿一件。"
     }
 }
 

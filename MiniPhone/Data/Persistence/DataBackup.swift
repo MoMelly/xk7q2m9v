@@ -91,6 +91,11 @@ enum DataBackup {
             var patSuffix: String?
             var blockedStickerGroupsRaw: String?
             var blockedStickerNamesRaw: String?
+            /// v6 新增。这个角色自己的朗读音色与语速。
+            /// 漏了的话恢复之后所有人的嗓子都回到「按名字自动挑」，
+            /// 用户一个个调过的音色全白设。
+            var voiceID: String?
+            var voiceRate: Double?
         }
 
         /// 「我的」里的一个身份。v3 新增，老备份没有整段。
@@ -236,7 +241,9 @@ enum DataBackup {
                         blockedStickerGroupsRaw: character.blockedStickerGroupsRaw.isEmpty
                             ? nil : character.blockedStickerGroupsRaw,
                         blockedStickerNamesRaw: character.blockedStickerNamesRaw.isEmpty
-                            ? nil : character.blockedStickerNamesRaw
+                            ? nil : character.blockedStickerNamesRaw,
+                        voiceID: character.voiceID.isEmpty ? nil : character.voiceID,
+                        voiceRate: character.voiceRate > 0 ? character.voiceRate : nil
                     )
                 },
             moments: moments
@@ -412,6 +419,8 @@ enum DataBackup {
             character.patSuffix = item.patSuffix ?? ""
             character.blockedStickerGroupsRaw = item.blockedStickerGroupsRaw ?? ""
             character.blockedStickerNamesRaw = item.blockedStickerNamesRaw ?? ""
+            character.voiceID = item.voiceID ?? ""
+            character.voiceRate = item.voiceRate ?? 0
             context.insert(character)
 
             for message in item.messages {

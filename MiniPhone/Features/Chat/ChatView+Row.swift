@@ -64,4 +64,19 @@ extension ChatView {
             ?? profiles.first?.name
             ?? "我"
     }
+
+    /// 这句话该用谁的嗓子念。
+    ///
+    /// 单聊就是他本人的设置；群聊按消息上的发言人回角色表里找，
+    /// 找不到（成员被删了）就退回「按名字自动挑」。
+    func voiceProfile(for speaker: String) -> (id: String?, rate: Float?) {
+        let owner: Companion? = speaker == character.name
+            ? character
+            : roster.first(where: { $0.name == speaker })
+        guard let owner else { return (nil, nil) }
+        return (
+            owner.voiceID.isEmpty ? nil : owner.voiceID,
+            owner.voiceRate > 0 ? Float(owner.voiceRate) : nil
+        )
+    }
 }

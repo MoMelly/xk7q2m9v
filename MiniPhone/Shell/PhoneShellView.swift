@@ -56,6 +56,7 @@ struct PhoneShellView: View {
         switch previewState {
         case "chatDetail", "chatStickers", "chatPhoto", "chatDynamic", "chatGlass", "charDetail", "board",
              "statePanel", "anonBox", "worldEntries", "chatGroup", "groupDetail", "groupMemory",
+             "groupMembers", "chatKeyboard",
              "call", "chatTogether", "redPacket":
             return true
         default:
@@ -81,7 +82,9 @@ struct PhoneShellView: View {
         case "couple": destination = .scene(.couple)
         case "storyGame", "storyPlay", "storyEnd": destination = .scene(.storyGame)
         case "chatDetail", "chatMine", "chatCalls", "chatEditor", "chatStickers", "chatPhoto",
+             "groupNew", "chatKeyboard",
              "chatDynamic", "chatGlass", "avatarPicker", "chatGroup", "groupDetail", "groupMemory",
+             "groupMembers",
              "charDetail", "board", "statePanel", "anonBox", "worldEntries",
              "call", "chatTogether", "redPacket": destination = .chat
         case "chatNight": destination = .chat
@@ -391,13 +394,19 @@ struct PhoneShellView: View {
             // 同一条规则。不能取列表第一个：内置小助手最先建、sortIndex 又靠前，
             // 取 first 会让所有预览（状态面板、提问箱、详情）都落到它头上，
             // 预置在世界状态里的数据全挂在那个人身上，一幅都对不上。
+            //
+            // 这一层同时声明不理键盘：聊天页自己按键盘高度抬输入条
+            // （`keyboardLift`），系统那套整块内容往上躲的做法会把标题推出屏幕。
+            // 内容铺满整屏，遮罩才算得准一整块。
             if Self.opensChatDirectly,
                let character = companions.max(by: {
                    ($0.lastMessageAt ?? .distantPast) < ($1.lastMessageAt ?? .distantPast)
                }) {
                 ChatView(character: character, settings: settings, onExit: closeApp)
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
             } else {
                 ConversationListView(settings: settings, onExit: closeApp)
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
             }
         case .moments:
             MomentsView(settings: settings, onExit: closeApp)

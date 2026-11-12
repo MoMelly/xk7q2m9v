@@ -73,6 +73,8 @@ struct CharacterDetailPage: View {
             AnyView(AnonymousBoxPage(character: character, world: world, settings: settings))
         case "groupMemory":
             AnyView(CharacterMemoryPage(character: character, world: world))
+        case "groupMembers":
+            AnyView(GroupMembersPage(character: character, world: world))
         default:
             AnyView(detailBody)
         }
@@ -105,12 +107,20 @@ struct CharacterDetailPage: View {
 
             RowDivider()
 
-            GroupedRow(
-                symbol: "person.2.fill",
-                symbolTint: Theme.IconTint.teal,
-                title: "群成员",
-                value: groupMemberCount == 0 ? "还没写" : "\(groupMemberCount) 人"
-            )
+            // 这一行原来只显示「几个人」的灰字，加人得回角色编辑器里手打
+            // 成员名。改成能点进去：加人、移人、改群名都在里面。
+            NavigationLink {
+                GroupMembersPage(character: character, world: world)
+            } label: {
+                GroupedRow(
+                    symbol: "person.2.fill",
+                    symbolTint: Theme.IconTint.teal,
+                    title: "群成员",
+                    value: groupMemberCount == 0 ? "还没写" : "\(groupMemberCount) 人",
+                    showsChevron: true
+                )
+            }
+            .buttonStyle(.plain)
         } else {
             NavigationLink {
                 CharacterHomePage(character: character, world: world)
@@ -227,13 +237,15 @@ struct CharacterDetailPage: View {
             : nil
     }
 
+    /// 行尾的音色小字。没设过就写「自动」，设过写音色名。
+    private var voiceSummary: String {
+        SpeechService.voiceShortName(id: character.voiceID) ?? "自动"
+    }
+
     /// 群成员数从「成员」那段文字里数。它是自由文本，不是结构化的名单，
-    /// 逗号、顿号、换行都有人用，所以三种都当分隔符。
+    /// 逗号、顿号、换行都有人用，拆分统一走 `GroupRoster`。
     private var groupMemberCount: Int {
-        character.membersNote
-            .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" || $0 == "\n" })
-            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-            .count
+        GroupRoster.names(from: character.membersNote).count
     }
 
     private var detailBody: some View {
@@ -312,6 +324,23 @@ struct CharacterDetailPage: View {
                         // 拍一拍后缀。角色这边单独一条：双击 TA 的头像时用。
                         // 群不给：拍一个群，这句话该谁说？
                         if !character.isGroup {
+                            RowDivider()
+
+                            // 音色是「一个人」的属性：群里的每一句由成员自己那一档念，
+                            // 群名下不设嗓子。
+                            NavigationLink {
+                                CharacterVoicePage(character: character, settings: settings)
+                            } label: {
+                                GroupedRow(
+                                    symbol: "waveform",
+                                    symbolTint: Theme.IconTint.pink,
+                                    title: "TA 的声音",
+                                    value: voiceSummary,
+                                    showsChevron: true
+                                )
+                            }
+                            .buttonStyle(.plain)
+
                             RowDivider()
 
                             Button {

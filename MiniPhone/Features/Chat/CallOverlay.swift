@@ -430,7 +430,12 @@ struct CallOverlay: View {
         guard let latest = lines.last(where: { $0.role != .user }) else { return }
         if !force, spokenIDs.contains(latest.uid) { return }
         spokenIDs.insert(latest.uid)
-        SpeechService.shared.speak(latest.text, as: latest.speaker ?? character.name)
+        SpeechService.shared.speak(
+            latest.text,
+            as: latest.speaker ?? character.name,
+            voiceID: character.voiceID.isEmpty ? nil : character.voiceID,
+            rate: character.voiceRate > 0 ? Float(character.voiceRate) : nil
+        )
     }
 
     private func sendLine() {

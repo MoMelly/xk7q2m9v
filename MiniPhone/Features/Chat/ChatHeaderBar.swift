@@ -112,10 +112,7 @@ enum ChatLabels {
         if character.isGroup {
             parts.append("群聊")
             // 和详情页「群成员」用同一套分隔符。
-            let count = character.membersNote
-                .split(whereSeparator: { $0 == "," || $0 == "，" || $0 == "、" || $0 == "\n" })
-                .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-                .count
+            let count = GroupRoster.names(from: character.membersNote).count
             if count > 0 { parts.append("\(count) 人") }
         } else {
             parts.append(CharacterClock.isAsleep(character, at: date) ? "睡了" : "在的")
