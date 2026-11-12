@@ -237,17 +237,15 @@ struct PhoneShellView: View {
         }
         .animation(.spring(response: 0.42, dampingFraction: 0.86), value: isLocked)
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: world.pendingNotices)
-        // 整机圆角。App 页、控制中心、通知都是铺到屏幕边缘的矩形，
-        // 不裁这一层，展开动效和全屏页的四角都是尖的。
+        // 这一层不裁圆角：锁屏和桌面是静止画面，铺满整屏，圆角由屏幕本身给。
         //
-        // 用 `mask` 而不是 `clipShape`：`clipShape` 会生成一个新的视图边界，
-        // 这个边界又被外层按安全区摆一次，结果整块内容被挤进安全区里，
-        // 上下各露一条黑边、Dock 还被裁掉半截。`mask` 只影响绘制，
-        // 布局一点不动，四角照样是圆的。
-        .mask {
-            RoundedRectangle(cornerRadius: PhoneMetrics.screenCornerRadius, style: .continuous)
-                .ignoresSafeArea()
-        }
+        // 之前在这里加过 clipShape / mask 想让「全屏页四角是圆的」，结果是
+        // clipShape 把内容挤进安全区、上下各留一条黑；mask 虽然不挤布局，
+        // 但被切掉的四角会露出底色。静止画面本来就不需要圆角。
+        //
+        // 需要圆角的只有「打开 App」那一段动效——它按图标位置长成一块圆角矩形，
+        // 圆角随进度收到 0，那块遮罩写在下面的 appLayer 上（见 launchMask），
+        // 只包 App 页，不碰外壳。
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .task { @MainActor in
