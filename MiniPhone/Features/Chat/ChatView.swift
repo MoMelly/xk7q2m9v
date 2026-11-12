@@ -130,18 +130,14 @@ struct ChatView: View {
                 }
                 composer
 
-                // 键盘占掉的那一段，留成一条空档。
-                //
-                // 不往外加 padding / 安全区留白：那两种都会让这一块比容器高，
-                // 容器按居中摆放，多出来的高度上下各分一半，标题就被推出屏幕
-                // ——和原来系统避让犯的是同一个错。空档留在这块里面，被压缩的
-                // 是上面的对话区，顶部不动。
+                // 键盘占掉的那一段，留成一条空档。不能往外加 padding 或安全区留白：
+                // 那样这一块会比容器高，容器居中摆放时多出来的高度上下各分一半，
+                // 标题就被推出屏幕——和系统避让犯的是同一个错。
                 Color.clear
                     .frame(height: KeyboardInset.shared.lift)
                     .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.lift)
             }
-            // 临时诊断：红色边框是这一块的实占范围。
-            .border(Color.red, width: 3)
+            // 临时诊断：红框是这一块的实占范围。
             .keyboardDebugBadge()
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
