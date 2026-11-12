@@ -25,6 +25,11 @@ struct HomeBoard: View {
     @State private var openFolder: HomeSlot.Folder?
     /// 翻页用的瞬时位移。松手后归零，由 `page` 接手。
     @State private var swipeOffset: CGFloat = 0
+    /// 刚进编辑态的时刻。
+    ///
+    /// `onTapGesture` 不看按了多久，长按之后松手它照样会判成一次轻点，
+    /// 于是「长按抖起来 → 松手立刻退出」连一帧都不留。用时间隔开这一下。
+    @State private var editingSince: Date = .distantPast
 
     private var pages: [[HomeSlot]] { layout.pages }
 
@@ -61,7 +66,9 @@ struct HomeBoard: View {
             // 把编辑状态退掉了，第二次再按就没有编辑模式可拖——她说的
             // 「只有第一次点击有效果」就是这条。
             .onTapGesture { location in
-                guard editing, dragging == nil else { return }
+                // 0.45 秒内不认：那一下是长按松手，不是「点空白」。
+                guard editing, dragging == nil,
+                      Date().timeIntervalSince(editingSince) > 0.45 else { return }
                 exitEditing(at: location, metrics: PhoneBoardMetrics(size: size))
             }
         }
@@ -284,6 +291,7 @@ struct HomeBoard: View {
     /// 进编辑态：图标开始抖，左上角长出减号。
     private func beginEditing() {
         guard !editing else { return }
+        editingSince = Date()
         withAnimation(.easeOut(duration: 0.16)) { editing = true }
         Haptics.tap()
     }
