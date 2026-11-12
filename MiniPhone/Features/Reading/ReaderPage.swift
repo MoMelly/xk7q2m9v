@@ -31,6 +31,7 @@ struct ReaderPage: View {
     private enum ReaderSheet: Identifiable {
         case chapters
         case settings
+        case notes
         case write(String)
         case read(BookNote)
 
@@ -38,6 +39,7 @@ struct ReaderPage: View {
             switch self {
             case .chapters: return "chapters"
             case .settings: return "settings"
+            case .notes: return "notes"
             case .write(let sentence): return "write-\(sentence)"
             case .read(let note): return "read-\(note.id.uuidString)"
             }
@@ -100,12 +102,29 @@ struct ReaderPage: View {
                     Image(systemName: "textformat.size")
                 }
                 .accessibilityLabel("排版")
+
+                Button {
+                    sheet = .notes
+                } label: {
+                    Image(systemName: "text.bubble")
+                        .overlay(alignment: .topTrailing) {
+                            // 有批注就在图标右上点一下，不用点进去才知道写过没有。
+                            if !book.notes.isEmpty {
+                                Circle()
+                                    .fill(Theme.tint)
+                                    .frame(width: 6, height: 6)
+                                    .offset(x: 3, y: -2)
+                            }
+                        }
+                }
+                .accessibilityLabel("批注")
             }
         }
         .sheet(item: $sheet) { item in
             switch item {
             case .chapters: chapterSheet
             case .settings: settingsSheet
+            case .notes: notesSheet
             case .write(let sentence): writeSheet(sentence)
             case .read(let note): readSheet(note)
             }
@@ -259,6 +278,31 @@ struct ReaderPage: View {
             try? context.save()
             sheet = nil
         }
+    }
+
+    private var notesSheet: some View {
+        BookNotesPage(
+            book: book,
+            onJump: { sentence in
+                sheet = nil
+                jump(toSentence: sentence)
+            },
+            onDelete: { id in
+                book.removeNote(id: id)
+                try? context.save()
+            }
+        )
+    }
+
+    /// 跳回某一句所在的页。
+    ///
+    /// 批注存的是原句不是位置，所以先在段落里找这句，再按段落下标定位页。
+    /// 找不到（比如正文被改过）就什么都不做，比跳错地方好。
+    private func jump(toSentence sentence: String) {
+        guard let paragraph = book.paragraphs.firstIndex(where: { $0.contains(sentence) })
+        else { return }
+        chapterIndex = chapters.lastIndex { $0.start <= paragraph } ?? 0
+        rebuild(keep: paragraph)
     }
 
     // MARK: - 分页

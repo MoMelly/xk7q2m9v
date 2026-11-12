@@ -20,8 +20,21 @@ struct MusicScene: View {
     @State private var menuTarget: Track?
     /// 等二次确认的删除目标。
     @State private var deleteTarget: Track?
-    /// 正在导入歌词的那首。
-    @State private var lyricTarget: Track?
+    /// 这一页的 sheet 只有一个出口：导入歌词和重命名共用它。
+    /// 同一个视图挂两个 `.sheet` 时系统只认最后一个。
+    @State private var sheet: MusicSheet?
+
+    private enum MusicSheet: Identifiable {
+        case lyrics(Track)
+        case rename(Track)
+
+        var id: String {
+            switch self {
+            case .lyrics(let track): return "lyrics-\(track.id)"
+            case .rename(let track): return "rename-\(track.id)"
+            }
+        }
+    }
 
     private var current: Track? {
         world.state.currentTrack
@@ -53,7 +66,7 @@ struct MusicScene: View {
             }
         }
         .onAppear {
-            tracks = MusicLibrary.allTracks()
+            reload()
             player.reloadQueue()
         }
         .fileImporter(
@@ -80,7 +93,8 @@ struct MusicScene: View {
             presenting: menuTarget
         ) { track in
             Button("现在播放") { toggle(track) }
-            Button("导入歌词") { lyricTarget = track }
+            Button("重命名") { sheet = .rename(track) }
+            Button("导入歌词") { sheet = .lyrics(track) }
             if MusicLibrary.isDeletable(track) {
                 Button("删除这首歌", role: .destructive) { deleteTarget = track }
             }
@@ -101,11 +115,33 @@ struct MusicScene: View {
         } message: { track in
             Text("「\(track.title)」会从这台设备上删掉，配的歌词一起清掉。随包发布的歌删不了。")
         }
-        .sheet(item: $lyricTarget) { track in
-            LyricImportSheet(track: track) {
-                player.reloadLyrics()
+        .sheet(item: $sheet) { item in
+            switch item {
+            case .lyrics(let track):
+                LyricImportSheet(track: track) {
+                    player.reloadLyrics()
+                }
+            case .rename(let track):
+                TrackRenameSheet(
+                    track: track,
+                    onSave: { title, artist in
+                        MusicMeta.rename(track.id, title: title, artist: artist)
+                        reload()
+                    },
+                    onReset: {
+                        MusicMeta.reset(track.id)
+                        reload()
+                    }
+                )
             }
         }
+    }
+
+    /// 重读曲库。改名之后列表和正在播放的那条都要跟着换，
+    /// 不然底下的播放条还写着旧名字。
+    private func reload() {
+        tracks = MusicMeta.apply(to: MusicLibrary.allTracks())
+        player.applyMeta(tracks)
     }
 
     // MARK: - 歌曲

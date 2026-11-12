@@ -129,6 +129,7 @@ struct PhoneShellView: View {
                     onOpen: open,
                     videoWallpaperEnabled: settings.videoWallpaperEnabled && !settings.discreetMode,
                     musicPlaying: player.isPlaying,
+                    musicProgress: player.progress,
                     hidesWidgets: settings.discreetMode
                 )
                 .transition(.opacity)
@@ -238,6 +239,11 @@ struct PhoneShellView: View {
         .animation(.spring(response: 0.34, dampingFraction: 0.86), value: world.pendingNotices)
         // 整机圆角。App 页、控制中心、通知都是铺到屏幕边缘的矩形，
         // 不裁这一层，展开动效和全屏页的四角都是尖的。
+        //
+        // 必须先 `ignoresSafeArea` 再裁：裁剪按这一层的 frame 切，而壁纸和
+        // App 页的背景都往外铺到了屏幕边缘。先裁后铺的话，超出安全区的那一段
+        // 直接被切掉，上下各留一条黑边——就是这一版的现象。
+        .ignoresSafeArea()
         .clipShape(
             RoundedRectangle(cornerRadius: PhoneMetrics.screenCornerRadius, style: .continuous)
         )

@@ -20,6 +20,7 @@ final class SettingsStore {
         static let chatBackground = "chat.background.mode"
         static let chatBackgroundPhoto = "chat.background.photo"
         static let chatBubble = "chat.bubble.style"
+        static let chatAvatar = "chat.showAvatar"
         static let homeTextInk = "shell.homeTextInk"
         static let temperature = "llm.temperature"
         static let maxTokens = "llm.maxTokens"
@@ -64,6 +65,8 @@ final class SettingsStore {
     var chatBackgroundPhoto: String = ""
     /// 用户气泡的样式档（薄荷/蓝/粉/紫/玻璃）。
     var chatBubbleRaw: String = ChatBubbleStyle.mint.rawValue
+    /// 角色消息左边那颗头像。关掉之后只剩气泡，一屏能多放两行话。
+    var showChatAvatar: Bool = true
     /// 桌面/锁屏文字颜色档（自动/白/黑）。读取方（图标名、状态栏）直接读
     /// UserDefaults（见 HomeTextInk），这里存档是为了设置页的选中态。
     var homeTextInkRaw: String = HomeTextInk.auto.rawValue
@@ -126,6 +129,10 @@ final class SettingsStore {
         chatBackgroundPhoto = defaults.string(forKey: DefaultsKey.chatBackgroundPhoto) ?? ""
         if let storedBubble = defaults.string(forKey: DefaultsKey.chatBubble) {
             chatBubbleRaw = storedBubble
+        }
+        // 默认开着，所以不能用 `bool(forKey:)` 直接读：没存过的时候它给 false。
+        if defaults.object(forKey: DefaultsKey.chatAvatar) != nil {
+            showChatAvatar = defaults.bool(forKey: DefaultsKey.chatAvatar)
         }
         if let storedInk = defaults.string(forKey: DefaultsKey.homeTextInk) {
             homeTextInkRaw = storedInk
@@ -401,6 +408,7 @@ final class SettingsStore {
         defaults.set(chatBackgroundRaw, forKey: DefaultsKey.chatBackground)
         defaults.set(chatBackgroundPhoto, forKey: DefaultsKey.chatBackgroundPhoto)
         defaults.set(chatBubbleRaw, forKey: DefaultsKey.chatBubble)
+        defaults.set(showChatAvatar, forKey: DefaultsKey.chatAvatar)
         defaults.set(homeTextInkRaw, forKey: DefaultsKey.homeTextInk)
         defaults.set(temperature, forKey: DefaultsKey.temperature)
         defaults.set(maxTokens, forKey: DefaultsKey.maxTokens)

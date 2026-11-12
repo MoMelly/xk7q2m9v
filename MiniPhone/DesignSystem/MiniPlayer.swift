@@ -158,6 +158,11 @@ struct LyricsPage: View {
     var onClose: () -> Void
 
     @State private var showLyricImport = false
+    @State private var showStyle = false
+
+    /// 歌词的对齐和字号。存在本机，换一首歌不丢，重开 App 也还在。
+    @AppStorage("player.lyricsAlign") private var alignRaw = LyricsStyle.defaultAlign
+    @AppStorage("player.lyricsSize") private var sizeRaw = LyricsStyle.defaultSize
 
     private var track: Track? { player.track }
 
@@ -181,16 +186,25 @@ struct LyricsPage: View {
                 lyricsScroll
                     .padding(.top, PhoneMetrics.Space.l)
 
-                controls
-                    .padding(.horizontal, PhoneMetrics.Space.xl)
-                    .padding(.bottom, PhoneMetrics.Space.s)
-
-                transport
-                    .padding(.bottom, PhoneMetrics.Space.l)
+                playerBar
+                    .padding(.horizontal, PhoneMetrics.Space.m)
+                    .padding(.bottom, PhoneMetrics.Space.m)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.glass, style: .continuous))
         .ignoresSafeArea()
+        .overlay(alignment: .bottom) {
+            if showStyle {
+                LyricsStylePanel(
+                    alignRaw: $alignRaw,
+                    sizeRaw: $sizeRaw,
+                    onClose: { withAnimation(.easeOut(duration: 0.18)) { showStyle = false } }
+                )
+                .padding(.horizontal, PhoneMetrics.Space.m)
+                .padding(.bottom, 96)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .sheet(isPresented: $showLyricImport) {
             if let track {
                 LyricImportSheet(track: track) {
@@ -248,6 +262,24 @@ struct LyricsPage: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("导入歌词")
+
+                // 对齐全居左、字号三档，都收在这颗里。歌词页本来就没有设置入口，
+                // 排版只能照一套死的来。
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+                        showStyle.toggle()
+                    }
+                } label: {
+                    Text("Aa")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white.opacity(showStyle ? 1 : 0.8))
+                        .frame(width: 38, height: 38)
+                        .background(
+                            Circle().fill(Color.white.opacity(showStyle ? 0.22 : 0.12))
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("歌词排版")
             }
 
             Spacer(minLength: 0)
@@ -339,11 +371,21 @@ struct LyricsPage: View {
 
     private func lyricLine(_ line: LyricLine) -> some View {
         let active = line.id == activeLyricID
+        let scale = LyricsStyle.scale(sizeRaw)
 
         return Text(line.text)
-            .font(.system(size: active ? 18 : 15, weight: active ? .semibold : .regular))
+            .font(
+                .system(
+                    size: (active ? 18 : 15) * scale,
+                    weight: active ? .semibold : .regular
+                )
+            )
             .foregroundStyle(.white.opacity(active ? 1 : 0.4))
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .multilineTextAlignment(alignRaw == LyricsStyle.center ? .center : .leading)
+            .frame(
+                maxWidth: .infinity,
+                alignment: alignRaw == LyricsStyle.center ? .center : .leading
+            )
             .animation(.easeInOut(duration: 0.28), value: active)
     }
 
@@ -389,7 +431,12 @@ struct LyricsPage: View {
 
     // MARK: - 控制
 
-    private var controls: some View {
+    /// 底部播放条。
+    ///
+    /// 原来进度条和三个按钮是裸摆在页底上的，底下没有任何承托，
+    /// 高度也只够一行按钮——她说「这块太短、也不是玻璃」，两样都在这里。
+    /// 现在整块包进一片液态玻璃，上下各留一档，按下去是压在玻璃上。
+    private var playerBar: some View {
         VStack(spacing: 0) {
             SeekBar(
                 progress: player.progress,
@@ -398,6 +445,7 @@ struct LyricsPage: View {
                 onScrub: { player.scrub(to: $0) },
                 onScrubEnded: { player.endScrub() }
             )
+            .padding(.top, 2)
 
             HStack {
                 Text(clock(player.displayElapsed))
@@ -406,15 +454,25 @@ struct LyricsPage: View {
             }
             .font(.system(size: 10).monospacedDigit())
             .foregroundStyle(.white.opacity(0.42))
+            .padding(.top, 4)
+
+            transport
+                .padding(.top, PhoneMetrics.Space.l)
         }
+        .padding(.horizontal, PhoneMetrics.Space.l)
+        .padding(.top, 16)
+        .padding(.bottom, 18)
+        .glassSurface(cornerRadius: PhoneMetrics.Radius.glass)
     }
 
     private var transport: some View {
-        HStack(spacing: 34) {
+        HStack(spacing: 44) {
             Button { player.previous() } label: {
                 Image(systemName: "backward.fill")
-                    .font(.system(size: 21))
+                    .font(.system(size: 22))
                     .foregroundStyle(.white.opacity(0.9))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -432,12 +490,13 @@ struct LyricsPage: View {
 
             Button { player.next() } label: {
                 Image(systemName: "forward.fill")
-                    .font(.system(size: 21))
+                    .font(.system(size: 22))
                     .foregroundStyle(.white.opacity(0.9))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
-        .padding(.top, PhoneMetrics.Space.m)
     }
 
     private func clock(_ seconds: Double) -> String {

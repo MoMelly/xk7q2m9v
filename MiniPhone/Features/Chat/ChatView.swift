@@ -271,19 +271,26 @@ struct ChatView: View {
                             ChatPatNotice(text: message.text)
                                 .id(message.uid)
                         } else {
-                            bubble(for: message)
+                            row(for: message)
                                 .padding(.top, gapBefore(index))
                                 .id(message.uid)
                         }
                     }
 
                     if viewModel.isStreaming {
-                        MessageBubble(
-                            text: viewModel.displayedStreamingText,
-                            isUser: false,
-                            isNarration: false,
-                            isStreaming: true
-                        )
+                        HStack(alignment: .top, spacing: 8) {
+                            if settings.showChatAvatar {
+                                AvatarBubble(character: character, size: 30)
+                                    .padding(.top, 2)
+                            }
+
+                            MessageBubble(
+                                text: viewModel.displayedStreamingText,
+                                isUser: false,
+                                isNarration: false,
+                                isStreaming: true
+                            )
+                        }
                         .id("streaming")
                     }
 
@@ -325,28 +332,11 @@ struct ChatView: View {
         }
     }
 
-    /// 同一人连着说留 6，换个人说话再压 12 上去（合计 18）。
-    ///
-    /// 原来整列统一 12：自己连着发三段和对方回一句，视觉上是同一个密度，
-    /// 一屏下来全糊成一片，读不出谁在接话。微信那种节奏靠的就是这个落差。
-    private func gapBefore(_ index: Int) -> CGFloat {
-        guard index > 0 else { return 0 }
-        return messages[index - 1].role == messages[index].role ? 0 : 12
-    }
-
-    /// 两条消息间隔超过 30 分钟才插时间，否则满屏都是时间戳。
-    private func shouldShowTime(at index: Int) -> Bool {
-        guard index > 0 else { return true }
-        let previous = messages[index - 1].createdAt
-        let current = messages[index].createdAt
-        return current.timeIntervalSince(previous) > 60 * 30
-    }
-
     /// 一条气泡加上它的长按菜单。
     ///
     /// 菜单里的动作都只改这一条消息，不碰对话状态：
     /// 撤回留文本、编辑覆写、删除真删、复制进剪贴板。
-    private func bubble(for message: StoredMessage) -> some View {
+    func bubble(for message: StoredMessage) -> some View {
         MessageBubble(
             text: message.text,
             isUser: message.role == .user,
@@ -373,14 +363,6 @@ struct ChatView: View {
             onPin: { togglePin(message) },
             onDelete: { delete(message) }
         )
-    }
-
-    /// 我的身份：默认身份优先，没设就取第一个，再没有退回「我」。
-    /// 置顶栏和拍一拍共用，免得一处取 first、另一处取 isDefault。
-    private var myDisplayName: String {
-        profiles.first(where: { $0.isDefault })?.name
-            ?? profiles.first?.name
-            ?? "我"
     }
 
     /// 双击头像拍的这一下。抖动一下再把那条事件落库，

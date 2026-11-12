@@ -31,6 +31,7 @@ struct AppearancePage: View {
                     scopeSection
                     wallpaperSection
                     ChatBackgroundSection(settings: settings)
+                    chatAvatarSection
                     desktopTextSection
                     videoSection
                 }
@@ -261,7 +262,26 @@ struct AppearancePage: View {
         }
     }
 
-    // MARK: - 视频    // MARK: - 视频
+    // MARK: - 聊天头像
+
+    private var chatAvatarSection: some View {
+        GroupedSection(
+            "聊天",
+            footer: "关掉之后角色的话只剩气泡，一屏能多放两行。自己说的话本来就不带头像。"
+        ) {
+            Toggle(isOn: $settings.showChatAvatar) {
+                Text("消息左边显示头像")
+                    .font(.system(size: PhoneMetrics.FontSize.body))
+                    .foregroundStyle(Theme.label)
+            }
+            .tint(Theme.tint)
+            .padding(.horizontal, PhoneMetrics.Space.m)
+            .frame(minHeight: PhoneMetrics.Row.single)
+            .onChange(of: settings.showChatAvatar) { _, _ in settings.persist() }
+        }
+    }
+
+    // MARK: - 视频
 
     private var videoSection: some View {
         GroupedSection(

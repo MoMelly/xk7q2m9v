@@ -136,7 +136,10 @@ struct HomeBoard: View {
                     AppIconTile(app: app).iconFrame(app)
                 }
                 .buttonStyle(IconPressStyle())
-                .allowsHitTesting(!editing)
+                // 不要再按 `editing` 关掉命中：手势挂在这一层上，
+                // `allowsHitTesting(false)` 会连拖动手势一起挡掉，
+                // 编辑态里就按不动任何图标。打开动作由 action 自己的
+                // `guard !editing` 拦住，不需要在这一层拦。
                 .overlay(alignment: .topLeading) {
                     if editing { removeBadge { remove(appID) } }
                 }
@@ -152,7 +155,10 @@ struct HomeBoard: View {
                     FolderTile(apps: folder.appIDs.compactMap { app(id: $0) })
                 }
                 .buttonStyle(IconPressStyle())
-                .allowsHitTesting(!editing)
+                // 不要再按 `editing` 关掉命中：手势挂在这一层上，
+                // `allowsHitTesting(false)` 会连拖动手势一起挡掉，
+                // 编辑态里就按不动任何图标。打开动作由 action 自己的
+                // `guard !editing` 拦住，不需要在这一层拦。
                 .overlay(alignment: .topLeading) {
                     if editing { removeBadge { layout.ungroup(folderID: folder.id) } }
                 }
@@ -230,30 +236,45 @@ struct HomeBoard: View {
         metrics: PhoneBoardMetrics,
         size: CGSize
     ) -> some Gesture {
-        // 长按和拖动必须是同一个手势。
+        // 长按和拖动串成一个手势，但两段都要处理。
         //
-        // 上一版拆成两段：长按 0.45 秒松手才进编辑，之后要再按一次才开始拖。
-        // 中间那次「重新按下」就是慢半拍的来源；而且第二次按下的头几十毫秒
-        // 手指还没动，容易被整板上的轻点判成「点空白退出编辑」，
-        // 于是每次只有第一下有用。用 sequenced 串起来，按满 0.3 秒手指一动就走。
-        LongPressGesture(minimumDuration: 0.30, maximumDistance: 14)
+        // 上一版只在 `.second` 里干活，等于「长按满 0.3 秒还必须手指动起来」
+        // 才会进编辑态；长按按住了不动就是什么都没发生——她说的「长按进不了
+        // 编辑状态」就是这条。iOS 的规矩是长按一满足就抖起来，手指再动才拎起，
+        // 所以 `.first` 只开编辑态，`.second` 才真正开始拖。
+        LongPressGesture(minimumDuration: 0.28, maximumDistance: 22)
             .sequenced(
                 before: DragGesture(minimumDistance: 0, coordinateSpace: .named("homeBoard"))
             )
             .onChanged { value in
-                guard case .second(true, let drag) = value else { return }
-                if dragging == nil {
-                    beginDrag(slot: slot, page: pageIndex, metrics: metrics, at: drag?.startLocation)
+                switch value {
+                case .first(_):
+                    beginEditing()
+
+                case .second(true, let drag):
+                    if dragging == nil {
+                        beginDrag(slot: slot, page: pageIndex, metrics: metrics, at: drag?.startLocation)
+                    }
+                    guard let drag else { return }
+                    finger = drag.location
+                    retarget(drag.location, page: pageIndex, metrics: metrics)
+
+                case .second(false, _):
+                    break
                 }
-                guard let drag else { return }
-                finger = drag.location
-                retarget(drag.location, page: pageIndex, metrics: metrics)
             }
             .onEnded { value in
                 var landing: CGPoint?
                 if case .second(true, let drag) = value { landing = drag?.location }
                 finishDrag(landing, page: pageIndex, metrics: metrics, size: size)
             }
+    }
+
+    /// 进编辑态：图标开始抖，左上角长出减号。
+    private func beginEditing() {
+        guard !editing else { return }
+        withAnimation(.easeOut(duration: 0.16)) { editing = true }
+        Haptics.tap()
     }
 
     /// 拎起来的那一下。记下「手指按在格子里的哪个位置」，之后图标就按这个

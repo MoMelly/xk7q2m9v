@@ -117,7 +117,19 @@ final class PlayerService {
     // MARK: - 播放
 
     func reloadQueue() {
-        queue = MusicLibrary.allTracks()
+        queue = MusicMeta.apply(to: MusicLibrary.allTracks())
+    }
+
+    /// 改名之后同步正在播的那首。
+    ///
+    /// `Track` 是值类型，换一份新的就行；不换的话底下的播放条
+    /// 和主屏组件还写着旧名字。
+    func applyMeta(_ tracks: [Track]) {
+        queue = tracks
+        guard let current = track,
+              let updated = tracks.first(where: { $0.id == current.id })
+        else { return }
+        track = updated
     }
 
     /// 放这一首。已经在放它就切暂停。

@@ -156,30 +156,41 @@ struct HomeMoodWidget: View {
 struct HomeMusicWidget: View {
     let track: Track?
     let playing: Bool
+    /// 播放进度，0…1。组件上也能看出放到哪了。
+    var progress: Double = 0
     let action: () -> Void
 
     /// 跟图标名同一套规则：设置里选过白/黑就听设置，自动档跟着日夜。
     private var ink: Color { HomeWidgetInk.current }
 
+    /// 这首歌自己的颜色，和列表封面、歌词页的唱片是同一个。
+    private var tint: Color { TrackArt.tint(for: track?.id ?? "") }
+
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 4) {
-                    Image(systemName: playing ? "waveform" : "music.note")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(ink.opacity(track == nil ? 0.3 : 0.85))
-                        .symbolEffect(.variableColor.iterative, isActive: playing)
+                HStack(spacing: 7) {
+                    if track == nil {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(ink.opacity(0.3))
+                    } else {
+                        // 一张小唱片占住上半块。原来这里只有一个音符图标，
+                        // 整块看起来是一行文字贴在空卡上。
+                        CompactDisc(size: 26, tint: tint, spinning: playing)
+                    }
 
                     Spacer(minLength: 0)
 
                     if playing {
-                        Text("在听")
-                            .font(.system(size: 9))
-                            .foregroundStyle(ink.opacity(0.45))
+                        Image(systemName: "waveform")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(ink.opacity(0.7))
+                            .symbolEffect(.variableColor.iterative, isActive: playing)
                     }
                 }
 
-                Spacer(minLength: 6)
+                Spacer(minLength: 8)
 
                 Text(track?.title ?? "没有在放")
                     .font(.system(size: 13, weight: .semibold))
@@ -190,14 +201,32 @@ struct HomeMusicWidget: View {
                     .font(.system(size: 10))
                     .foregroundStyle(ink.opacity(0.5))
                     .lineLimit(1)
+                    .padding(.top, 2)
+
+                progressLine
+                    .padding(.top, 9)
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 13)
+            .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: HomeWidgetSize.square)
-            .frostedBar(cornerRadius: PhoneMetrics.Radius.widget, shadow: .none)
+            // 液态玻璃，不是磨砂。她对着这块说过两次「不是玻璃」：
+            // 磨砂只是把背后糊住，玻璃要能透、要有那一道边。
+            .glassSurface(cornerRadius: PhoneMetrics.Radius.widget)
         }
         .buttonStyle(HomeWidgetPressStyle())
+    }
+
+    private var progressLine: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(ink.opacity(0.16))
+                Capsule()
+                    .fill(ink.opacity(track == nil ? 0.08 : 0.62))
+                    .frame(width: proxy.size.width * min(max(progress, 0), 1))
+            }
+        }
+        .frame(height: 2.5)
     }
 }
 
@@ -211,10 +240,13 @@ enum HomeWidgetInk {
 
 // MARK: - 尺寸与按压
 
-/// 组件的两个高度档。宽组件高一些，能放两行日程；方块只放一条。
+/// 组件的两个高度档。宽组件高一些，能放两行日程；方块放封面 + 两行字。
+///
+/// 方块从 112 提到 128：112 的时候音乐组件只装得下一行图标两行字，
+/// 底下空一块，看着是「一条窄卡片」，不像一个能点的组件。
 enum HomeWidgetSize {
     static let tall: CGFloat = 118
-    static let square: CGFloat = 112
+    static let square: CGFloat = 128
     /// 方块之间的缝，跟图标网格的横向间距对齐。
     static let gap: CGFloat = PhoneMetrics.gridHorizontalSpacing
 }

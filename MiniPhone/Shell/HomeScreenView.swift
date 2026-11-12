@@ -15,6 +15,8 @@ struct HomeScreenView: View {
     var videoWallpaperEnabled: Bool = false
     /// 音乐是否正在放。组件上的波形跟着它动。
     var musicPlaying: Bool = false
+    /// 放到哪了，0…1。组件底部那条细线用它。
+    var musicProgress: Double = 0
     /// 隐藏模式：三块组件都不显示。日程和「他在听什么」比壁纸更容易露馅。
     var hidesWidgets: Bool = false
 
@@ -99,7 +101,11 @@ struct HomeScreenView: View {
             HomeMoodWidget(mood: world.primaryMood, owner: world.primaryName) {
                 openApp("messages")
             }
-            HomeMusicWidget(track: world.state.currentTrack, playing: musicPlaying) {
+            HomeMusicWidget(
+                track: world.state.currentTrack,
+                playing: musicPlaying,
+                progress: musicProgress
+            ) {
                 openApp("music")
             }
         }

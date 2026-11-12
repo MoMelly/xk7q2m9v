@@ -75,6 +75,12 @@ struct ScheduleEditor: View {
                 }
             }
         }
+        // 这一页是浅色底，必须自己声明配色方案。
+        //
+        // 手机外壳固定在深色，sheet 挂在外面继承的就是深色：TextField 的
+        // 文字、Picker 的滚轮、输入框的占位全都变成白色/半透明白，
+        // 落在浅色卡片上就是「白底灰字、什么都看不清」。
+        .environment(\.colorScheme, AppSurface.light.colorScheme)
     }
 
     private var trimmedTitle: String {
@@ -84,14 +90,25 @@ struct ScheduleEditor: View {
     private var titleField: some View {
         VStack(alignment: .leading, spacing: 6) {
             label("做什么")
-            TextField("比如 去趟打印店", text: $title)
-                .font(.system(size: PhoneMetrics.FontSize.body))
-                .padding(.horizontal, PhoneMetrics.Space.s)
-                .frame(height: 44)
-                .background {
-                    RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                        .fill(AppSurface.light.rowSurface)
+            ZStack(alignment: .leading) {
+                // 占位自己画：系统占位是 30% 透明度的白，落在浅色卡片上
+                // 几乎看不出是「可以在这儿打字」。
+                if title.isEmpty {
+                    hint("比如 去趟打印店", size: PhoneMetrics.FontSize.body)
+                        .padding(.horizontal, PhoneMetrics.Space.s)
                 }
+
+                TextField("", text: $title)
+                    .font(.system(size: PhoneMetrics.FontSize.body))
+                    .foregroundStyle(AppSurface.light.label)
+                    .tint(Theme.tint)
+                    .padding(.horizontal, PhoneMetrics.Space.s)
+            }
+            .frame(height: 44)
+            .background {
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .fill(AppSurface.light.rowSurface)
+            }
         }
     }
 
@@ -145,14 +162,24 @@ struct ScheduleEditor: View {
     private var noteField: some View {
         VStack(alignment: .leading, spacing: 6) {
             label("备注")
-            TextField("想记一句就写", text: $note, axis: .vertical)
-                .font(.system(size: PhoneMetrics.FontSize.sub))
-                .lineLimit(2...5)
-                .padding(PhoneMetrics.Space.s)
-                .background {
-                    RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                        .fill(AppSurface.light.rowSurface)
+            ZStack(alignment: .topLeading) {
+                if note.isEmpty {
+                    hint("想记一句就写", size: PhoneMetrics.FontSize.sub)
+                        .padding(.horizontal, PhoneMetrics.Space.s)
+                        .padding(.vertical, PhoneMetrics.Space.s)
                 }
+
+                TextField("", text: $note, axis: .vertical)
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                    .tint(Theme.tint)
+                    .lineLimit(2...5)
+                    .padding(PhoneMetrics.Space.s)
+            }
+            .background {
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .fill(AppSurface.light.rowSurface)
+            }
         }
     }
 
@@ -161,6 +188,14 @@ struct ScheduleEditor: View {
             .font(.system(size: PhoneMetrics.FontSize.caption, weight: .medium))
             .foregroundStyle(AppSurface.light.secondaryLabel)
             .padding(.leading, 4)
+    }
+
+    /// 自绘的占位字。比系统占位深一档，浅色卡片上看得出来。
+    private func hint(_ text: String, size: CGFloat) -> some View {
+        Text(text)
+            .font(.system(size: size))
+            .foregroundStyle(AppSurface.light.secondaryLabel)
+            .allowsHitTesting(false)
     }
 
     private func save() {
