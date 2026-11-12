@@ -137,8 +137,6 @@ struct ChatView: View {
                     .frame(height: KeyboardInset.shared.lift)
                     .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.lift)
             }
-            // 临时诊断：红框是这一块的实占范围。
-            .keyboardDebugBadge()
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
