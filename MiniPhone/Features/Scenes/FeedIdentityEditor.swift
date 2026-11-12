@@ -49,6 +49,9 @@ struct FeedIdentityEditor: View {
             .onChange(of: pickedCover) { _, item in loadCover(item) }
         }
         .onAppear { cover = FeedProfileStore.loadCover() }
+        // 这一页是浅色的，外壳是强制深色。不声明配色的话，三个输入框里的字、
+        // 占位符和光标全按深色算，白字压在浅底上看不见——日历编辑页之前就是这个毛病。
+        .environment(\.colorScheme, AppSurface.light.colorScheme)
     }
 
     // MARK: - 封面

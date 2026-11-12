@@ -43,6 +43,9 @@ struct FeedComposerBar: View {
             inputRow
         }
         .background(AppSurface.light.background)
+        // 这条输入条铺的是浅色底，外壳却是强制深色。
+        // 不声明配色的话，输入框里的字和占位符都按深色算，白字压在浅底上等于看不见。
+        .environment(\.colorScheme, AppSurface.light.colorScheme)
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(AppSurface.light.separator.opacity(0.5))

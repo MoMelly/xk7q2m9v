@@ -191,7 +191,12 @@ struct LyricsPage: View {
                     .padding(.bottom, PhoneMetrics.Space.m)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: PhoneMetrics.Radius.glass, style: .continuous))
+        // 整屏页面，不裁圆角，四角由屏幕自己给。
+        //
+        // 上一版这里是 `.clipShape(RoundedRectangle(...))` 再 `.ignoresSafeArea()`：
+        // clipShape 先按安全区算出一块圆角矩形，ignoresSafeArea 再把这块结果往
+        // 屏幕外拉，于是整页被顶到屏幕上方，顶栏那排按钮压在灵动岛底下，
+        // 四角还切出两道缝。背景块自己往外铺就够了。
         .ignoresSafeArea()
         .overlay(alignment: .bottom) {
             if showStyle {
@@ -289,7 +294,12 @@ struct LyricsPage: View {
                 .shadow(color: Color.black.opacity(0.4), radius: 14, y: 6)
         }
         .padding(.horizontal, PhoneMetrics.Space.l)
-        .padding(.top, PhoneMetrics.Space.l)
+        // 顶栏距屏幕顶边的距离写死，不跟安全区走。
+        //
+        // 外壳把系统状态栏藏了，安全区跟着变矮，按安全区排的话这排按钮会顶到
+        // 灵动岛下面（上一版就是这样，「Aa」只露出半个）。通知横幅用的是同一
+        // 个常量，两处对齐。
+        .padding(.top, PhoneMetrics.notificationTopInset)
     }
 
     private var titleBlock: some View {
