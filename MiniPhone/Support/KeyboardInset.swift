@@ -82,4 +82,17 @@ extension View {
             Color.clear.frame(height: KeyboardInset.shared.lift)
         }
     }
+
+    /// 临时诊断用：只在 `chatKeyboard` 那张截图里打一行实测值。
+    func keyboardDebugBadge() -> some View {
+        overlay(alignment: .topLeading) {
+            if UserDefaults.standard.string(forKey: "previewState") == "chatKeyboard" {
+                Text("kb=\(Int(KeyboardInset.shared.height)) lift=\(Int(KeyboardInset.shared.lift)) safeBottom=\(Int(KeyboardInset.bottomSafeArea))")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.yellow)
+                    .padding(3)
+                    .background(Color.black.opacity(0.75))
+            }
+        }
+    }
 }

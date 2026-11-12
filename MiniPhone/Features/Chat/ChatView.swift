@@ -142,15 +142,7 @@ struct ChatView: View {
             }
             // 临时诊断：红色边框是这一块的实占范围。
             .border(Color.red, width: 3)
-            .overlay(alignment: .topLeading) {
-                if UserDefaults.standard.string(forKey: "previewState") == "chatKeyboard" {
-                    Text("kb=\(Int(KeyboardInset.shared.height)) lift=\(Int(KeyboardInset.shared.lift)) safe=\(Int(KeyboardInset.bottomSafeArea)) top=\(Int(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.flatMap(\.windows).first(where: \.isKeyWindow)?.safeAreaInsets.top ?? -1))")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.yellow)
-                        .padding(2)
-                        .background(Color.black.opacity(0.7))
-                }
-            }
+            .keyboardDebugBadge()
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
