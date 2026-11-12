@@ -10,6 +10,15 @@ import SwiftUI
 struct MiniPlayerOverlay: View {
     @Bindable var player: PlayerService
 
+    /// 球放在哪。按屏幕宽高存成 0…1 的比例，换分辨率不用重算。
+    /// 默认贴右边缘、垂直 58%——那是原来钉死的位置，老用户看不到位移。
+    @AppStorage("player.ballX") private var ballX: Double = 0.92
+    @AppStorage("player.ballY") private var ballY: Double = 0.58
+    /// 拖到一半的位置。只在拖动期间生效，松手才写回上面两个比例，
+    /// 免得每一帧都往 UserDefaults 里写一次。
+    @State private var live: CGPoint?
+    @State private var dragStart: CGPoint?
+
     var body: some View {
         ZStack {
             if player.lyricsPresented {
@@ -32,18 +41,49 @@ struct MiniPlayerOverlay: View {
         }
     }
 
-    /// 贴右边缘、垂直 58%。用 `position` 而不是 Spacer 堆：
-    /// 球要能落在任意高度的页面上，不该跟着内容流走。
+    /// 球的位置。原来钉死在右边缘，页面上有按钮的地方就被它压住。
+    ///
+    /// 现在能拖：按住球挪，松手记住位置。用 `GeometryReader` + `position`
+    /// 而不是 Spacer 堆——球要能落在任意高度的页面上，不该跟着内容流走。
     private var ball: some View {
         GeometryReader { proxy in
-            Button {
-                player.lyricsPresented = true
-            } label: {
-                ballFace
-            }
-            .buttonStyle(.plain)
-            .position(x: proxy.size.width - 37, y: proxy.size.height * 0.58)
+            ballFace
+                .contentShape(Circle())
+                .onTapGesture { player.lyricsPresented = true }
+                .gesture(
+                    DragGesture(minimumDistance: 6)
+                        .onChanged { value in
+                            let base = dragStart ?? center(in: proxy.size)
+                            if dragStart == nil { dragStart = base }
+                            live = CGPoint(
+                                x: base.x + value.translation.width,
+                                y: base.y + value.translation.height
+                            )
+                        }
+                        .onEnded { _ in
+                            if let point = live {
+                                ballX = Double(point.x / max(proxy.size.width, 1))
+                                ballY = Double(point.y / max(proxy.size.height, 1))
+                            }
+                            live = nil
+                            dragStart = nil
+                        }
+                )
+                .position(center(in: proxy.size))
         }
+    }
+
+    /// 球心落在哪。上下留出安全距离：贴到屏幕最上会压住状态栏，
+    /// 贴到最下会跟 Home 条打架。
+    private func center(in size: CGSize) -> CGPoint {
+        let point = live ?? CGPoint(
+            x: size.width * ballX,
+            y: size.height * ballY
+        )
+        return CGPoint(
+            x: min(max(point.x, 34), max(size.width - 34, 34)),
+            y: min(max(point.y, 70), max(size.height - 90, 70))
+        )
     }
 
     private var ballFace: some View {

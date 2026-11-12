@@ -157,7 +157,8 @@ struct PhoneShellView: View {
 
             // 悬浮球：真的有歌在放才出现，App 页之上、提示之下。
             // 歌词页不套系统 sheet——手机壳里再弹一个系统面板，拟真就破了。
-            if player.track != nil, !isLocked {
+            // 设置里能关：球一直浮在页面上，压住按钮的时候没有别的办法。
+            if player.track != nil, !isLocked, settings.showMusicBall {
                 MiniPlayerOverlay(player: player)
                     .zIndex(2.5)
             }
@@ -263,6 +264,8 @@ struct PhoneShellView: View {
             if !primary.isEmpty { world.primaryName = primary }
             // 上次设的音量在启动时落到播放器上：它存在控制中心那边，播放器是无状态的。
             player.volume = controlCenter.volume
+            // 语速同理：设置里选的那一档落到语音服务上，各处 speak 不用各传一次。
+            SpeechService.shared.defaultRate = Float(settings.voiceRate)
             world.ensureToday(wakeHour: 7, sleepHour: 23)
             world.seedSceneContentIfNeeded()
             UserProfileBook.ensureDefault(in: context)

@@ -36,6 +36,8 @@ final class SettingsStore {
         static let discreetMode = "shell.discreetMode"
         static let keyRotation = "llm.keyRotation"
         static let speakReplies = "voice.speakReplies"
+        static let voiceRate = "voice.rate"
+        static let showMusicBall = "player.showBall"
     }
 
     private static let keychainAccount = "llm.apiKey"
@@ -97,6 +99,11 @@ final class SettingsStore {
     var keyRotation: Bool = true
     /// 收到回复就用系统音色念出来。默认关：公共场合外放很尴尬。
     var speakReplies: Bool = false
+    /// 念的时候多快。0.42 慢 / 0.48 正常 / 0.54 快——`AVSpeechUtterance` 的 rate 档位。
+    var voiceRate: Double = 0.48
+    /// 主屏和 App 页上那颗音乐悬浮球。关掉之后屏幕更干净，
+    /// 要听歌就点「音乐」App 或者桌面上的组件。
+    var showMusicBall: Bool = true
 
     /// 每个会自己更新的页面各自的开关与概率。
     var refreshRules: [RefreshRule] = RefreshRule.default
@@ -174,6 +181,14 @@ final class SettingsStore {
             keyRotation = defaults.bool(forKey: DefaultsKey.keyRotation)
         }
         speakReplies = defaults.bool(forKey: DefaultsKey.speakReplies)
+        if defaults.object(forKey: DefaultsKey.voiceRate) != nil {
+            voiceRate = defaults.double(forKey: DefaultsKey.voiceRate)
+        }
+        // 默认是开的，所以只有存过才读——`bool(forKey:)` 对没存过的键回 false，
+        // 直接用会把老用户升级后的球关掉。
+        if defaults.object(forKey: DefaultsKey.showMusicBall) != nil {
+            showMusicBall = defaults.bool(forKey: DefaultsKey.showMusicBall)
+        }
         Self.current = self
     }
 
@@ -426,6 +441,8 @@ final class SettingsStore {
         defaults.set(refreshInterval, forKey: DefaultsKey.refreshInterval)
         defaults.set(keyRotation, forKey: DefaultsKey.keyRotation)
         defaults.set(speakReplies, forKey: DefaultsKey.speakReplies)
+        defaults.set(voiceRate, forKey: DefaultsKey.voiceRate)
+        defaults.set(showMusicBall, forKey: DefaultsKey.showMusicBall)
         KeychainStore.set(apiKey, for: Self.keychainAccount)
         if let data = try? JSONEncoder().encode(extraKeys),
            let raw = String(data: data, encoding: .utf8) {

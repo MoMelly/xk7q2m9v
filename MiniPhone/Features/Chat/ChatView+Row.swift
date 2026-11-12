@@ -13,12 +13,25 @@ extension ChatView {
     func row(for message: StoredMessage) -> some View {
         HStack(alignment: .top, spacing: 8) {
             if showsAvatar(for: message) {
-                AvatarBubble(character: character, size: 30)
+                AvatarBubble(character: speaker(for: message), size: 30)
                     .padding(.top, 2)
             }
 
             bubble(for: message)
         }
+    }
+
+    /// 这句话是谁说的。
+    ///
+    /// 群聊的消息上带着 `speaker`，之前这一列头像固定用群本身那张，群里几个人
+    /// 说起来全是同一张脸，看不出是换了个人。这里按名字回角色表里找，找不到
+    /// （成员被删了、名字改过）才退回群头像，不至于空一块。
+    func speaker(for message: StoredMessage) -> Companion {
+        guard character.isGroup,
+              let name = message.speaker?.trimmingCharacters(in: .whitespaces),
+              !name.isEmpty,
+              name != character.name else { return character }
+        return roster.first { $0.name == name } ?? character
     }
 
     func showsAvatar(for message: StoredMessage) -> Bool {

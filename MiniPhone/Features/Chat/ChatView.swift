@@ -17,6 +17,9 @@ struct ChatView: View {
     @Query var messages: [StoredMessage]
     /// 拍一拍要用名字：「小绿 拍了拍 陆沉 的脑门」。
     @Query(sort: \UserProfile.createdAt, order: .forward) var profiles: [UserProfile]
+    /// 群聊里按发言人找头像用。之前这一列头像固定用群本身那张，
+    /// 群里七八个人说起来全是一张脸，读不出谁在接话。
+    @Query(sort: \Companion.createdAt, order: .forward) var roster: [Companion]
 
     @State var viewModel = ChatViewModel()
     @State var draft = ""

@@ -30,6 +30,8 @@ final class SpeechService {
     private(set) var transcript = ""
     /// 上次失败的原因，给界面弹一句。
     var failure: String?
+    /// 全局语速档。设置里选的那一档落到这里，各调用点不用各传一个数。
+    var defaultRate: Float = 0.48
 
     var isSpeaking: Bool { speakingName != nil }
 
@@ -39,7 +41,7 @@ final class SpeechService {
     ///
     /// 先洗一遍：`[表情:嫌弃]`、`[图:窗外的雨]` 这种标记读出来是噪音，
     /// 括号里的旁白也不读——那是动作，不是他说的话。
-    func speak(_ text: String, as name: String, rate: Float = 0.48) {
+    func speak(_ text: String, as name: String, rate: Float? = nil) {
         let clean = Self.spokenForm(of: text)
         guard !clean.isEmpty else { return }
 
@@ -52,7 +54,7 @@ final class SpeechService {
 
         let utterance = AVSpeechUtterance(string: clean)
         utterance.voice = Self.voice(for: name)
-        utterance.rate = rate
+        utterance.rate = rate ?? defaultRate
         utterance.pitchMultiplier = Self.pitch(for: name)
         utterance.postUtteranceDelay = 0.02
 
@@ -79,6 +81,16 @@ final class SpeechService {
         // 同一个角色重启一次就换个嗓子。
         let index = StableSeed.index(StableSeed.of(name), count: chinese.count)
         return chinese[index]
+    }
+
+    /// 这个角色会用到的系统音色叫什么。
+    ///
+    /// 设置页要把它写出来——她问过「读出来的语音是什么」，光有一个开关
+    /// 是答不上来的。取到音色就报名字，取不到说明回落到了系统中文默认音。
+    static func voiceName(for name: String) -> String {
+        guard let voice = voice(for: name) else { return "系统默认中文音" }
+        let localized = Locale(identifier: "zh_CN").localizedString(forIdentifier: voice.language)
+        return localized.map { "\(voice.name)（\($0)）" } ?? voice.name
     }
 
     /// 0.9–1.1 之间微调音高。同一个音色配不同音高，听感上就是两个人。

@@ -252,12 +252,17 @@ struct MusicScene: View {
 
     // MARK: - 正在播放条
 
-    private func nowPlayingBar(_ track: Track) -> some View {
-        VStack(spacing: 0) {
+    private func nowPlayingBar(_ snapshot: Track) -> some View {
+        // 世界状态里存的是这首歌的一份快照，重命名改的是歌本身的名字，
+        // 快照不会跟着变——所以条子上一直显示导入时的文件名。
+        // 按 id 回当前歌单里取一次，拿到的是套过 `MusicMeta` 的那一份。
+        let track = tracks.first { $0.id == snapshot.id } ?? snapshot
+
+        return VStack(spacing: 0) {
             HStack(spacing: PhoneMetrics.Space.s) {
                 RoundedRectangle(cornerRadius: PhoneMetrics.Radius.cover, style: .continuous)
                     .fill(TrackArt.gradient(for: track.id))
-                    .frame(width: 44, height: 44)
+                    .frame(width: 48, height: 48)
                     .overlay {
                         Image(systemName: "music.note")
                             .font(.system(size: PhoneMetrics.FontSize.footnote, weight: .bold))
@@ -289,7 +294,7 @@ struct MusicScene: View {
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, PhoneMetrics.Space.m)
-            .frame(height: 56)
+            .frame(height: 64)
             // 点封面或标题就进歌词页。之前只有那个悬浮球能进，
             // 这张卡片点了没反应——她说的「不合理」就是这条。
             .contentShape(Rectangle())
@@ -302,9 +307,9 @@ struct MusicScene: View {
                 SeekBar(
                     progress: player.progress,
                     isScrubbing: player.isScrubbing,
-                    trackColor: Color.white.opacity(0.28),
-                    fillColor: .white,
-                    thumbColor: .white,
+                    trackColor: Theme.separator,
+                    fillColor: Theme.tint,
+                    thumbColor: Theme.tint,
                     barHeight: 3,
                     hitHeight: 26,
                     onScrubBegan: { player.beginScrub() },
@@ -316,23 +321,18 @@ struct MusicScene: View {
                     .frame(width: 42, alignment: .trailing)
             }
             .font(.system(size: 10).monospacedDigit())
-            .foregroundStyle(.white.opacity(0.62))
+            .foregroundStyle(Theme.secondaryLabel)
             .padding(.horizontal, PhoneMetrics.Space.m)
             .padding(.bottom, 8)
             .allowsHitTesting(true)
         }
-        // 原来是一块实色。改成液态玻璃：半透明材质 + 一层薄白 + 一圈高光边，
-        // 底下的列表和壁纸从缝里透上来。
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                    .fill(.ultraThinMaterial)
-                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                    .fill(Color.black.opacity(0.28))
-                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.22), lineWidth: 0.8)
-            }
-        }
+        // 磨砂玻璃条，跟 Dock 用同一套配方。
+        //
+        // 原来这里是自己拼的 `.ultraThinMaterial` + 压黑 0.28：外壳锁着深色，
+        // 材质算成暗色，再压一层黑，整条就是一块黑砖——她说「没改成液态玻璃」
+        // 指的就是这个。`frostedBar` 把材质单独按浅色渲染，日间透亮、夜间收白，
+        // 底下滚动过去的歌单能透上来。
+        .frostedBar(cornerRadius: PhoneMetrics.Radius.card)
         .padding(.horizontal, PhoneMetrics.Space.s)
         .padding(.bottom, PhoneMetrics.Space.xs)
     }

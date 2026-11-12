@@ -210,9 +210,13 @@ struct HomeMusicWidget: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .frame(height: HomeWidgetSize.square)
-            // 液态玻璃，不是磨砂。她对着这块说过两次「不是玻璃」：
-            // 磨砂只是把背后糊住，玻璃要能透、要有那一道边。
-            .glassSurface(cornerRadius: PhoneMetrics.Radius.widget)
+            // 磨砂，不是 `glassSurface`。
+            //
+            // `glassEffect` 跟着外壳的配色方案走，而这台手机的外壳锁的是深色，
+            // 整块玻璃就按深色材质渲染——压在粉色壁纸上是一个黑块，和上面那块
+            // 「今天」完全是两种东西。那块用的是 `frostedBar`，明暗由
+            // `FrostedSurface` 按日夜自己算，日间是透亮的白。两块改回同一套配方。
+            .frostedBar(cornerRadius: PhoneMetrics.Radius.widget, shadow: .none)
         }
         .buttonStyle(HomeWidgetPressStyle())
     }

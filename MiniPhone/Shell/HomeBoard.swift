@@ -44,6 +44,16 @@ struct HomeBoard: View {
             .clipped()
             .contentShape(Rectangle())
             .gesture(pagingGesture(size: size))
+            // 兜底：图标那套手势万一没起来，板子这一层也认一次长按。
+            //
+            // 手势仲裁偶尔会把触点判给别处，只留一条路的话，落了空就是「长按整个
+            // 桌面没反应」。`beginEditing()` 自己有 `guard !editing`，两条都命中
+            // 也只进一次。`maximumDistance` 卡在 12：手指一动就是在翻页，
+            // 不该顺带把桌面抖起来。
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.3, maximumDistance: 12)
+                    .onEnded { _ in beginEditing() }
+            )
             // 编辑模式下点一下空白退出。
             //
             // 上一版这里挂的是 simultaneousGesture(TapGesture)：它会跟图标上的
@@ -127,41 +137,42 @@ struct HomeBoard: View {
         switch slot {
         case .app(let appID):
             if let app = app(id: appID) {
-                // 名字由 `AppIconTile` 自己画：它还要按 `HomeTextInk` 决定黑白
-                // 和那圈描边阴影。这里再补一行就是两个名字叠在同一个位置。
-                Button {
-                    guard !editing else { return }
-                    onOpen(app)
-                } label: {
-                    AppIconTile(app: app).iconFrame(app)
-                }
-                .buttonStyle(IconPressStyle())
-                // 不要再按 `editing` 关掉命中：手势挂在这一层上，
-                // `allowsHitTesting(false)` 会连拖动手势一起挡掉，
-                // 编辑态里就按不动任何图标。打开动作由 action 自己的
-                // `guard !editing` 拦住，不需要在这一层拦。
-                .overlay(alignment: .topLeading) {
-                    if editing { removeBadge { remove(appID) } }
-                }
-                .jiggle(editing, phase: jigglePhase)
+                // 这里不能用 Button。
+                //
+                // 手势挂在 Button 上时，SwiftUI 会先让 Button 自己那套点击识别器
+                // 吃掉触点，同一层的「长按 + 拖动」根本收不到事件——长按不进编辑态、
+                // 也拎不起来，两条都是这个原因。换成普通视图之后，打开走
+                // onTapGesture，拖动走外面那个 sequenced 手势，两边不抢。
+                AppIconTile(app: app)
+                    .iconFrame(app)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard !editing else { return }
+                        onOpen(app)
+                    }
+                    .accessibilityAddTraits(.isButton)
+                    // 不要再按 `editing` 关掉命中：手势挂在这一层上，
+                    // `allowsHitTesting(false)` 会连拖动手势一起挡掉，
+                    // 编辑态里就按不动任何图标。打开动作由 onTapGesture
+                    // 自己那行 `guard !editing` 拦住。
+                    .overlay(alignment: .topLeading) {
+                        if editing { removeBadge { remove(appID) } }
+                    }
+                    .jiggle(editing, phase: jigglePhase)
             }
 
         case .folder(let folder):
             VStack(spacing: 5) {
-                Button {
-                    guard !editing else { return }
-                    openFolder = folder
-                } label: {
-                    FolderTile(apps: folder.appIDs.compactMap { app(id: $0) })
-                }
-                .buttonStyle(IconPressStyle())
-                // 不要再按 `editing` 关掉命中：手势挂在这一层上，
-                // `allowsHitTesting(false)` 会连拖动手势一起挡掉，
-                // 编辑态里就按不动任何图标。打开动作由 action 自己的
-                // `guard !editing` 拦住，不需要在这一层拦。
-                .overlay(alignment: .topLeading) {
-                    if editing { removeBadge { layout.ungroup(folderID: folder.id) } }
-                }
+                FolderTile(apps: folder.appIDs.compactMap { app(id: $0) })
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard !editing else { return }
+                        openFolder = folder
+                    }
+                    .accessibilityAddTraits(.isButton)
+                    .overlay(alignment: .topLeading) {
+                        if editing { removeBadge { layout.ungroup(folderID: folder.id) } }
+                    }
 
                 Text(folder.title)
                     .font(.system(size: 11))

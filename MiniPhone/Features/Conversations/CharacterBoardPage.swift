@@ -48,9 +48,21 @@ struct CharacterBoardPage: View {
             // 立绘本体。头像图铺满、底边渐隐进背景，看起来像站在光里而不是贴了张图。
             Group {
                 if let photo = character.avatarPhoto {
-                    Image(uiImage: photo)
-                        .resizable()
-                        .scaledToFill()
+                    // 原来只有一层 `scaledToFill` + 固定 380 高 + `clipped()`：
+                    // 尺寸跟这一块对不上的图会被切掉一截，横图切上下、竖图切两侧，
+                    // 脸落在框外的就是一张没头的立绘。现在整张放进去（`scaledToFit`），
+                    // 两侧空出来的地方垫同一张图的模糊副本，不露底色。
+                    ZStack {
+                        Image(uiImage: photo)
+                            .resizable()
+                            .scaledToFill()
+                            .blur(radius: 28)
+                            .opacity(0.5)
+
+                        Image(uiImage: photo)
+                            .resizable()
+                            .scaledToFit()
+                    }
                 } else {
                     fallbackFigure
                 }
@@ -92,10 +104,13 @@ struct CharacterBoardPage: View {
     /// 心情色做底，两团光拉开纵深。没有素材的时候，这一层就是「立绘」的全部氛围。
     private var backdrop: some View {
         ZStack {
+            // 原来这层跟着心情色走，心情是「平静」的时候整块是墨绿。
+            // 看板上要看的是人，底色一带颜色就抢——这里统一压到黑，
+            // 明暗只靠上面两团光撑。
             LinearGradient(
-                colors: moodColors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
+                colors: [Color(white: 0.16), Color.black],
+                startPoint: .top,
+                endPoint: .bottom
             )
 
             Circle()
@@ -110,10 +125,6 @@ struct CharacterBoardPage: View {
                 .blur(radius: 50)
                 .offset(x: 80, y: -40)
         }
-    }
-
-    private var moodColors: [Color] {
-        MoodColor.backdrop(mood?.mood)
     }
 
     /// 没有头像图时的替身：一个首字加一圈光。

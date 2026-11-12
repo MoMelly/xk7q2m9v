@@ -32,6 +32,7 @@ struct AppearancePage: View {
                     wallpaperSection
                     ChatBackgroundSection(settings: settings)
                     chatAvatarSection
+                    musicBallSection
                     desktopTextSection
                     videoSection
                 }
@@ -278,6 +279,25 @@ struct AppearancePage: View {
             .padding(.horizontal, PhoneMetrics.Space.m)
             .frame(minHeight: PhoneMetrics.Row.single)
             .onChange(of: settings.showChatAvatar) { _, _ in settings.persist() }
+        }
+    }
+
+    // MARK: - 悬浮球
+
+    private var musicBallSection: some View {
+        GroupedSection(
+            "音乐悬浮球",
+            footer: "有歌在放的时候页面上才会浮出这颗球，按住能拖到别处，位置记在这台机器上。关掉之后屏幕干净一些，要接着听就点「音乐」或者桌面上的音乐组件。"
+        ) {
+            Toggle(isOn: $settings.showMusicBall) {
+                Text("显示悬浮球")
+                    .font(.system(size: PhoneMetrics.FontSize.body))
+                    .foregroundStyle(Theme.label)
+            }
+            .tint(Theme.tint)
+            .padding(.horizontal, PhoneMetrics.Space.m)
+            .frame(minHeight: PhoneMetrics.Row.single)
+            .onChange(of: settings.showMusicBall) { _, _ in settings.persist() }
         }
     }
 
