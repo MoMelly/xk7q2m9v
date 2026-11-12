@@ -92,8 +92,16 @@ extension View {
 
 private struct KeyboardLiftModifier: ViewModifier {
     func body(content: Content) -> some View {
+        // 用 `safeAreaInset` 往里收，不要用 `padding` 往外顶。
+        //
+        // padding 会把这一块撑得比容器还高，容器按居中摆放，多出来的高度
+        // 上下各分一半——输入条确实落到了键盘上面，标题却同时被推出去
+        // 半截，和原来系统避让犯的是同一个错。safeAreaInset 是把可用区域
+        // 从底下缩掉键盘那么高，块本身不会超出容器，顶部自然不动。
         content
-            .padding(.bottom, KeyboardInset.shared.lift)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                Color.clear.frame(height: KeyboardInset.shared.lift)
+            }
             .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.lift)
     }
 }
