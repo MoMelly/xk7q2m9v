@@ -240,13 +240,14 @@ struct PhoneShellView: View {
         // 整机圆角。App 页、控制中心、通知都是铺到屏幕边缘的矩形，
         // 不裁这一层，展开动效和全屏页的四角都是尖的。
         //
-        // 必须先 `ignoresSafeArea` 再裁：裁剪按这一层的 frame 切，而壁纸和
-        // App 页的背景都往外铺到了屏幕边缘。先裁后铺的话，超出安全区的那一段
-        // 直接被切掉，上下各留一条黑边——就是这一版的现象。
-        .ignoresSafeArea()
-        .clipShape(
+        // 用 `mask` 而不是 `clipShape`：`clipShape` 会生成一个新的视图边界，
+        // 这个边界又被外层按安全区摆一次，结果整块内容被挤进安全区里，
+        // 上下各露一条黑边、Dock 还被裁掉半截。`mask` 只影响绘制，
+        // 布局一点不动，四角照样是圆的。
+        .mask {
             RoundedRectangle(cornerRadius: PhoneMetrics.screenCornerRadius, style: .continuous)
-        )
+                .ignoresSafeArea()
+        }
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .task { @MainActor in
