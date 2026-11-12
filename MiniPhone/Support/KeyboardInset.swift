@@ -72,36 +72,14 @@ final class KeyboardInset {
 }
 
 extension View {
-    /// 底部挂着输入条的页面用。
-    ///
-    /// 抬的是整块内容的下边，顶部不动——整块一起躲键盘的时候，标题就是
-    /// 这样被顶到屏幕外面的。用它的页面要同时声明 `ignoresSafeArea(.keyboard)`，
-    /// 否则系统还会再顶一次，两层叠起来抬得过高。
-    func keyboardLift() -> some View {
-        modifier(KeyboardLiftModifier())
-    }
-
     /// 表单、列表这类可以滚的页面用：给底部留出键盘那么高的一段，
     /// 光标落在下面的输入框时还滚得上来。
+    ///
+    /// 底部挂着输入条的页面不用它——那种页面要在这块内容里留一条等高的
+    /// 空档（见 `ChatView` 的输入条），不能让整块内容比容器高。
     func keyboardScrollRoom() -> some View {
         safeAreaInset(edge: .bottom, spacing: 0) {
             Color.clear.frame(height: KeyboardInset.shared.lift)
         }
-    }
-}
-
-private struct KeyboardLiftModifier: ViewModifier {
-    func body(content: Content) -> some View {
-        // 用 `safeAreaInset` 往里收，不要用 `padding` 往外顶。
-        //
-        // padding 会把这一块撑得比容器还高，容器按居中摆放，多出来的高度
-        // 上下各分一半——输入条确实落到了键盘上面，标题却同时被推出去
-        // 半截，和原来系统避让犯的是同一个错。safeAreaInset 是把可用区域
-        // 从底下缩掉键盘那么高，块本身不会超出容器，顶部自然不动。
-        content
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                Color.clear.frame(height: KeyboardInset.shared.lift)
-            }
-            .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.lift)
     }
 }
