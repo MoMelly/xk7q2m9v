@@ -395,18 +395,16 @@ struct PhoneShellView: View {
             // 取 first 会让所有预览（状态面板、提问箱、详情）都落到它头上，
             // 预置在世界状态里的数据全挂在那个人身上，一幅都对不上。
             //
-            // 这一层同时声明不理键盘：聊天页在输入条下面留一条和键盘等高的
-            // 空档，系统那套整块内容往上躲的做法会把标题推出屏幕。
-            // 内容铺满整屏，遮罩才算得准一整块。
+            // 键盘避让交给系统：它压窄内容区，聊天页的输入条跟着浮上来、标题留在原位。
+            // 这一层不要声明「不理键盘」——那样系统只能把整块内容往上翻译，
+            // 标题会被一起推出屏幕。
             if Self.opensChatDirectly,
                let character = companions.max(by: {
                    ($0.lastMessageAt ?? .distantPast) < ($1.lastMessageAt ?? .distantPast)
                }) {
                 ChatView(character: character, settings: settings, onExit: closeApp)
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
             } else {
                 ConversationListView(settings: settings, onExit: closeApp)
-                    .ignoresSafeArea(.keyboard, edges: .bottom)
             }
         case .moments:
             MomentsView(settings: settings, onExit: closeApp)

@@ -129,16 +129,8 @@ struct ChatView: View {
                     )
                 }
                 composer
-
-                // 键盘占掉的那一段，留成一条空档。不能往外加 padding 或安全区留白：
-                // 那样这一块会比容器高，容器居中摆放时多出来的高度上下各分一半，
-                // 标题就被推出屏幕——和系统避让犯的是同一个错。
-                Color.clear
-                    .frame(height: KeyboardInset.shared.lift)
-                    .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.lift)
             }
         }
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .onAppear {
             seedGreetingIfNeeded()
             // 截图流水线要拍表情面板 / 角色详情 / 通话这些层，冷启动点不到按钮，
@@ -157,10 +149,9 @@ struct ChatView: View {
                 showPhotos = true
                 isComposerActive = true
             case "chatKeyboard":
-                // 拍「键盘起来以后」的样子：模拟器冷启动弹不出软键盘，
-                // 用一个假高度把输入条抬到该在的位置。正常启动读不到这个键。
+                // 拍「键盘起来以后」的样子：把输入条点开，模拟器的软键盘跟着弹出来。
+                // 正常启动读不到这个键。
                 isComposerActive = true
-                KeyboardInset.shared.debugHeight = 336
                 isInputFocused = true
             case "charDetail", "board", "statePanel", "anonBox", "worldEntries", "groupDetail", "groupMemory", "groupMembers":
                 // board / statePanel / anonBox 是再往下压一层的页面，截图流水线
@@ -340,9 +331,9 @@ struct ChatView: View {
             .onChange(of: viewModel.streamingText) { _, _ in
                 proxy.scrollTo("bottom", anchor: .bottom)
             }
-            // 输入条一抬，可视区就短了一截。最后一条不跟上去，
+            // 键盘一起，可视区就短了一截。最后一条不跟上去，
             // 键盘上沿会正好压住刚聊的那半句。
-            .onChange(of: KeyboardInset.shared.lift) { _, _ in
+            .onChange(of: KeyboardInset.shared.height) { _, _ in
                 scrollToBottom(proxy)
             }
             .onAppear { scrollToBottom(proxy, animated: false) }
