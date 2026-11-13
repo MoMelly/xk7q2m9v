@@ -17,7 +17,7 @@ struct PersonaPage: View {
             ScrollView {
                 VStack(spacing: PhoneMetrics.Space.xl) {
                     GroupedSection(
-                        footer: "换身份不换记忆：角色记住的事挂在会话上，人设只决定他以为在跟谁说话。"
+                        footer: "每个身份有自己的一套聊天记录和记忆：换过去，角色是重新认识你；换回来，原来那段还在。"
                     ) {
                         ForEach(profiles) { profile in
                             if profile.uid != profiles.first?.uid {

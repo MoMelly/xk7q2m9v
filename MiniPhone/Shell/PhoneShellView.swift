@@ -84,7 +84,7 @@ struct PhoneShellView: View {
         case "phonePeek": destination = .scene(.phonePeek)
         case "couple": destination = .scene(.couple)
         case "storyGame", "storyPlay", "storyEnd": destination = .scene(.storyGame)
-        case "chatDetail", "chatMine", "chatCalls", "chatEditor", "chatStickers", "chatPhoto",
+        case "chatDetail", "chatMine", "identitySwitch", "chatCalls", "chatEditor", "chatStickers", "chatPhoto",
              "groupNew", "chatKeyboard",
              "chatDynamic", "chatGlass", "avatarPicker", "chatGroup", "groupDetail", "groupMemory",
              "groupMembers",

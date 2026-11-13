@@ -23,8 +23,10 @@ struct FeedThreadView: View {
         self.character = character
         self.settings = settings
         let thread = item.threadID.uuidString
+        // 也按身份取：换身份之后这段私信也是空的，跟信息那边一个口径。
+        let scope = IdentityScope.storedUID
         _messages = Query(
-            filter: #Predicate<StoredMessage> { $0.threadRaw == thread },
+            filter: #Predicate<StoredMessage> { $0.threadRaw == thread && $0.personaUID == scope },
             sort: [SortDescriptor(\StoredMessage.createdAt, order: .forward)]
         )
     }
@@ -158,13 +160,14 @@ struct FeedThreadView: View {
                 role: .user,
                 text: text,
                 channel: channel,
-                threadID: item.threadID
+                threadID: item.threadID,
+                personaUID: IdentityScope.storedUID
             )
             userMessage.character = character
             context.insert(userMessage)
             try? context.save()
 
-            let userName = UserProfileBook.resolve(uid: character.personaUID, in: context)?.name
+            let userName = UserProfileBook.resolve(uid: IdentityScope.storedUID, in: context)?.name
             switch await service.generateReply(
                 to: item,
                 character: character,
@@ -177,7 +180,8 @@ struct FeedThreadView: View {
                     role: .assistant,
                     text: reply,
                     channel: channel,
-                    threadID: item.threadID
+                    threadID: item.threadID,
+                    personaUID: IdentityScope.storedUID
                 )
                 assistant.character = character
                 context.insert(assistant)
