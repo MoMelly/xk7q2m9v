@@ -280,6 +280,27 @@ def check_secrets(path: Path, lines: list[str]) -> None:
             add_error(path, index, "疑似 API Key 明文，密钥只能存 Keychain")
 
 
+# 聊天底色（docs/EXPERIENCE.md §2-§3）：她打开小手机是为了放松，不是来交代
+# 行踪的。这条以前写的是「不要每次都反问」，太软，模型照样反问；所以设成闸，
+# 谁把这句话删了或改软了，CI 直接红。
+CHAT_TONE_MARKERS = [
+    ("MiniPhone/Domain/Roleplay/PromptBuilder.swift", "回复里不出现问句"),
+    ("MiniPhone/Domain/Roleplay/RoleplayPreset.swift", "回复里不出现问句"),
+    ("MiniPhone/Domain/Roleplay/CharacterClock.swift", "不要问对方这段时间"),
+]
+
+
+def check_chat_tone() -> None:
+    for relative, marker in CHAT_TONE_MARKERS:
+        path = ROOT / relative
+        if not path.is_file():
+            add_error(path, 0, "缺这个文件，聊天底色没法校验")
+            continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if marker not in text:
+            add_error(path, 0, f"缺少「{marker}」——追问/指责的口子会被模型放大")
+
+
 def main() -> int:
     files = swift_files()
     if not files:
@@ -300,6 +321,8 @@ def main() -> int:
         check_secrets(path, lines)
 
     print(f"检查了 {len(files)} 个 Swift 文件")
+
+    check_chat_tone()
 
     if warnings:
         print(f"\n警告 {len(warnings)} 条：")
