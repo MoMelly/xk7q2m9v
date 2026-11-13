@@ -114,6 +114,7 @@
 | C-25 | 未读红点 | ⛔ | 设定是「没有别人给你发消息」，红点破坏前提 |
 | C-26 | 输入栏默认收起，点了才展开 | ✅ | |
 | C-27 | 换行 / 多行输入（1–4 行） | ✅ | |
+| C-29 | 聊天页的心声入口（输入栏一颗心，点开看他此刻在想什么） | ✅ | `Features/Chat/VoiceSheet.swift`：半屏面板，读 `PersonMemory.voices` 里 `isResolved == false` 的条目，按时间倒序；已了结的折叠在下面；不跳页 |
 
 ### 3.3 角色与记忆（M）
 
@@ -170,6 +171,10 @@
 | P-17 | 设置：整宽分组列表 + 彩色小图标 + 二级页 | ✅ | `SettingsView` |
 | P-18 | 市集（西瓜皮里的双列商品流） | ✅ | `MarketView` |
 | P-19 | 购物不再单独占桌面图标 | ✅ | |
+| P-20 | 把自己手上的 TXT 导进来读（书架 + 导入 + 分段进度 + 四档字号） | ✅ | `Features/Reading/*`：`ReadingScene`、`BookPaginator`（分段）、`ReaderSettings`（四档字号）；笔记在 `BookNotesPage` |
+| P-21 | 今日日程能直接点开看 | 🟡 | `Features/Scenes/CalendarScene.swift`、`ScheduleBlock.swift`：时间轴条目点了还没反应；要做成半屏卡（时间、地点、同去、备注）+ 三个动作（跟他提一句 / 改时间 / 删掉） |
+| P-22 | 查手机前端拟真（八个板块 + 固定模板生成） | ✅ | `Features/Peek/*`：`PhoneBasicPages`、`PhoneLifePages`、`PhoneAlbumPage`、`PhoneChatPages`、`CharacterPhoneScene` |
+| P-24 | 私密档默认锁着（`secret` 瞒着你的事 / `private` 只属于两个人的记录） | ✅ | `Features/Peek/PhoneLifePages.swift`（落盘时加锁）+ `Settings/BehaviorPage.swift`（开关）；提示词里 `private` 写情绪和场景、不写身体细节 |
 
 ### 3.5 西瓜皮（F）
 
@@ -188,6 +193,7 @@
 | F-11 | 真直播间：场景图、在线人数、滚动弹幕、礼物、主播接话 | ✅ | `LiveRoomPage` |
 | F-12 | 匿名提问箱问答，回答写进记忆 | ✅ | `AnonymousBoxPage`；提问人记作「匿名 N 号」，但答完回写记忆时不带代号——他本来就不知道是谁问的 |
 | F-13 | 动态配图用 AI 生图 | ⛔ | 2026-11-10 撤掉。原意是「封面随机」——`NoteCover` 按标题和 `coverSeed` 现场排文字图，本来就不需要真图。按张收费的接口做进来只是一条额外的花钱路径，已整套回滚 |
+| F-14 | 论坛（分区、帖子列表、楼中楼） | ⬜ | 没有。西瓜皮现在只有单列帖子（`FeedScene`）+ 匿名提问箱（`F-12`），不是论坛；形态待你定 |
 
 ### 3.6 玩法（G）
 
