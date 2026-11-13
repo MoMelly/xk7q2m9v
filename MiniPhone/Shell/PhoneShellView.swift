@@ -151,7 +151,7 @@ struct PhoneShellView: View {
             }
 
             if let app = openedApp {
-                appLayer(app)
+                appLayerBox(app)
                     // 遮罩要铺到整屏：App 页的背景自己会往安全区外延伸，
                     // 遮罩只按安全区算的话，上下会各裁掉一条、露出壁纸。
                     .mask { launchMask.ignoresSafeArea() }
@@ -402,26 +402,31 @@ struct PhoneShellView: View {
 
     // MARK: - App 层
 
+    /// App 层的外框。
+    ///
+    /// 平时原样交给系统；键盘弹起时套一层 GeometryReader，把外壳自己的顶边量出来
+    /// 交给聊天页去钉位置（见 `chatLayer`）。只在键盘在的时候套，是为了不改变
+    /// 常规状态下的布局——GeometryReader 会换掉子视图的对齐和安全区传递方式。
     @ViewBuilder
-    private func appLayer(_ app: PhoneApp) -> some View {
+    private func appLayerBox(_ app: PhoneApp) -> some View {
+        if KeyboardInset.shared.isUp {
+            GeometryReader { proxy in
+                appLayer(app, origin: proxy.frame(in: .global).minY)
+            }
+        } else {
+            appLayer(app)
+        }
+    }
+
+    @ViewBuilder
+    private func appLayer(_ app: PhoneApp, origin: CGFloat = 0) -> some View {
         switch app.destination {
         case .chat:
             // 截图直开时挑「最近说过话的那个人」，和主屏组件、查手机用的是
             // 同一条规则。不能取列表第一个：内置小助手最先建、sortIndex 又靠前，
             // 取 first 会让所有预览（状态面板、提问箱、详情）都落到它头上，
             // 预置在世界状态里的数据全挂在那个人身上，一幅都对不上。
-            //
-            // 键盘避让交给系统：它压窄内容区，聊天页的输入条跟着浮上来、标题留在原位。
-            // 这一层不要声明「不理键盘」——那样系统只能把整块内容往上翻译，
-            // 标题会被一起推出屏幕。
-            if Self.opensChatDirectly,
-               let character = companions.max(by: {
-                   ($0.lastMessageAt ?? .distantPast) < ($1.lastMessageAt ?? .distantPast)
-               }) {
-                ChatView(character: character, settings: settings, onExit: closeApp)
-            } else {
-                ConversationListView(settings: settings, onExit: closeApp)
-            }
+            chatLayer(origin: origin)
         case .moments:
             MomentsView(settings: settings, onExit: closeApp)
         case .settings:
@@ -431,6 +436,38 @@ struct PhoneShellView: View {
         case .placeholder:
             // 占位图标不会走进来，open(_:) 里已经拦掉了。
             EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private func chatLayer(origin: CGFloat) -> some View {
+        let layer = Group {
+            if Self.opensChatDirectly,
+               let character = companions.max(by: {
+                   ($0.lastMessageAt ?? .distantPast) < ($1.lastMessageAt ?? .distantPast)
+               }) {
+                ChatView(character: character, settings: settings, onExit: closeApp)
+            } else {
+                ConversationListView(settings: settings, onExit: closeApp)
+            }
+        }
+
+        // 键盘弹起时，这一层的位置不再听系统的。
+        //
+        // 截图量过：键盘 335 高，系统只给 215 的底部安全区，顶部安全区还从 62
+        // 掉到 0——外壳的框因此变成 -28..659：标题被顶出屏幕，输入条被压到键盘后面。
+        // 试过 padding、等高空档、safeAreaInset、给整页定高、根节点关掉避让，
+        // 系统都会连带改容器，怎么让都不对。
+        //
+        // 所以直接钉住：这一层的高度取「状态栏下沿 → 键盘上沿」，再按实测的外壳
+        // 顶边把它挪回原位。键盘不在时原样交给系统，非聊天页一律不碰。
+        if KeyboardInset.shared.isUp {
+            layer
+                .frame(height: KeyboardInset.pinnedHeight, alignment: .top)
+                .offset(y: KeyboardInset.topSafeArea - origin)
+                .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.height)
+        } else {
+            layer
         }
     }
 

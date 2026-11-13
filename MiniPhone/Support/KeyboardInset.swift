@@ -28,6 +28,14 @@ final class KeyboardInset {
 
     var isUp: Bool { height > 0 }
 
+    /// 键盘弹起时，聊天页应当占的高度：状态栏下沿到键盘上沿。
+    ///
+    /// 系统在这层假手机壳里给的安全区不可信（键盘 335 只给 215，顶部还会掉成 0），
+    /// 所以这个数自己算，聊天页按它钉死高度。
+    static var pinnedHeight: CGFloat {
+        max(200, UIScreen.main.bounds.height - topSafeArea - KeyboardInset.shared.height)
+    }
+
     /// 顶部安全区，取窗口的。App 层铺满整屏之后，上下这两条要自己补回来。
     static var topSafeArea: CGFloat {
         window?.safeAreaInsets.top ?? 0

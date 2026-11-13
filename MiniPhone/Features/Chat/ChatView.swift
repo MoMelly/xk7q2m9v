@@ -129,14 +129,6 @@ struct ChatView: View {
                     )
                 }
                 composer
-                    // 键盘起来时只把这一条往上抬，不改布局尺寸。
-                    //
-                    // 试过的几种改布局的做法（抬 padding、留等高空档、让安全区、
-                    // 给整页定高）都会连带动到容器：要么标题被顶出屏幕，要么内容区
-                    // 被压成一半。offset 只挪画面，容器尺寸和标题位置都不变——
-                    // 对话区那边已经按同样的高度补了底部留白，最后几条不会被压住。
-                    .offset(y: -KeyboardInset.shared.lift)
-                    .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.lift)
             }
         }
         .keyboardProbe()
@@ -325,9 +317,6 @@ struct ChatView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 4)
                 .padding(.bottom, 10)
-                // 输入条是浮在对话区上方的（见 composer 的 offset），
-                // 最后几条要留出它的高度加键盘那一段，不然会被压在下面。
-                .padding(.bottom, KeyboardInset.shared.lift)
             }
             .scrollDismissesKeyboard(.interactively)
             .onChange(of: pinnedTarget) { _, new in
