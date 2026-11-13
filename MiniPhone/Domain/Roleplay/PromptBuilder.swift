@@ -106,6 +106,14 @@ enum PromptBuilder {
                 lines.append("你没见过他别的资料。不知道的事就问，不要替他补设定。")
             }
             lines.append("按这个身份跟他说话：称呼、语气、分寸都按你和他现在的关系来。")
+            // 这部手机里可以有好几个身份。对角色来说，那是不同的人，
+            // 不是同一个人换了名字——不写这一句，模型会拿同一个人的
+            // 记忆去接另一个身份的对话，等于把两个人的私事串了。
+            lines.append("""
+            这部手机里可能还有别人用别的身份来找你。那是另一个人，不是这个人换了个名字、\
+            也不是他的小号：不要把两个人的事混在一起，不要跟这个人提另一个人跟你说过什么，\
+            也不要拿「上次你不是说……」去接另一个身份的话。
+            """)
             blocks.append("【对方是谁】\n" + lines.joined(separator: "\n"))
         }
 
@@ -204,7 +212,7 @@ enum PromptBuilder {
         // 那是群主自己单聊的记忆，塞进来会让群里其他人以为那些事发生在群里。
         // 只有完全拿不到世界状态时才退回会话自带的那一份。
         if worldContext == nil {
-            let memory = character.memorySummary.trimmingCharacters(in: .whitespacesAndNewlines)
+            let memory = character.activeMemorySummary.trimmingCharacters(in: .whitespacesAndNewlines)
             if !memory.isEmpty {
                 blocks.append("【你记得的往事】\n" + memory)
             }

@@ -18,6 +18,8 @@ struct MyProfilePage: View {
     /// 同一层视图上挂多个 sheet，iOS 只会保证最后一个能弹出来——
     /// 名字和简介点了没反应就是这个原因。现在收成一个枚举驱动。
     @State private var activeEditor: ActiveEditor?
+    /// 切换身份的面板。为了让拆出去的那段能改它，这里不带 private。
+    @State var showIdentitySwitch = UserDefaults.standard.string(forKey: "previewState") == "identitySwitch"
     /// 拍一拍后缀的编辑框。用 alert 带一个输入框，够用，不再单开一页。
     @State private var showPatEditor = false
     @State private var patDraft = ""
@@ -31,6 +33,8 @@ struct MyProfilePage: View {
         ScrollView {
             VStack(spacing: PhoneMetrics.Space.m) {
                 header
+
+                identitySection
 
                 // 状态和签名紧跟在头像名字下面，是这页最常动的两行；
                 // 名字设完基本不再碰，排最后。
@@ -221,6 +225,11 @@ struct MyProfilePage: View {
             editorPage(editor)
                 .environment(\.colorScheme, .light)
                 .onDisappear(perform: save)
+        }
+        // 换身份走整页而不是 sheet：这一层已经挂了一个 sheet，
+        // 同一层再挂第二个，iOS 只保证最后那个能弹出来（这一页以前就栽过）。
+        .fullScreenCover(isPresented: $showIdentitySwitch) {
+            IdentitySwitchSheet(onClose: { showIdentitySwitch = false })
         }
     }
 

@@ -23,6 +23,11 @@ struct HomeBoard: View {
     /// 鼠标悬停语义：手指当前压在哪一格上，用来判要不要换位。
     @State private var hover: Int?
     @State private var openFolder: HomeSlot.Folder?
+    /// 等着确认要卸掉的那一格。
+    ///
+    /// 减号原来一点就没了：她误触过一次，桌面上的图标当场消失，还以为数据一起删了。
+    /// 现在先问一句，并且说清楚「只是拿走图标」。
+    @State private var pendingRemoval: Removal?
     /// 翻页用的瞬时位移。松手后归零，由 `page` 接手。
     @State private var swipeOffset: CGFloat = 0
     /// 刚进编辑态的时刻。
@@ -46,7 +51,12 @@ struct HomeBoard: View {
             }
             .frame(width: size.width, height: size.height, alignment: .leading)
             .coordinateSpace(name: "homeBoard")
-            .clipped()
+            // 只裁左右，不裁上下。
+            //
+            // 原来这里是一整块 `.clipped()`：编辑模式下把图标往上或往下拖，
+            // 一出网格就被切掉半截；第一排左上角的减号也被上边缘裁掉一块。
+            // 翻页仍然要裁（相邻那页会滑进屏幕），所以横着裁、竖着放任它画出去。
+            .clipShape(BoardWindow())
             .contentShape(Rectangle())
             .gesture(pagingGesture(size: size))
             // 兜底：图标那套手势万一没起来，板子这一层也认一次长按。
@@ -67,8 +77,9 @@ struct HomeBoard: View {
             // 「只有第一次点击有效果」就是这条。
             .onTapGesture { location in
                 // 0.45 秒内不认：那一下是长按松手，不是「点空白」。
-                guard editing, dragging == nil,
-                      Date().timeIntervalSince(editingSince) > 0.45 else { return }
+                // 这里不再要求 `dragging == nil`——手势被系统打断时那一位可能
+                // 一直挂着，卡住的话点哪儿都退不出编辑态。退出时顺手清掉。
+                guard editing, Date().timeIntervalSince(editingSince) > 0.45 else { return }
                 exitEditing(at: location, metrics: PhoneBoardMetrics(size: size))
             }
         }
@@ -88,6 +99,30 @@ struct HomeBoard: View {
         }
         .onChange(of: pages.count) { _, newValue in
             if page >= newValue { page = max(0, newValue - 1) }
+        }
+        // 退出编辑态时把拖拽留下的一切清干净。
+        //
+        // 手势中途被别的东西打断（弹窗、来电浮层）时 `onEnded` 不一定会走，
+        // `dragging` 就停在那儿：那颗图标一直浮着，翻页和「点空白退出」全被它挡住，
+        // 看上去就是「桌面卡在编辑状态，点什么都点不进去」。
+        .onChange(of: editing) { _, now in
+            guard !now else { return }
+            dragging = nil
+            hover = nil
+            swipeOffset = 0
+        }
+        .confirmationDialog(
+            pendingRemoval.map { "把「\($0.name)」从桌面移除？" } ?? "",
+            isPresented: Binding(
+                get: { pendingRemoval != nil },
+                set: { if !$0 { pendingRemoval = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("从桌面移除", role: .destructive) { confirmRemoval() }
+            Button("取消", role: .cancel) { pendingRemoval = nil }
+        } message: {
+            Text("只是拿走这个图标，聊天记录和里面的东西都还在。想装回来去底栏的「应用商店」。")
         }
     }
 
@@ -416,15 +451,38 @@ struct HomeBoard: View {
     }
 
     private func remove(_ appID: String) {
-        var next = layout
-        for pageIndex in next.pages.indices {
-            if let index = next.pages[pageIndex].firstIndex(where: { $0.appIDs == [appID] }) {
-                next.pages[pageIndex].remove(at: index)
-                break
-            }
+        guard let app = app(id: appID) else { return }
+        pendingRemoval = Removal(id: appID, name: app.name)
+    }
+
+    private func confirmRemoval() {
+        guard let pending = pendingRemoval else { return }
+        pendingRemoval = nil
+        // 落在 HomeLayout 里：应用商店装回去用的是同一套读写，两边不会各写一份。
+        HomeLayout.remove(pending.id)
+        withAnimation(.easeOut(duration: 0.2)) {
+            layout = HomeLayout.load().pruned()
         }
-        withAnimation(.easeOut(duration: 0.2)) { layout = next }
-        layout.save()
+    }
+}
+
+/// 减号按下去之后要确认的那一格。
+struct Removal: Identifiable {
+    let id: String
+    let name: String
+}
+
+/// 桌面网格的可见范围：横着裁到板子，竖着几乎不裁。
+///
+/// 翻页靠横向位移，必须裁；拖拽是竖向的，裁了就成「拖出两行就消失」。
+struct BoardWindow: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path(CGRect(
+            x: rect.minX,
+            y: rect.minY - 600,
+            width: rect.width,
+            height: rect.height + 1_200
+        ))
     }
 }
 
@@ -474,13 +532,16 @@ struct PhoneBoardMetrics {
         )
     }
 
-    /// 落在哪一格。超出一页范围返回 nil。
+    /// 落在哪一格。
+    ///
+    /// 网格外面也照样给一格（取最近的列和行）：手指往组件那边或者 Dock 那边
+    /// 一偏就返回 nil 的话，换位会忽然停住，感觉像拖拽只认这两行。
     func slotIndex(at point: CGPoint) -> Int? {
-        let col = Int((point.x / (cellWidth + hSpacing)).rounded(.down))
-        let row = Int((point.y / (cellHeight + vSpacing)).rounded(.down))
-        guard (0..<columns).contains(col), (0..<PhoneBoardMetrics.rows).contains(row) else {
-            return nil
-        }
+        guard size.width > 0, cellWidth > 0 else { return nil }
+        let rawCol = Int((point.x / (cellWidth + hSpacing)).rounded(.down))
+        let rawRow = Int((point.y / (cellHeight + vSpacing)).rounded(.down))
+        let col = min(max(0, rawCol), columns - 1)
+        let row = min(max(0, rawRow), PhoneBoardMetrics.rows - 1)
         return row * columns + col
     }
 }

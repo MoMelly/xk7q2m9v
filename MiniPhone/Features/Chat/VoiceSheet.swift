@@ -9,7 +9,7 @@ struct CharacterVoicesSheet: View {
     var onClose: () -> Void
 
     private var all: [InnerVoiceEntry] {
-        WorldStore.shared.state.people.first { $0.name == name }?.voices ?? []
+        WorldStore.shared.state.person(named: name)?.voices ?? []
     }
 
     /// 没解开的在前。解开的留在下面，不删——他当时确实这么想过。

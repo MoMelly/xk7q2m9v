@@ -19,6 +19,8 @@ struct PhoneShellView: View {
     @State private var appLaunchAnchor: CGRect = .zero
     /// 主屏上报的图标位置，按 App id 索引。
     @State private var iconFrames: [String: CGRect] = [:]
+    /// 桌面布局被改过的次数（应用商店装/卸）。回桌面时让主屏重读一遍。
+    @State private var deskRevision = 0
     @State private var toastText: String?
     @State private var toastTask: Task<Void, Never>?
     @State private var noticeTask: Task<Void, Never>?
@@ -70,6 +72,7 @@ struct PhoneShellView: View {
         case "chat": destination = .chat
         case "moments": destination = .moments
         case "settings", "theme", "memoryLibrary": destination = .settings
+        case "store": destination = .appStore
         case "calendar": destination = .scene(.calendar)
         case "notes": destination = .scene(.notes)
         case "music", "musicBall", "musicLyrics": destination = .scene(.music)
@@ -133,7 +136,8 @@ struct PhoneShellView: View {
                     videoWallpaperEnabled: settings.videoWallpaperEnabled && !settings.discreetMode,
                     musicPlaying: player.isPlaying,
                     musicProgress: player.progress,
-                    hidesWidgets: settings.discreetMode
+                    hidesWidgets: settings.discreetMode,
+                    layoutRevision: deskRevision
                 )
                 .transition(.opacity)
                 .onPreferenceChange(IconFramePreferenceKey.self) { frames in
@@ -388,25 +392,25 @@ struct PhoneShellView: View {
 
     /// App 层的外框。
     ///
-    /// 平时原样交给系统。键盘弹起时这一层的位置不再听系统的：截图量到键盘 335 高，
-    /// 系统只给 215 的底部安全区，顶部安全区还从 62 掉成 0，外壳的框变成 -28..659
-    /// ——标题被顶出屏幕，输入条压在键盘后面。padding、等高空档、safeAreaInset、
-    /// 整页定高、根节点关避让，这几种都试过，系统每次都会连带改掉容器。
+    /// 键盘弹起时这一层的位置不再听系统的：截图量到键盘 335 高，系统只给 215 的
+    /// 底部安全区，顶部安全区还从 62 掉成 0，外壳的框变成 -28..659——标题被顶出
+    /// 屏幕，输入条压在键盘后面。padding、等高空档、safeAreaInset、整页定高、
+    /// 根节点关避让，这几种都试过，系统每次都会连带改掉容器。
     ///
     /// 所以直接钉：高度取 pinnedHeight（屏高 − 顶部安全区 − 键盘高），再按实测的
-    /// 外壳顶边挪回原位，框正好是「状态栏下沿 → 键盘上沿」。键盘不在时走原路。
-    /// 聊天、文游、私信这几个底部挂输入条的页面都靠这一层，所以钉在外框而不是某一页。
-    @ViewBuilder
+    /// 外壳顶边挪回原位，框正好是「状态栏下沿 → 键盘上沿」。
+    ///
+    /// 这里**不能**按 `isUp` 分成两个分支。视图结构一变，这棵子树整体重建，
+    /// 正挂在上面弹窗里的输入框会被连根拔掉：点「新建身份」刚弹出编辑页、
+    /// 一碰输入框键盘一起来，弹窗就没了，看着像闪退。所以 GeometryReader
+    /// 常驻，键盘只改数值（高度传 nil 就是原尺寸），结构始终一模一样。
     private func appLayerBox(_ app: PhoneApp) -> some View {
-        if KeyboardInset.shared.isUp {
-            GeometryReader { proxy in
-                appLayer(app)
-                    .frame(height: KeyboardInset.pinnedHeight, alignment: .top)
-                    .offset(y: KeyboardInset.topSafeArea - proxy.frame(in: .global).minY)
-                    .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.height)
-            }
-        } else {
+        GeometryReader { proxy in
+            let pinned = KeyboardInset.shared.isUp
             appLayer(app)
+                .frame(height: pinned ? KeyboardInset.pinnedHeight : nil, alignment: .top)
+                .offset(y: pinned ? KeyboardInset.topSafeArea - proxy.frame(in: .global).minY : 0)
+                .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.height)
         }
     }
 
@@ -430,6 +434,8 @@ struct PhoneShellView: View {
             MomentsView(settings: settings, onExit: closeApp)
         case .settings:
             SettingsView(settings: settings, onExit: closeApp)
+        case .appStore:
+            AppStorePage(onExit: closeApp)
         case .scene(let kind):
             ScenePage(kind: kind, settings: settings, world: world, onExit: closeApp)
         case .placeholder:
@@ -508,7 +514,7 @@ struct PhoneShellView: View {
 
     private func open(_ app: PhoneApp) {
         switch app.destination {
-        case .chat, .moments, .settings, .scene:
+        case .chat, .moments, .settings, .appStore, .scene:
             // 先把画面挂上、再让裁剪从小长到大。
             // 反过来做（先动画再建视图）动画会等视图建完，就是那下卡顿。
             appLaunchAnchor = iconFrames[app.id] ?? .zero
@@ -535,6 +541,9 @@ struct PhoneShellView: View {
     }
 
     private func closeApp() {
+        // 回桌面时让主屏重读一次布局：应用商店可能刚装过或卸过图标。
+        deskRevision += 1
+
         if let app = openedApp, let start = openedAt {
             world.noteUsage(appName: app.name, seconds: Date().timeIntervalSince(start))
         }

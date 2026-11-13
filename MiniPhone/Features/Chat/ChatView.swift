@@ -50,8 +50,12 @@ struct ChatView: View {
         self.settings = settings
         self.onExit = onExit
         let uid = character.uid
+        // 只取当前身份这一段。换身份进来是一段空对话，不是同一段历史换个称呼。
+        let scope = IdentityScope.storedUID
         _messages = Query(
-            filter: #Predicate<StoredMessage> { $0.characterUID == uid && $0.channelRaw == "chat" },
+            filter: #Predicate<StoredMessage> {
+                $0.characterUID == uid && $0.channelRaw == "chat" && $0.personaUID == scope
+            },
             sort: [SortDescriptor(\StoredMessage.createdAt, order: .forward)]
         )
     }
@@ -572,12 +576,21 @@ struct ChatView: View {
 
     /// 第一次打开时把开场白落成一条消息。
     /// 判空用关系而不是 `@Query`，因为后者第一帧还没加载完，会重复插入。
+    ///
+    /// 判的是「这个身份有没有聊过」，不是「这个角色有没有消息」：
+    /// 新身份推门进来，角色得重新说一遍第一句，不然他像是在跟一个
+    /// 自己毫无印象的人接着上次的话说。
     private func seedGreetingIfNeeded() {
-        guard character.messages.isEmpty else { return }
+        guard character.scopedMessages.isEmpty else { return }
         let greeting = character.greeting.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !greeting.isEmpty else { return }
 
-        let message = StoredMessage(characterUID: character.uid, role: .assistant, text: greeting)
+        let message = StoredMessage(
+            characterUID: character.uid,
+            role: .assistant,
+            text: greeting,
+            personaUID: IdentityScope.storedUID
+        )
         message.character = character
         context.insert(message)
         try? context.save()

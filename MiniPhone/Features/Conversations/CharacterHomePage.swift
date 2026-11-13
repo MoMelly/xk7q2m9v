@@ -23,7 +23,7 @@ struct CharacterHomePage: View {
     }
 
     private var person: PersonMemory? {
-        world.state.people.first { $0.name == character.name }
+        world.state.person(named: character.name)
     }
 
     /// 相处天数从第一次对话算起，不是从建角色算起——

@@ -94,6 +94,50 @@ struct HomeLayout: Codable {
         UserDefaults.standard.removeObject(forKey: Self.storageKey)
     }
 
+    // MARK: - 装 / 卸
+
+    /// 桌面上有没有这个 App（文件夹里也算）。
+    func contains(_ appID: String) -> Bool {
+        pages.contains { page in page.contains { $0.appIDs.contains(appID) } }
+    }
+
+    /// 装到桌面：追加到最后一页，满 8 个就另起一页。
+    ///
+    /// 不插队到第一页：用户的排布是有习惯的，新装的 App 顶掉别人的位置
+    /// 比「多翻一页」更烦。App 本身来自清单，这里只写桌面这一格。
+    static func install(_ appID: String) {
+        var layout = load().pruned()
+        guard !layout.contains(appID) else { return }
+        guard !layout.pages.isEmpty else {
+            HomeLayout(pages: [[.app(appID)]]).save()
+            return
+        }
+        var last = layout.pages.count - 1
+        if layout.pages[last].count >= perPage {
+            layout.pages.append([])
+            last += 1
+        }
+        layout.pages[last].append(.app(appID))
+        layout.save()
+    }
+
+    /// 从桌面卸掉。只动桌面这一格，App 本身和它的数据都不受影响。
+    static func remove(_ appID: String) {
+        var layout = load().pruned()
+        for pageIndex in layout.pages.indices {
+            if let index = layout.pages[pageIndex].firstIndex(where: { $0.appIDs == [appID] }) {
+                layout.pages[pageIndex].remove(at: index)
+                break
+            }
+        }
+        HomeLayout(pages: layout.pages.filter { !$0.isEmpty }).save()
+    }
+
+    /// 恢复默认桌面：清单里的 App 全部装回来，按默认顺序排。
+    static func restoreStandard() {
+        standard().save()
+    }
+
     // MARK: - 位置
 
     /// 找出某一格在哪一页第几个。

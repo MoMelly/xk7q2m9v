@@ -53,6 +53,8 @@ enum DataBackup {
             var channelRaw: String?
             var threadRaw: String?
             var isPat: Bool?
+            /// 这条消息属于哪个身份。老备份没有，恢复时按默认身份。
+            var personaUID: String?
         }
 
         struct Char: Codable {
@@ -71,6 +73,8 @@ enum DataBackup {
             var sortIndex: Int
             var lastMessageAt: Date?
             var memorySummary: String
+            /// 每个身份各自那份摘要（JSON）。老备份没有就是空。
+            var memoryByPersonaRaw: String?
             var memoryCursor: Date?
             var totalReplies: Int
             var messages: [Msg]
@@ -202,6 +206,8 @@ enum DataBackup {
                         sortIndex: character.sortIndex,
                         lastMessageAt: character.lastMessageAt,
                         memorySummary: character.memorySummary,
+                        memoryByPersonaRaw: character.memoryByPersonaRaw.isEmpty
+                            ? nil : character.memoryByPersonaRaw,
                         memoryCursor: character.memoryCursor,
                         totalReplies: character.totalReplies,
                         messages: character.messages
@@ -226,7 +232,8 @@ enum DataBackup {
                                     channelRaw: $0.channelRaw == MessageChannel.chat.rawValue
                                         ? nil : $0.channelRaw,
                                     threadRaw: $0.threadRaw.isEmpty ? nil : $0.threadRaw,
-                                    isPat: $0.isPat ? true : nil
+                                    isPat: $0.isPat ? true : nil,
+                                    personaUID: $0.personaUID.isEmpty ? nil : $0.personaUID
                                 )
                             },
                         signature: character.signature,
@@ -406,6 +413,7 @@ enum DataBackup {
             character.createdAt = item.createdAt
             character.lastMessageAt = item.lastMessageAt
             character.memorySummary = item.memorySummary
+            character.memoryByPersonaRaw = item.memoryByPersonaRaw ?? ""
             character.memoryCursor = item.memoryCursor
             character.totalReplies = item.totalReplies
             character.signature = item.signature ?? ""
@@ -430,7 +438,8 @@ enum DataBackup {
                     text: message.text,
                     speaker: message.speaker,
                     isNarration: message.isNarration,
-                    createdAt: message.createdAt
+                    createdAt: message.createdAt,
+                    personaUID: message.personaUID ?? ""
                 )
                 stored.imageSeed = message.imageSeed ?? 0
                 stored.isRecalled = message.isRecalled ?? false

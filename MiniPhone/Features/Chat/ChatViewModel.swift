@@ -44,7 +44,8 @@ final class ChatViewModel {
             characterUID: character.uid,
             role: .user,
             text: text,
-            imageSeed: imageSeed
+            imageSeed: imageSeed,
+            personaUID: IdentityScope.storedUID
         )
         userMessage.quoteSpeaker = quoteSpeaker
         userMessage.quoteText = quoteText
@@ -79,7 +80,12 @@ final class ChatViewModel {
         let suffix = character.patSuffix.isEmpty ? "的肩膀" : character.patSuffix
         let line = "\(myName) 拍了拍 \(character.name)\(suffix)"
 
-        let message = StoredMessage(characterUID: character.uid, role: .user, text: line)
+        let message = StoredMessage(
+            characterUID: character.uid,
+            role: .user,
+            text: line,
+            personaUID: IdentityScope.storedUID
+        )
         message.isPat = true
         message.character = character
         context.insert(message)
@@ -90,7 +96,7 @@ final class ChatViewModel {
     /// 攒下的话等够了吗：最后一条是用户发的（或者还没聊过），就该对方接了。
     /// 界面拿它点亮「回话」键；对方回过之后键就熄掉。
     func hasPendingUserMessages(for character: Companion) -> Bool {
-        let last = character.messages
+        let last = character.scopedMessages
             .filter { $0.channel == .chat }
             .sorted { $0.createdAt < $1.createdAt }
             .last
@@ -138,7 +144,7 @@ final class ChatViewModel {
         settings: SettingsStore
     ) async {
         guard !isStreaming else { return }
-        let sorted = character.messages
+        let sorted = character.scopedMessages
             .filter { $0.channel == .chat }
             .sorted { $0.createdAt < $1.createdAt }
         guard let last = sorted.last, last.role == .assistant else { return }
@@ -175,7 +181,7 @@ final class ChatViewModel {
         // 对着「刚从西瓜皮转来的那条帖子」继续往下聊，而且和
         // `hasPendingUserMessages`、`regenerate` 的口径对不上。
         let history = Array(
-            character.messages
+            character.scopedMessages
                 .filter { $0.channel == .chat }
                 .sorted { $0.createdAt < $1.createdAt }
                 .suffix(plan.contextWindow)
@@ -189,9 +195,10 @@ final class ChatViewModel {
 
         let allEntries = (try? context.fetch(FetchDescriptor<WorldEntry>())) ?? []
 
-        // 这个会话用哪个身份。角色记得的事不跟着换，换的只是他以为在跟谁说话。
+        // 说话的是当前身份。不再读每条会话上那个「这个会话用谁」的字段：
+        // 身份是全局切的，会话上那个值只在老数据里还留着。
         let identity = UserProfileBook
-            .resolve(uid: character.personaUID, in: context)
+            .resolve(uid: IdentityScope.storedUID, in: context)
             .map { profile in
                 UserIdentity(
                     name: profile.name,
@@ -225,7 +232,7 @@ final class ChatViewModel {
                 named: character.name,
                 wakeHour: character.wakeHour,
                 sleepHour: character.sleepHour,
-                replies: character.messages.filter { $0.role == .assistant }.count
+                replies: character.scopedMessages.filter { $0.role == .assistant }.count
             )
         }
 
@@ -360,7 +367,8 @@ final class ChatViewModel {
                     speaker: line.speaker,
                     isNarration: line.isNarration,
                     imageSeed: body.seed,
-                    createdAt: Date().addingTimeInterval(Double(offset) * 0.001)
+                    createdAt: Date().addingTimeInterval(Double(offset) * 0.001),
+                    personaUID: IdentityScope.storedUID
                 )
                 message.character = character
                 context.insert(message)

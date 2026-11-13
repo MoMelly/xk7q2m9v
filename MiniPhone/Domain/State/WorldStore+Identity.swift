@@ -101,7 +101,9 @@ extension WorldStore {
         let target = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !target.isEmpty else { return }
 
-        if let index = state.people.firstIndex(where: { $0.name == target }) {
+        if let index = state.people.firstIndex(where: {
+            $0.name == target && $0.personaUID == IdentityScope.storedUID
+        }) {
             state.people[index].facts.removeAll()
             state.people[index].voices.removeAll()
             state.people[index].summary = ""

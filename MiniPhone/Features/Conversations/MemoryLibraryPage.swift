@@ -31,7 +31,7 @@ struct MemoryLibraryPage: View {
     private var rememberedPeople: [Companion] {
         companions.filter { character in
             guard !character.isFeedOnly, !character.isNPC, !character.isGroup else { return false }
-            guard let memory = people.first(where: { $0.name == character.name }) else { return false }
+            guard let memory = people.first(where: { $0.name == character.name && $0.personaUID == IdentityScope.storedUID }) else { return false }
             return !memory.facts.isEmpty
                 || !memory.voices.isEmpty
                 || !memory.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -267,7 +267,7 @@ struct MemoryLibraryPage: View {
     }
 
     private func subtitle(for character: Companion) -> String {
-        let person = people.first { $0.name == character.name }
+        let person = people.first { $0.name == character.name && $0.personaUID == IdentityScope.storedUID }
         let facts = person?.facts.count ?? 0
         let open = person?.voices.filter { !$0.isResolved }.count ?? 0
         let days = WorldBookResolver.Conditions.daysBetween(character.createdAt, and: Date())

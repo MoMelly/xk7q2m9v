@@ -19,11 +19,15 @@ struct HomeScreenView: View {
     var musicProgress: Double = 0
     /// 隐藏模式：三块组件都不显示。日程和「他在听什么」比壁纸更容易露馅。
     var hidesWidgets: Bool = false
+    /// 桌面布局被别处改过的次数。应用商店装/卸一个 App 之后会加一，
+    /// 这层据此重新读一遍布局——桌面一直挂在 App 页下面，不会重新出现，
+    /// 只靠 `onAppear` 读不到改动。
+    var layoutRevision: Int = 0
 
     // 读出来先滤一遍：图标清单变动之后，旧布局里会留着已经撤掉的 App。
     @State private var layout = HomeLayout.load().pruned()
     @State private var page = 0
-    @State private var editing = false
+    @State private var editing = UserDefaults.standard.string(forKey: "previewState") == "homeEdit"
     /// 下面那排（心情 + 音乐）是不是放在「今天」上面。编辑模式下上下拖一下能换。
     @AppStorage("shell.widgetPairFirst") private var pairFirst = false
 
@@ -70,6 +74,12 @@ struct HomeScreenView: View {
         }
         // 同锁屏：真机顶部安全区会把假状态栏压下来，让它从物理最顶端画起。
         .ignoresSafeArea(edges: .top)
+        .onChange(of: layoutRevision) { _, _ in
+            withAnimation(.easeOut(duration: 0.2)) {
+                layout = HomeLayout.load().pruned()
+                page = min(page, max(0, layout.pages.count - 1))
+            }
+        }
     }
 
     // MARK: - 小组件

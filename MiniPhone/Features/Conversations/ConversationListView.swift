@@ -17,6 +17,9 @@ struct ConversationListView: View {
     @Query private var profiles: [UserProfile]
 
     @State private var opened: Companion?
+    /// 当前身份。存 UserDefaults 的那个值，切换时这一页会跟着重画——
+    /// 预览、时间、我的人设都是按身份现算的，不重画会停在换之前的样子。
+    @AppStorage("shell.activeIdentity") private var activeIdentityUID = ""
     @State private var showCreator = ["chatEditor", "avatarPicker"]
         .contains(UserDefaults.standard.string(forKey: "previewState") ?? "")
     @State private var showCallHistory = false
@@ -26,7 +29,7 @@ struct ConversationListView: View {
     /// 截图用的启动 Tab，只影响预览状态，不落盘。
     @State private var tab: Tab = {
         switch UserDefaults.standard.string(forKey: "previewState") {
-        case "chatMine": return .mine
+        case "chatMine", "identitySwitch": return .mine
         case "chatCalls": return .calls
         default: return .messages
         }
@@ -391,7 +394,7 @@ struct ConversationListView: View {
                             Text(character.name)
                                 .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(Theme.cream)
-                            Text(character.lastMessageAt.map { "上次聊于 \(TimeFormat.monthDayTime($0))" } ?? "还没聊过")
+                            Text(character.scopedLastMessageAt.map { "上次聊于 \(TimeFormat.monthDayTime($0))" } ?? "还没聊过")
                                 .font(.system(size: 11))
                                 .foregroundStyle(Theme.cream.opacity(0.5))
                         }
@@ -421,7 +424,9 @@ struct ConversationListView: View {
 
     private var myProfile: some View {
         Group {
-            if let profile = profiles.first(where: { $0.isDefault }) ?? profiles.first {
+            // 这一页显示的是「我现在用哪个身份」。换过身份之后，头像名字
+            // 跟着换，改的也是那个人的资料——不然改了半天改的是另一个人。
+            if let profile = activeProfile {
                 MyProfilePage(profile: profile, settings: settings)
             } else {
                 VStack(spacing: 12) {
@@ -435,6 +440,15 @@ struct ConversationListView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+    }
+
+    /// 当前身份对应的资料。空串是默认身份，就是被标成默认的那一个。
+    private var activeProfile: UserProfile? {
+        let uid = activeIdentityUID
+        if !uid.isEmpty, let matched = profiles.first(where: { $0.uid.uuidString == uid }) {
+            return matched
+        }
+        return profiles.first(where: { $0.isDefault }) ?? profiles.first
     }
 
     // MARK: - 联系人
@@ -485,7 +499,7 @@ struct ConversationListView: View {
                 Spacer(minLength: 4)
 
                 VStack(alignment: .trailing, spacing: 5) {
-                    Text(character.lastMessageAt.map { CharacterClock.listTimestamp($0) } ?? "")
+                    Text(character.scopedLastMessageAt.map { CharacterClock.listTimestamp($0) } ?? "")
                         .font(.system(size: 10))
                         .foregroundStyle(Theme.cream.opacity(0.35))
 

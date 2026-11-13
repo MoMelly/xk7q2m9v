@@ -27,7 +27,7 @@ struct CharacterDetailPage: View {
     @State private var showPhone = false
 
     private var person: PersonMemory? {
-        world.state.people.first { $0.name == character.name }
+        world.state.person(named: character.name)
     }
 
     private var factCount: Int {
@@ -36,8 +36,9 @@ struct CharacterDetailPage: View {
 
     /// 这一段会话用的身份名。空串表示用默认的，界面上不写字。
     private var personaName: String {
-        if !character.personaUID.isEmpty,
-           let matched = profiles.first(where: { $0.uid.uuidString == character.personaUID }) {
+        let active = IdentityScope.storedUID
+        if !active.isEmpty,
+           let matched = profiles.first(where: { $0.uid.uuidString == active }) {
             return matched.name
         }
         return profiles.first(where: { $0.isDefault })?.name ?? "我"
@@ -293,18 +294,16 @@ struct CharacterDetailPage: View {
 
                         RowDivider()
 
-                        NavigationLink {
-                            PersonaPickerPage(character: character)
-                        } label: {
-                            GroupedRow(
-                                symbol: "theatermasks.fill",
-                                symbolTint: Theme.IconTint.indigo,
-                                title: "我以谁的身份",
-                                value: personaName,
-                                showsChevron: true
-                            )
-                        }
-                        .buttonStyle(.plain)
+                        // 身份不再按会话选：以前每认识一个角色都要选一次
+                        // 「我用谁跟他说话」，攒到十几个角色就是十几遍。
+                        // 现在统一在「我的 → 切换身份」切一次，整个信息页都跟着换。
+                        GroupedRow(
+                            symbol: "theatermasks.fill",
+                            symbolTint: Theme.IconTint.indigo,
+                            title: "现在用谁的身份",
+                            value: personaName,
+                            showsChevron: false
+                        )
 
                         RowDivider()
 

@@ -186,7 +186,11 @@ struct PersonaEditor: View {
                     if let profile, !isNew {
                         GroupedSection {
                             Button(role: .destructive) {
+                                let gone = profile.uid.uuidString
                                 UserProfileBook.delete(profile, in: context)
+                                // 正站在这个身份上就别留在原地：它的记录跟着人走了，
+                                // 停在上面只会看到一整屏空对话。
+                                IdentityScope.shared.fallBackIfNeeded(deletedUID: gone)
                                 onClose()
                             } label: {
                                 GroupedRow(

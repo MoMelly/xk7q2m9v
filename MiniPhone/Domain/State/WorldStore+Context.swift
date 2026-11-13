@@ -91,7 +91,7 @@ extension WorldStore {
         // 会把当前对话挤没，他要的只是「知道有这么回事」的分寸。
         let groupDigests: [String]
         if isGroupChat {
-            let base = state.people.first { $0.name == owner }?.summary
+            let base = state.person(named: owner)?.summary
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             groupDigests = base.isEmpty ? [] : ["你们这个群共同的事：\n\(base)"]
         } else {

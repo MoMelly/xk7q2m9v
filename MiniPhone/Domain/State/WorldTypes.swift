@@ -500,16 +500,23 @@ struct WorldState: Codable {
     static let empty = WorldState()
 
     /// 返回下标而不是结构体副本，避免 Swift 值语义下改了副本没写回去。
+    /// 拿这个人的记忆条目，没有就建一条。
+    ///
+    /// 按「名字 + 当前身份」找：同一个角色对不同身份是两套记忆。
+    /// 老数据没有 personaUID 字段，解出来是空串，正好落在默认身份上。
     mutating func ensurePerson(named name: String) -> Int {
-        if let index = people.firstIndex(where: { $0.name == name }) {
+        let scope = IdentityScope.storedUID
+        if let index = people.firstIndex(where: { $0.name == name && $0.personaUID == scope }) {
             return index
         }
-        people.append(.empty(named: name))
+        people.append(.empty(named: name, personaUID: scope))
         return people.count - 1
     }
 
+    /// 当前身份眼里这个人。别的身份那一份不返回。
     func person(named name: String) -> PersonMemory? {
-        people.first { $0.name == name }
+        let scope = IdentityScope.storedUID
+        return people.first { $0.name == name && $0.personaUID == scope }
     }
 
     /// 这个人所在的所有群。单聊时靠它把群记忆一起读出来。
@@ -524,9 +531,11 @@ struct WorldState: Codable {
     /// 旁边那句潜台词却是全局最新一条时，会出现「他的心情配她的心事」。
     /// 不给就是整张表，查手机那类页面要的正是这个。
     func unresolvedVoices(limit: Int = 4, person: String? = nil) -> [InnerVoiceEntry] {
+        // 只翻当前身份这一份：心事是按人分的，别把另一个身份那份也端出来。
+        let scope = IdentityScope.storedUID
         let pool = person.map { name in
-            people.filter { $0.name == name }.flatMap(\.voices)
-        } ?? people.flatMap(\.voices)
+            people.filter { $0.name == name && $0.personaUID == scope }.flatMap(\.voices)
+        } ?? people.filter { $0.personaUID == scope }.flatMap(\.voices)
         return pool
             .filter { !$0.isResolved }
             .sorted { $0.createdAt > $1.createdAt }

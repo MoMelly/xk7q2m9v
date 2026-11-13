@@ -14,7 +14,7 @@ struct CharacterMemoryPage: View {
     @State private var editing: MemoryItem?
 
     private var person: PersonMemory? {
-        world.state.people.first { $0.name == character.name }
+        world.state.person(named: character.name)
     }
 
     private var all: [MemoryItem] {

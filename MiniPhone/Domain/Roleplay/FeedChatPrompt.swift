@@ -61,8 +61,9 @@ extension PromptBuilder {
             blocks.append("【对方是谁】他叫\(userName)。按你和他现在的关系说话。")
         }
 
-        if !character.memorySummary.isEmpty {
-            blocks.append("【很久以前发生过什么】\n" + character.memorySummary)
+        let memory = character.activeMemorySummary
+        if !memory.isEmpty {
+            blocks.append("【很久以前发生过什么】\n" + memory)
         }
 
         if item.kind == .postShare {

@@ -20,7 +20,9 @@ extension ChatViewModel {
     ) async {
         let plan = settings.generationPlan
         let cursor = character.memoryCursor ?? .distantPast
-        let pending = character.messages
+        // 只压当前身份这一段：记忆是按人分开的，另一个身份聊过的东西
+        // 不该被压进这个人的摘要里。
+        let pending = character.scopedMessages
             .filter { $0.channel == .chat && $0.createdAt > cursor }
             .sorted { $0.createdAt < $1.createdAt }
 
@@ -73,7 +75,7 @@ extension ChatViewModel {
         client: OpenAICompatibleClient,
         world: WorldStore
     ) async -> Bool {
-        let previous = character.memorySummary
+        let previous = character.activeMemorySummary
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         let prompt = """
@@ -95,7 +97,7 @@ extension ChatViewModel {
 
             // 这是「整段重写」的结果，不是增量。用 append 的话每压一次就多一份，
             // 1200 字的上限被几份旧摘要挤满，最新那份反而被切掉半截。
-            character.memorySummary = clean
+            character.setActiveMemorySummary(clean)
             world.replaceMemorySummary(person: character.name, text: clean)
             return true
         } catch {

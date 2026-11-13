@@ -89,6 +89,12 @@ final class Companion {
 
     /// 滚动记忆摘要。老消息被压缩成这一段，永远是「很久以前发生过什么」。
     var memorySummary: String = ""
+    /// 每个身份各自那一份摘要，JSON 存的 `[身份 uid: 摘要]`，空串是默认身份。
+    ///
+    /// 摘要和消息一样是按人分开的：新身份进来，他不能一开口就提到
+    /// 「上次你说……」——那是另一个人说过的。默认身份仍旧读上面那个
+    /// `memorySummary`，老存档不用迁移。
+    var memoryByPersonaRaw: String = ""
     /// 摘要已经覆盖到这个时间点之前的所有消息。
     var memoryCursor: Date?
     var totalReplies: Int = 0
@@ -149,7 +155,9 @@ final class Companion {
     /// 会话列表里的最后一句预览。
     var lastPreviewText: String {
         // 列表是「信息」的，预览只看 chat；私信和转帖归西瓜皮那边显示。
-        let mine = messages.filter { $0.channel == .chat }
+        // 还要只看当前身份说的：换身份进来，这一行应该显示「还没有对话」，
+        // 而不是上一个人聊到一半的那句话。
+        let mine = scopedMessages.filter { $0.channel == .chat }
         guard let last = mine.max(by: { $0.createdAt < $1.createdAt }) else { return "还没有对话" }
         let speaker = last.speaker.map { "\($0)：" } ?? ""
         return speaker + last.text.replacingOccurrences(of: "\n", with: " ")
@@ -174,6 +182,12 @@ final class StoredMessage {
     var channelRaw: String = "chat"
     /// 同一角色可以有多段私信 / 多个转帖，用 threadID 把对话分开。
     var threadRaw: String = ""
+    /// 这条消息是哪个身份说的（空串 = 默认身份）。
+    ///
+    /// 换身份等于换一个人：新身份打开同一个角色是一段空对话，而老身份
+    /// 回来时记录原样都在。所以消息本身得记住归属，不能只靠会话上那个
+    /// 「当前用谁」的字段——那个字段一改，历史就跟着改了口径。
+    var personaUID: String = ""
     /// 模拟图片的种子，0 表示这条消息没带图。
     /// 图不落文件，靠这个数现画，所以备份里也只是一行整数。
     var imageSeed: Int = 0
@@ -217,7 +231,8 @@ final class StoredMessage {
         channel: MessageChannel = .chat,
         threadID: UUID? = nil,
         imageSeed: Int = 0,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        personaUID: String = ""
     ) {
         self.uid = UUID()
         self.characterUID = characterUID
@@ -229,6 +244,7 @@ final class StoredMessage {
         self.threadRaw = threadID?.uuidString ?? ""
         self.imageSeed = imageSeed
         self.createdAt = createdAt
+        self.personaUID = personaUID
     }
 
     var role: ChatMessage.Role {

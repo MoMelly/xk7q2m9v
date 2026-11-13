@@ -13,6 +13,8 @@ struct PhoneApp: Identifiable, Hashable {
         case moments
         /// 真的能用：进设置。
         case settings
+        /// 应用商店：桌面上的图标被卸掉了，从这里装回来。
+        case appStore
         /// 只读场景页，具体页面由 SceneKind 决定。
         case scene(SceneKind)
         /// 还没做，点了给一条提示。
@@ -84,6 +86,9 @@ enum AppCatalog {
     ]
 
     /// Dock 里的四个。桌面上的同类入口已经全部撤掉，这里不再有第二份。
+    ///
+    /// 第五格是应用商店，和别的 App 不一样：它不能被卸掉，桌面上的图标
+    /// 也删不到它。删掉一个图标之后得有地方把它装回来，不然就只能重装软件。
     static let dock: [PhoneApp] = [
         PhoneApp(id: "dock.messages", name: "信息", symbol: "message.fill",
                  colors: [Color(red: 0.42, green: 0.96, blue: 0.54), Color(red: 0.16, green: 0.82, blue: 0.38)],
@@ -97,6 +102,13 @@ enum AppCatalog {
         PhoneApp(id: "dock.settings", name: "设置", symbol: "gearshape.fill",
                  colors: [Color(red: 0.86, green: 0.89, blue: 0.93), Color(red: 0.62, green: 0.67, blue: 0.74)],
                  destination: .settings,
-                 symbolTint: Color(red: 0.20, green: 0.23, blue: 0.28))
+                 symbolTint: Color(red: 0.20, green: 0.23, blue: 0.28)),
+        PhoneApp(id: "dock.store", name: "应用商店", symbol: "bag.fill",
+                 colors: [Color(red: 0.42, green: 0.72, blue: 1.0), Color(red: 0.20, green: 0.46, blue: 0.98)],
+                 destination: .appStore)
     ]
+
+    /// 应用商店里能装的东西。Dock 那一组是固定的，不参与装卸，
+    /// 只拿来在页面底部说明一句「底栏的四个不能删」。
+    static let installable: [PhoneApp] = home
 }
