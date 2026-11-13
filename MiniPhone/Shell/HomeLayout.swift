@@ -81,7 +81,7 @@ struct HomeLayout: Codable {
         // 追加到末尾，不插队，免得顶掉用户已经排好的位置。
         for appID in AppCatalog.pinnedIDs where !next.contains(appID) {
             var last = next.pages.count - 1
-            if next.pages[last].count >= perPage {
+            if next.pages[last].count >= HomeLayout.perPage {
                 next.pages.append([])
                 last += 1
             }
