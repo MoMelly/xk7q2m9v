@@ -3,12 +3,12 @@ import UIKit
 
 /// 键盘现在把屏幕遮掉多少。
 ///
-/// 只提供高度，不参与排版。键盘避让交给系统做：它按安全区把内容区压窄，
-/// 标题留在顶上、输入条跟着浮到键盘上沿。
+/// 只负责量高度，排版由外壳做：`PhoneShellView` 把 App 那一层按 `lift` 收短、
+/// 顶部对齐，收出来的这一条正好等于键盘，输入条就落在键盘上沿。
 ///
-/// 不要在这里改回「自己声明不理键盘、再手动抬输入条」：
-/// SwiftUI 遇到不理键盘的布局时没法压窄，只能把整块内容往上翻译，
-/// 把聚焦的输入框顶进可视区——标题会跟着一起被推出屏幕。
+/// 为什么不交给系统默认避让：手机壳是一整块铺满屏幕的假手机，系统那套按
+/// 安全区压窄内容的做法在这里不生效（截图核对过，键盘起来以后内容没有被压窄，
+/// 输入条直接被盖在键盘后面）。自己收高度是确定的。
 @Observable
 @MainActor
 final class KeyboardInset {
@@ -17,9 +17,25 @@ final class KeyboardInset {
     /// 键盘顶边到屏幕底边的距离，含底部安全区。收起时是 0。
     private(set) var height: CGFloat = 0
 
+    /// App 层要收短多少。
+    ///
+    /// 键盘报的高度连 Home 指示条那一段一起算，而 App 层本来就摆在安全区上沿，
+    /// 按整高收会多收一条。收短量 = 键盘高 − 底部安全区。
+    var lift: CGFloat {
+        guard height > 0 else { return 0 }
+        return max(0, height - Self.bottomSafeArea)
+    }
+
     var isUp: Bool { height > 0 }
 
     private var observers: [NSObjectProtocol] = []
+
+    /// 底部安全区取窗口的：真机上键盘不会算进窗口的安全区。
+    static var bottomSafeArea: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let window = scenes.flatMap(\.windows).first(where: \.isKeyWindow)
+        return window?.safeAreaInsets.bottom ?? 0
+    }
 
     private init() {
         let center = NotificationCenter.default

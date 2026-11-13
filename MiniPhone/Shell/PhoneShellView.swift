@@ -151,11 +151,28 @@ struct PhoneShellView: View {
             }
 
             if let app = openedApp {
-                appLayer(app)
-                    // 遮罩要铺到整屏：App 页的背景自己会往安全区外延伸，
-                    // 遮罩只按安全区算的话，上下会各裁掉一条、露出壁纸。
-                    .mask { launchMask.ignoresSafeArea() }
-                    .zIndex(2)
+                // 键盘自己算，不交给系统。
+                //
+                // 这一层是一整块铺满屏幕的假手机，系统的键盘避让在这里不生效：
+                // 截图核对过，键盘起来以后 App 页没有被压窄，底部的输入条直接
+                // 盖在键盘后面；而加了「不理键盘」声明之后，系统又改成把整块内容
+                // 往上翻译，标题跟着被推出屏幕。
+                //
+                // 所以这里自己收：高度减掉键盘那一条、顶部对齐。收出来的空档
+                // 正好是键盘的位置，输入条落在键盘上沿，标题留在顶栏。
+                GeometryReader { proxy in
+                    appLayer(app)
+                        .frame(
+                            width: proxy.size.width,
+                            height: max(200, proxy.size.height - KeyboardInset.shared.lift),
+                            alignment: .top
+                        )
+                }
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+                // 遮罩要铺到整屏：App 页的背景自己会往安全区外延伸，
+                // 遮罩只按安全区算的话，上下会各裁掉一条、露出壁纸。
+                .mask { launchMask.ignoresSafeArea() }
+                .zIndex(2)
             }
 
             // 悬浮球：真的有歌在放才出现，App 页之上、提示之下。
