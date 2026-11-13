@@ -131,22 +131,7 @@ struct ChatView: View {
                 composer
             }
         }
-        // 键盘截图那一档带一行读数：顶边位置、内容高度、键盘高度。
-        // 键盘避让出问题时，光看画面分不清是「整块被翻译」还是「高度算错」，
-        // 这三个数一照就能定位。正常启动读不到 previewState，不显示。
-        .overlay(alignment: .topLeading) {
-            if UserDefaults.standard.string(forKey: "previewState") == "chatKeyboard" {
-                GeometryReader { proxy in
-                    let frame = proxy.frame(in: .global)
-                    Text("y\(Int(frame.minY)) h\(Int(frame.height)) kb\(Int(KeyboardInset.shared.height))")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.red)
-                        .padding(2)
-                        .background(.black.opacity(0.7))
-                }
-                .allowsHitTesting(false)
-            }
-        }
+        .keyboardProbe()
         .onAppear {
             seedGreetingIfNeeded()
             // 截图流水线要拍表情面板 / 角色详情 / 通话这些层，冷启动点不到按钮，

@@ -64,3 +64,26 @@ final class KeyboardInset {
         height = max(0, UIScreen.main.bounds.height - frame.minY)
     }
 }
+
+extension View {
+    /// 键盘截图那一档的读数：内容顶边位置、内容高度、键盘高度。
+    ///
+    /// 键盘避让出问题时，光看画面分不清是「整块被翻译上去了」还是「高度算错了」，
+    /// 这三个数一照就能定位。只在 `-previewState chatKeyboard` 下显示，
+    /// 正常启动读不到这个键。
+    func keyboardProbe() -> some View {
+        overlay(alignment: .topLeading) {
+            if UserDefaults.standard.string(forKey: "previewState") == "chatKeyboard" {
+                GeometryReader { proxy in
+                    let frame = proxy.frame(in: .global)
+                    Text("y\(Int(frame.minY)) h\(Int(frame.height)) kb\(Int(KeyboardInset.shared.height))")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.red)
+                        .padding(2)
+                        .background(.black.opacity(0.7))
+                }
+                .allowsHitTesting(false)
+            }
+        }
+    }
+}
