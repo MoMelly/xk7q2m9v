@@ -152,7 +152,7 @@
 | P-02 | 日历条目自己能加、能改、能删 | ✅ | 点条目改、时间轴末尾加一条；`ScheduleEditor` 改时间/心情/备注 |
 | P-03 | 备忘录：搜索、置顶、新建、编辑、左滑删除、长按菜单 | ✅ | `NotesScene` |
 | P-04 | 备忘录编辑页按钮不能是黑的 | ✅ `toolbarColorScheme(.light)` | |
-| P-05 | 「照片」App 是聊天图宫格 + 大图，不是动态墙 | ✅ | `PhotoLibraryScene` |
+| P-05 | 「照片」App 是聊天图宫格 + 大图，不是动态墙 | ❌ 已废弃 | 2026-11-14 整块删除（无入口的空壳） |
 | P-06 | 健康页只留数据，删掉照片动态 | ⛔ | 健康整页取消，内容并进「TA 的手机」（`Features/Peek/MyDeviceSection.swift`） |
 | P-07 | 健康页别有 emoji 当图标、白底白字 | ⛔ | 页面已并入「TA 的手机」，新卡片用 AppSurface.light |
 | P-08 | 音乐：资料库列表 + 播放 + 随包歌单 + 自己导入 | ✅ | `MusicScene` / `MusicLibrary` |

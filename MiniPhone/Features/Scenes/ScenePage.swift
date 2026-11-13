@@ -11,7 +11,6 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
     case feed
     case letters
     case storyGame
-    case photoLibrary
     case reading
     case phonePeek
     case couple
@@ -27,7 +26,6 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .feed: return "西瓜皮"
         case .letters: return "信件"
         case .storyGame: return "文游"
-        case .photoLibrary: return "照片"
         case .reading: return "阅读"
         case .phonePeek: return "TA 的手机"
         case .couple: return "情侣空间"
@@ -43,7 +41,6 @@ enum SceneKind: String, Hashable, CaseIterable, Identifiable {
         case .feed: return "book.closed.fill"
         case .letters: return "envelope.fill"
         case .storyGame: return "text.book.closed.fill"
-        case .photoLibrary: return "photo.fill"
         case .reading: return "books.vertical.fill"
         case .phonePeek: return "iphone.gen3"
         case .couple: return "flame.fill"
@@ -75,8 +72,6 @@ struct ScenePage: View {
                 LetterScene(world: world, settings: settings, onClose: onExit)
             case .storyGame:
                 StoryGameScene(settings: settings, onClose: onExit)
-            case .photoLibrary:
-                PhotoLibraryScene(onClose: onExit)
             case .reading:
                 ReadingScene(onClose: onExit)
             case .phonePeek:

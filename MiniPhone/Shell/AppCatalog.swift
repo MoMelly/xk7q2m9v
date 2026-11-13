@@ -73,7 +73,9 @@ enum AppCatalog {
         // 「照片」这一格撤掉了。那个 App 是我自己加的，她没有要过：
         // 打开只有一屏空宫格，她也问过「这个 APP 到底干嘛的」。
         // 聊天发图、壁纸选图、头像选图各有自己的选择器，不经过它。
-        // 页面代码留在原处，以后真需要「给角色看照片」再挂回来。
+        // 2026-11-14 整块删除：PhotoLibraryScene 与 PhotoStore 一起拿掉。
+        // 没有入口的壳子不算「以后可能用得上」，它只会让索引里多一条查不到的死路。
+        // 真要做「给角色看照片」，重新设计，别翻旧代码。
 
         PhoneApp(id: "letters", name: "信件", symbol: "envelope.fill",
                  colors: [Color(red: 0.38, green: 0.78, blue: 1.0), Color(red: 0.14, green: 0.52, blue: 0.96)],
