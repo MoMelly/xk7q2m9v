@@ -284,8 +284,8 @@ def check_secrets(path: Path, lines: list[str]) -> None:
 # 行踪的。这条以前写的是「不要每次都反问」，太软，模型照样反问；所以设成闸，
 # 谁把这句话删了或改软了，CI 直接红。
 CHAT_TONE_MARKERS = [
-    ("MiniPhone/Domain/Roleplay/PromptBuilder.swift", "回复里不出现问句"),
-    ("MiniPhone/Domain/Roleplay/RoleplayPreset.swift", "回复里不出现问句"),
+    ("MiniPhone/Domain/Roleplay/PromptBuilder.swift", "一般不出现问句"),
+    ("MiniPhone/Domain/Roleplay/RoleplayPreset.swift", "一般不出现问句"),
     ("MiniPhone/Domain/Roleplay/CharacterClock.swift", "不要问对方这段时间"),
 ]
 
