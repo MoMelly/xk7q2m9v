@@ -28,13 +28,26 @@ final class KeyboardInset {
 
     var isUp: Bool { height > 0 }
 
+    /// 顶部安全区，取窗口的。App 层铺满整屏之后，上下这两条要自己补回来。
+    static var topSafeArea: CGFloat {
+        window?.safeAreaInsets.top ?? 0
+    }
+
+    /// 外壳底部留多少：键盘在就留整个键盘，否则只留 Home 指示条那一条。
+    var shellBottomPadding: CGFloat {
+        height > 0 ? height : Self.bottomSafeArea
+    }
+
+    private static var window: UIWindow? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return scenes.flatMap(\.windows).first(where: \.isKeyWindow)
+    }
+
     private var observers: [NSObjectProtocol] = []
 
     /// 底部安全区取窗口的：真机上键盘不会算进窗口的安全区。
     static var bottomSafeArea: CGFloat {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        let window = scenes.flatMap(\.windows).first(where: \.isKeyWindow)
-        return window?.safeAreaInsets.bottom ?? 0
+        window?.safeAreaInsets.bottom ?? 0
     }
 
     private init() {

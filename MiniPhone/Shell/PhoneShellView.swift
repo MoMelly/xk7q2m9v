@@ -151,7 +151,20 @@ struct PhoneShellView: View {
             }
 
             if let app = openedApp {
+                // 键盘这一块不再交给系统。
+                //
+                // 截图量过：键盘弹起时系统给 App 层的底部安全区是 244，键盘实际高
+                // 335，差的那 92 就是输入条被盖住的那一截；顶部安全区还同时从 62
+                // 变成 0，标题因此压到状态栏上面。这套数在铺满屏幕的假手机壳里不可信。
+                //
+                // 所以先让 App 层铺满整屏（不再依赖系统给的安全区），上下两条自己补：
+                // 顶部补安全区，底部补键盘整高——键盘不在时补的是 Home 指示条那一条。
+                // 补完的内容区正好是「状态栏下沿 → 键盘上沿」。
                 appLayer(app)
+                    .ignoresSafeArea()
+                    .padding(.top, KeyboardInset.topSafeArea)
+                    .padding(.bottom, KeyboardInset.shared.shellBottomPadding)
+                    .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.height)
                     // 遮罩要铺到整屏：App 页的背景自己会往安全区外延伸，
                     // 遮罩只按安全区算的话，上下会各裁掉一条、露出壁纸。
                     .mask { launchMask.ignoresSafeArea() }
