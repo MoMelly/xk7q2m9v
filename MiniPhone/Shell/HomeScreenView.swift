@@ -71,6 +71,12 @@ struct HomeScreenView: View {
 
                 Spacer(minLength: 0).frame(height: 10)
             }
+
+            if UserDefaults.standard.string(forKey: "previewState") == "homeTapProbe" {
+                HomeTapProbeCard()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .padding(.top, 210)
+            }
         }
         // 同锁屏：真机顶部安全区会把假状态栏压下来，让它从物理最顶端画起。
         .ignoresSafeArea(edges: .top)
@@ -79,6 +85,15 @@ struct HomeScreenView: View {
                 layout = HomeLayout.load().pruned()
                 page = min(page, max(0, layout.pages.count - 1))
             }
+        }
+        .task {
+            // 截图状态下走一遍主屏的打开回调：先摆成误进编辑态的样子，
+            // 两秒后按「点了图标」处理。拍到应用商店页就说明这条链路通。
+            guard UserDefaults.standard.string(forKey: "previewState") == "homeOpenProbe"
+            else { return }
+            editing = true
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            openApp("store")
         }
     }
 
@@ -137,6 +152,9 @@ struct HomeScreenView: View {
     /// 只翻桌面那张表会静默失灵。
     private func openApp(_ id: String) {
         guard let app = AppCatalog.all.first(where: { $0.id == id }) else { return }
+        // 组件、图标、Dock 三个入口都收掉编辑态。主屏一直挂在 App 页下面不会重建，
+        // 不在这里清的话，从 App 回来时桌面还抖着，看着像又卡住了。
+        editing = false
         onOpen(app)
     }
 
@@ -144,7 +162,7 @@ struct HomeScreenView: View {
 
     private var iconGrid: some View {
         HomeBoard(layout: $layout, page: $page, editing: $editing) { app in
-            onOpen(app)
+            openApp(app.id)
         }
         .padding(.horizontal, 20)
         // 编辑模式下删除角标是画在格子外面的，上面留一点，
@@ -199,7 +217,7 @@ struct HomeScreenView: View {
         HStack(spacing: 0) {
             ForEach(AppCatalog.dock) { app in
                 Button {
-                    onOpen(app)
+                    openApp(app.id)
                 } label: {
                     AppIconTile(app: app, showsLabel: false).iconFrame(app)
                 }

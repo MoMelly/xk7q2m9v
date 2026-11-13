@@ -10,9 +10,30 @@ import SwiftData
 /// 模拟器数据不会在两次 `-previewState` 之间清空，且 `chatCalls` 也建了同名群，
 /// 所以按名字复用已存在的群，只补齐缺的部分，重复跑不会叠出第二份消息。
 extension PreviewSeeder {
+    /// 从「我的人设」里来的人。群里和角色混在同一个名单里，
+    /// 截图要能看出他也开口说话、也有自己的头像。
+    @discardableResult
+    func ensureGroupPersona() -> UserProfile {
+        let name = "林间"
+        let all = (try? context.fetch(FetchDescriptor<UserProfile>())) ?? []
+        if let existing = all.first(where: { $0.name == name }) { return existing }
+        let profile = UserProfile(
+            name: name,
+            signature: "话不多，记性好",
+            bio: "喜欢傍晚出门，常带一本没看完的书。",
+            tagsRaw: "慢热、散步",
+            avatarTintRaw: "sky"
+        )
+        profile.statusText = "刚下过雨"
+        context.insert(profile)
+        try? context.save()
+        return profile
+    }
+
     func seedGroupChat() {
         let groupName = "周末饭局"
-        let members = ["沈砚", "林渡"]
+        ensureGroupPersona()
+        let members = ["沈砚", "林渡", "林间"]
 
         let group: Companion
         if let existing = companions.first(where: { $0.name == groupName && $0.isGroup }) {
@@ -38,6 +59,7 @@ extension PreviewSeeder {
                 (.user, nil, "周日中午，老地方？"),
                 (.assistant, "沈砚", "我来订位，上次那家靠窗的还空着。"),
                 (.assistant, "林渡", "我可能晚十分钟，别等我先点。"),
+                (.assistant, "林间", "带上那本书，早到的人先坐着。"),
                 (.user, nil, "行，那我先把菜单发群里。"),
                 (.assistant, "沈砚", "发吧，别又点香菜。")
             ]

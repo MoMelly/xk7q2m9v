@@ -71,21 +71,26 @@ struct HomeBoard: View {
             // 也只进一次。`maximumDistance` 卡在 12：手指一动就是在翻页，
             // 不该顺带把桌面抖起来。
             .simultaneousGesture(
-                LongPressGesture(minimumDuration: 0.3, maximumDistance: 12)
-                    .onEnded { _ in beginEditing() }
+                LongPressGesture(
+                    minimumDuration: HomeTapPolicy.longPressDuration,
+                    maximumDistance: 12
+                )
+                .onEnded { _ in beginEditing() }
             )
             // 编辑模式下点一下空白退出。
             //
             // 上一版这里挂的是 simultaneousGesture(TapGesture)：它会跟图标上的
             // 拖动手势一起响应，于是「按下去准备拖」这一下先被它判成轻点、
-            // 把编辑状态退掉了，第二次再按就没有编辑模式可拖——她说的
-            // 「只有第一次点击有效果」就是这条。
-            .onTapGesture { location in
-                // 0.45 秒内不认：那一下是长按松手，不是「点空白」。
-                // 这里不再要求 `dragging == nil`——手势被系统打断时那一位可能
+            // 把编辑状态退掉了，第二次再按就没有编辑模式可拖。
+            // 图标这一层的轻点由图标自己处理（打开 App），这里只管空白。
+            .onTapGesture {
+                // 刚进编辑态的那一小段不认：那是长按松手，不是「点空白」。
+                // 不再要求 `dragging == nil`——手势被系统打断时那一位可能
                 // 一直挂着，卡住的话点哪儿都退不出编辑态。退出时顺手清掉。
-                guard editing, Date().timeIntervalSince(editingSince) > 0.45 else { return }
-                exitEditing(at: location, metrics: PhoneBoardMetrics(size: size))
+                guard editing,
+                      Date().timeIntervalSince(editingSince) > HomeTapPolicy.tapGuard
+                else { return }
+                finishEditing()
             }
         }
         .frame(height: PhoneBoardMetrics.boardHeight)
@@ -194,14 +199,16 @@ struct HomeBoard: View {
                     .iconFrame(app)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        guard !editing else { return }
-                        onOpen(app)
+                        // 编辑态下也打开。原来这里 `guard !editing`，而板子上
+                        // 「点空白退出」的手势到不了图标这一层，误进编辑态之后
+                        // 点图标既打不开也退不出，就成了「点不进 App」。
+                        tapIcon { onOpen(app) }
                     }
                     .accessibilityAddTraits(.isButton)
                     // 不要再按 `editing` 关掉命中：手势挂在这一层上，
                     // `allowsHitTesting(false)` 会连拖动手势一起挡掉，
-                    // 编辑态里就按不动任何图标。打开动作由 onTapGesture
-                    // 自己那行 `guard !editing` 拦住。
+                    // 编辑态里就按不动任何图标。轻点由 `tapIcon` 统一处理，
+                    // 编辑态也打开，顺手把编辑态收掉。
                     .overlay(alignment: .topLeading) {
                         // 应用商店是唯一的恢复入口，不给它长减号。
                         if editing, !app.isPinned { removeBadge { remove(appID) } }
@@ -214,8 +221,7 @@ struct HomeBoard: View {
                 FolderTile(apps: folder.appIDs.compactMap { app(id: $0) })
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        guard !editing else { return }
-                        openFolder = folder
+                        tapIcon { openFolder = folder }
                     }
                     .accessibilityAddTraits(.isButton)
                     .overlay(alignment: .topLeading) {
@@ -278,13 +284,28 @@ struct HomeBoard: View {
             }
     }
 
-    /// 点一下退出编辑。
-    private func exitEditing(at point: CGPoint, metrics: PhoneBoardMetrics) {
+    /// 收掉编辑态，顺手清掉拖拽留下的状态。
+    private func finishEditing() {
         withAnimation(.easeOut(duration: 0.18)) {
             editing = false
         }
         dragging = nil
         hover = nil
+        swipeOffset = 0
+    }
+
+    /// 轻点图标 / 文件夹：一律打开，编辑态也一起收掉。
+    ///
+    /// 长按刚结束的那一小段不认：那一下的松手本来就会被 SwiftUI 判成一次
+    /// 轻点，不挡住就会「长按抖起来 → 立刻打开 App」，编辑态一帧都留不住。
+    private func tapIcon(_ open: () -> Void) {
+        // `onTapGesture` 系统已经筛过一次：长按、拖走都不会落到这里，
+        // 所以 heldFor / moved 传 0，剩下只挡「长按刚结束的那次松手」。
+        // 探针跑的是同一个函数，阈值改了两边一起变。
+        let since = Date().timeIntervalSince(editingSince)
+        guard HomeTapPolicy.shouldOpen(heldFor: 0, sinceEditing: since, moved: 0) else { return }
+        if editing { finishEditing() }
+        open()
     }
 
     // MARK: - 手势：拖一格
@@ -301,10 +322,16 @@ struct HomeBoard: View {
         // 才会进编辑态；长按按住了不动就是什么都没发生——她说的「长按进不了
         // 编辑状态」就是这条。iOS 的规矩是长按一满足就抖起来，手指再动才拎起，
         // 所以 `.first` 只开编辑态，`.second` 才真正开始拖。
-        LongPressGesture(minimumDuration: 0.28, maximumDistance: 22)
-            .sequenced(
-                before: DragGesture(minimumDistance: 0, coordinateSpace: .named("homeBoard"))
+        LongPressGesture(
+            minimumDuration: HomeTapPolicy.longPressDuration,
+            maximumDistance: 22
+        )
+        .sequenced(
+            before: DragGesture(
+                minimumDistance: HomeTapPolicy.dragStartDistance,
+                coordinateSpace: .named("homeBoard")
             )
+        )
             .onChanged { value in
                 switch value {
                 case .first(_):
@@ -354,6 +381,9 @@ struct HomeBoard: View {
         dragging = slot.id
         hover = index
         if !editing {
+            // 手势被打断时可能直接走到这一段（长按那一下没派发），
+            // 时间闸门也要跟着设，否则短按会被当成刚进编辑态的那次松手。
+            editingSince = Date()
             withAnimation(.easeOut(duration: 0.16)) { editing = true }
         }
     }
@@ -478,119 +508,4 @@ struct HomeBoard: View {
 struct Removal: Identifiable {
     let id: String
     let name: String
-}
-
-/// 桌面网格的可见范围：竖向几乎不裁，横向按状态收紧或放开。
-///
-/// 翻页靠横向位移，平时要裁到板子边缘，否则相邻那页会滑进屏幕。
-/// 编辑态不翻页，可以左右各放宽一点：第一列图标的减号是画在格子外
-/// 左上角的，裁到边缘就正好被削掉一半。
-struct BoardWindow: Shape {
-    /// 左右各放宽多少。减号往外偏 11pt，18 够它整个露出来。
-    var horizontalInset: CGFloat = 0
-
-    func path(in rect: CGRect) -> Path {
-        Path(CGRect(
-            x: rect.minX - horizontalInset,
-            y: rect.minY - 600,
-            width: rect.width + horizontalInset * 2,
-            height: rect.height + 1_200
-        ))
-    }
-}
-
-// MARK: - 度量
-
-/// 一页里每一格的位置。手势命中判定和画图用同一份，懒得两边对不齐。
-struct PhoneBoardMetrics {
-    let size: CGSize
-    let columns = PhoneMetrics.gridColumns
-    let hSpacing = PhoneMetrics.gridHorizontalSpacing
-    let vSpacing = PhoneMetrics.gridVerticalSpacing
-
-    var cellWidth: CGFloat {
-        (size.width - CGFloat(columns - 1) * hSpacing) / CGFloat(columns)
-    }
-
-    /// 图标 + 间距 + 一行名字。名字是 11pt，行高约 13；
-    /// 留 20 而不是刚好 18，是给 `minimumScaleFactor` 和那圈描边阴影一点余量——
-    /// 少了这 2pt，第二行图标会压到上一行名字上。
-    private static let labelAllowance: CGFloat = 20
-
-    var cellHeight: CGFloat { PhoneMetrics.iconSize + Self.labelAllowance }
-
-    /// 两行。上面还有三块组件，三行会顶到 Dock。
-    static let rows = 2
-    static var boardHeight: CGFloat {
-        let cell = PhoneMetrics.iconSize + labelAllowance
-        return cell * CGFloat(rows) + PhoneMetrics.gridVerticalSpacing * CGFloat(rows - 1)
-    }
-
-    func origin(at index: Int) -> CGPoint {
-        let col = index % columns
-        let row = index / columns
-        return CGPoint(
-            x: CGFloat(col) * (cellWidth + hSpacing),
-            y: CGFloat(row) * (cellHeight + vSpacing)
-        )
-    }
-
-    /// 格子中心（按图标本身算，不含下面那行名字）。
-    /// 判断「有没有真的压在这一格上」用它。
-    func center(at index: Int) -> CGPoint {
-        let point = origin(at: index)
-        return CGPoint(
-            x: point.x + cellWidth / 2,
-            y: point.y + PhoneMetrics.iconSize / 2
-        )
-    }
-
-    /// 落在哪一格。
-    ///
-    /// 网格外面也照样给一格（取最近的列和行）：手指往组件那边或者 Dock 那边
-    /// 一偏就返回 nil 的话，换位会忽然停住，感觉像拖拽只认这两行。
-    func slotIndex(at point: CGPoint) -> Int? {
-        guard size.width > 0, cellWidth > 0 else { return nil }
-        let rawCol = Int((point.x / (cellWidth + hSpacing)).rounded(.down))
-        let rawRow = Int((point.y / (cellHeight + vSpacing)).rounded(.down))
-        let col = min(max(0, rawCol), columns - 1)
-        let row = min(max(0, rawRow), PhoneBoardMetrics.rows - 1)
-        return row * columns + col
-    }
-}
-
-// MARK: - 抖动
-
-private struct JiggleEffect: ViewModifier {
-    let active: Bool
-    let phase: Int
-
-    @State private var swing = false
-
-    func body(content: Content) -> some View {
-        content
-            .rotationEffect(.degrees(active ? (swing ? 1.1 : -1.1) : 0))
-            .animation(
-                active
-                    ? .easeInOut(duration: 0.16).repeatForever(autoreverses: true)
-                        .delay(Double(phase % 3) * 0.03)
-                    : .easeOut(duration: 0.12),
-                value: swing
-            )
-            .onChange(of: active) { _, now in
-                swing = now
-            }
-    }
-}
-
-extension View {
-    func jiggle(_ active: Bool, phase: Int) -> some View {
-        modifier(JiggleEffect(active: active, phase: phase))
-    }
-}
-
-extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
 }

@@ -245,19 +245,21 @@ extension ChatViewModel {
     /// 群聊成员的设定卡。
     ///
     /// 群成员的名单只是一串名字，模型看不出这些名字各自是什么人，
-    /// 于是用同一个语气写所有人——群里就只剩一个声音。按名字去库里找同名角色，
+    /// 于是用同一个语气写所有人——群里就只剩一个声音。按名字回查，
     /// 各带一小段人设（截到 120 字，多人时不然提示词会长到离谱）。
     func groupMates(for character: Companion, context: ModelContext) -> [GroupMate] {
         guard character.isGroup else { return [] }
         let roster = (try? context.fetch(FetchDescriptor<Companion>())) ?? []
+        let profiles = (try? context.fetch(FetchDescriptor<UserProfile>())) ?? []
         let world = WorldStore.shared
         let now = Date()
         let hour = CharacterClock.calendar.component(.hour, from: now)
         return relatedNames(for: character)
             .filter { $0 != character.name }
             .compactMap { name in
-                guard let mate = roster.first(where: { $0.name == name }) else { return nil }
-                let persona = mate.persona
+                let person = GroupPeople.find(named: name, in: roster, profiles: profiles)
+                guard !person.isOrphan else { return nil }
+                let persona = person.persona
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                     .replacingOccurrences(of: "\n", with: " ")
                 let mood = world.mood(for: name)
@@ -265,7 +267,7 @@ extension ChatViewModel {
                 return GroupMate(
                     name: name,
                     persona: String(persona.prefix(120)),
-                    uid: mate.uid,
+                    uid: person.uid,
                     mood: mood?.mood.label ?? "",
                     location: location,
                     schedule: world.todaySchedule(for: name)?
@@ -277,7 +279,7 @@ extension ChatViewModel {
                         hour: hour,
                         mood: mood?.mood,
                         location: location,
-                        since: mate.knownSince,
+                        since: person.since,
                         now: now
                     )
                 )

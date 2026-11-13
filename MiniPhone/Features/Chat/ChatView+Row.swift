@@ -13,7 +13,7 @@ extension ChatView {
     func row(for message: StoredMessage) -> some View {
         HStack(alignment: .top, spacing: 8) {
             if showsAvatar(for: message) {
-                AvatarBubble(character: speaker(for: message), size: 30)
+                speakerAvatar(for: message, size: 30)
                     .padding(.top, 2)
             }
 
@@ -23,15 +23,26 @@ extension ChatView {
 
     /// 这句话是谁说的。
     ///
-    /// 群聊的消息上带着 `speaker`，之前这一列头像固定用群本身那张，群里几个人
-    /// 说起来全是同一张脸，看不出是换了个人。这里按名字回角色表里找，找不到
+    /// 群聊消息上带着 `speaker`，之前这一列头像固定用群本身那张，几个人
+    /// 说起来全是同一张脸。这里按名字回查，角色和人设都能认；找不到
     /// （成员被删了、名字改过）才退回群头像，不至于空一块。
-    func speaker(for message: StoredMessage) -> Companion {
+    func speakerPerson(for message: StoredMessage) -> GroupPerson {
+        let fallback = GroupPeople.find(
+            named: character.name,
+            in: [character],
+            profiles: profiles
+        )
         guard character.isGroup,
               let name = message.speaker?.trimmingCharacters(in: .whitespaces),
               !name.isEmpty,
-              name != character.name else { return character }
-        return roster.first { $0.name == name } ?? character
+              name != character.name else { return fallback }
+        let person = GroupPeople.find(named: name, in: roster, profiles: profiles)
+        return person.isOrphan ? fallback : person
+    }
+
+    @ViewBuilder
+    func speakerAvatar(for message: StoredMessage, size: CGFloat = 30) -> some View {
+        speakerPerson(for: message).avatar(size: size)
     }
 
     func showsAvatar(for message: StoredMessage) -> Bool {

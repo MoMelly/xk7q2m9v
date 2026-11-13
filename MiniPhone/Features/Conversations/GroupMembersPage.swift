@@ -13,29 +13,33 @@ struct GroupMembersPage: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor(\Companion.sortIndex), SortDescriptor(\Companion.createdAt)])
     private var companions: [Companion]
+    @Query(sort: \UserProfile.createdAt, order: .forward)
+    private var profiles: [UserProfile]
 
     @State private var nameDraft = ""
     @State private var showPicker = false
     @State private var pendingRemove: String?
 
-    private var roster: [Companion] {
-        GroupRoster.members(of: character, in: companions)
+    /// 名单上的人。角色和人设都能查回来，只有手打错的名字才是孤儿。
+    private var roster: [GroupPerson] {
+        GroupPeople.members(
+            note: character.membersNote,
+            roster: companions,
+            profiles: profiles
+        )
     }
 
-    /// 名单上有、库里找不到的名字。老群是手打进去的，可能有这种。
-    private var orphanNames: [String] {
-        let found = Set(roster.map(\.name))
-        return GroupRoster.names(from: character.membersNote).filter { !found.contains($0) }
+    private var orphans: [GroupPerson] {
+        roster.filter { $0.isOrphan }
     }
 
-    /// 能加进来的：已经有角色的人，且不在这个群里。
-    private var addable: [Companion] {
-        let current = Set(GroupRoster.names(from: character.membersNote))
-        return companions.filter {
-            !$0.isGroup && !$0.isFeedOnly
-                && $0.name != DefaultAssistant.name
-                && !current.contains($0.name)
-        }
+    /// 能加进来的：还没在群里的人，角色和人设排在同一张名单里。
+    private var addable: [GroupPerson] {
+        GroupPeople.candidates(
+            roster: companions,
+            profiles: profiles,
+            excluding: Set(GroupRoster.names(from: character.membersNote))
+        )
     }
 
     var body: some View {
@@ -105,8 +109,8 @@ struct GroupMembersPage: View {
                 RowDivider()
             }
 
-            ForEach(orphanNames, id: \.self) { name in
-                orphanRow(name)
+            ForEach(orphans) { person in
+                orphanRow(person.name)
                 RowDivider()
             }
 
@@ -133,17 +137,17 @@ struct GroupMembersPage: View {
         }
     }
 
-    private func memberRow(_ person: Companion) -> some View {
+    private func memberRow(_ person: GroupPerson) -> some View {
         HStack(spacing: PhoneMetrics.Space.s) {
-            AvatarBubble(character: person, size: 34)
+            person.avatar(size: 34)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(person.name)
                     .font(.system(size: PhoneMetrics.FontSize.body))
                     .foregroundStyle(AppSurface.light.label)
 
-                if !person.persona.isEmpty {
-                    Text(person.persona.replacingOccurrences(of: "\n", with: " "))
+                if !person.detail.isEmpty {
+                    Text(person.detail.replacingOccurrences(of: "\n", with: " "))
                         .font(.system(size: PhoneMetrics.FontSize.caption))
                         .foregroundStyle(AppSurface.light.secondaryLabel)
                         .lineLimit(1)
@@ -248,7 +252,7 @@ struct GroupMembersPage: View {
 
 /// 加人。只列还没在群里的角色。
 struct GroupAddMemberSheet: View {
-    let candidates: [Companion]
+    let candidates: [GroupPerson]
     var onAdd: ([String]) -> Void
     var onCancel: () -> Void
 
@@ -260,7 +264,7 @@ struct GroupAddMemberSheet: View {
                 navBar
 
                 if candidates.isEmpty {
-                    Text("没有可加的人。先去「信息」里新建一个角色，再回来加。")
+                    Text("没有可加的人。先去「信息」里建个角色，或在「我的人设」里加一个人，再回来加。")
                         .font(.system(size: PhoneMetrics.FontSize.sub))
                         .foregroundStyle(AppSurface.light.secondaryLabel)
                         .padding(PhoneMetrics.Space.l)
@@ -277,7 +281,7 @@ struct GroupAddMemberSheet: View {
                                 }
                             } label: {
                                 HStack(spacing: PhoneMetrics.Space.s) {
-                                    AvatarBubble(character: person, size: 34)
+                                    person.avatar(size: 34)
 
                                     Text(person.name)
                                         .font(.system(size: PhoneMetrics.FontSize.body))

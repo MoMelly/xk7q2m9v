@@ -286,7 +286,7 @@ struct PreviewSeeder {
             seedWorldState()
             if state == "statePanelIdentity" { switchToSecondIdentity() }
 
-        case "chatGroup", "groupDetail", "groupMemory":
+        case "chatGroup", "groupDetail", "groupMemory", "groupMembers", "groupNew":
             seedGroupChat()
 
         case "chatCalls":

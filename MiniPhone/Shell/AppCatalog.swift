@@ -116,12 +116,23 @@ enum AppCatalog {
                  symbolTint: Color(red: 0.20, green: 0.23, blue: 0.28))
     ]
 
+    /// 默认不占桌面、但能从应用商店装上的。
+    ///
+    /// 动态墙之前只有外壳里的一个 destination，清单里找不到对应图标：
+    /// 真机上点不到，截图状态也因为查不到 App 而退回主屏，拍出来是假图。
+    /// 放进来之后两处都能走通；装不装由用户在商店里决定，默认桌面仍是 8 格。
+    static let optional: [PhoneApp] = [
+        PhoneApp(id: "moments", name: "动态", symbol: "newspaper.fill",
+                 colors: [Color(red: 0.55, green: 0.80, blue: 0.95), Color(red: 0.26, green: 0.50, blue: 0.86)],
+                 destination: .moments)
+    ]
+
     /// 应用商店里能装回来的东西。固定的那格不参与装卸，否则没有恢复入口。
-    static var installable: [PhoneApp] { home.filter { !$0.isPinned } }
+    static var installable: [PhoneApp] { home.filter { !$0.isPinned } + optional }
 
     /// 固定在桌面的 App id。老桌面布局里没有这些格子时会自动补上。
     static var pinnedIDs: [String] { home.filter(\.isPinned).map(\.id) }
 
     /// 清单里全部的 App。旧布局清理、图标查找都走这一份。
-    static var all: [PhoneApp] { home + dock }
+    static var all: [PhoneApp] { home + dock + optional }
 }

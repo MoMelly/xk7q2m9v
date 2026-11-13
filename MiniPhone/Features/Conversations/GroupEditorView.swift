@@ -15,6 +15,8 @@ struct GroupEditorView: View {
     @Environment(\.modelContext) private var context
     @Query(sort: [SortDescriptor(\Companion.sortIndex), SortDescriptor(\Companion.createdAt)])
     private var companions: [Companion]
+    @Query(sort: \UserProfile.createdAt, order: .forward)
+    private var profiles: [UserProfile]
 
     @State private var name = ""
     @State private var picked = Set<String>()
@@ -23,15 +25,17 @@ struct GroupEditorView: View {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 能拉进群的：已经有角色的人。群和西瓜皮里的路人作者不在名单里，
-    /// 小助手也不算——它是内置的那个，进群会把提示词搅浑。
-    private var candidates: [Companion] {
-        companions.filter { !$0.isGroup && !$0.isFeedOnly && $0.name != DefaultAssistant.name }
+    /// 能拉进群的人。群、西瓜皮里的路人作者、内置小助手都不算；
+    /// 其余角色和「我的人设」里的其它人排在同一张名单里，不分开列。
+    private var candidates: [GroupPerson] {
+        GroupPeople.candidates(roster: companions, profiles: profiles)
     }
 
     /// 同名会撞世界状态：群和人在那张表里都以名字为键。
     private var nameTaken: Bool {
-        !trimmedName.isEmpty && companions.contains { $0.name == trimmedName }
+        !trimmedName.isEmpty
+            && (companions.contains { $0.name == trimmedName }
+                || profiles.contains { $0.name == trimmedName })
     }
 
     private var canCreate: Bool {
@@ -116,18 +120,18 @@ struct GroupEditorView: View {
         GroupedSection(
             "成员",
             footer: picked.isEmpty
-                ? "成员是「信息」里已经有的角色。想拉一个还没有的人进群，先给他建一个角色。"
-                : "已选 \(picked.count) 人。名字进群以后还能改，成员的设定、记忆和好感度还是他自己那一份。"
+                ? "下面是能进群说话的人。想加一个还没有的，先给他建个角色，或在「我的人设」里加一个人。"
+                : "已选 \(picked.count) 人。名字进群以后还能改，各人的设定、记忆和好感度还是他自己那一份。"
         ) {
             if candidates.isEmpty {
-                Text("还没有可拉进群的角色。先新建一个角色，再回来建群。")
+                Text("还没有可以加进来的人。先建一个角色，或在「我的人设」里加一个人，再回来建群。")
                     .font(.system(size: PhoneMetrics.FontSize.sub))
                     .foregroundStyle(AppSurface.light.secondaryLabel)
                     .padding(.horizontal, PhoneMetrics.Space.m)
                     .padding(.vertical, PhoneMetrics.Space.m)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                ForEach(Array(candidates.enumerated()), id: \.element.uid) { index, person in
+                ForEach(Array(candidates.enumerated()), id: \.element.id) { index, person in
                     if index > 0 { RowDivider() }
                     row(person)
                 }
@@ -135,7 +139,7 @@ struct GroupEditorView: View {
         }
     }
 
-    private func row(_ person: Companion) -> some View {
+    private func row(_ person: GroupPerson) -> some View {
         Button {
             if picked.contains(person.name) {
                 picked.remove(person.name)
@@ -145,7 +149,7 @@ struct GroupEditorView: View {
             Haptics.tap()
         } label: {
             HStack(spacing: PhoneMetrics.Space.s) {
-                AvatarBubble(character: person, size: 34)
+                person.avatar(size: 34)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(person.name)
@@ -153,8 +157,8 @@ struct GroupEditorView: View {
                         .foregroundStyle(AppSurface.light.label)
                         .lineLimit(1)
 
-                    if !person.persona.isEmpty {
-                        Text(person.persona.replacingOccurrences(of: "\n", with: " "))
+                    if !person.detail.isEmpty {
+                        Text(person.detail.replacingOccurrences(of: "\n", with: " "))
                             .font(.system(size: PhoneMetrics.FontSize.caption))
                             .foregroundStyle(AppSurface.light.secondaryLabel)
                             .lineLimit(1)

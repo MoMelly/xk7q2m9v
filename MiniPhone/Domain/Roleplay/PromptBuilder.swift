@@ -80,7 +80,7 @@ enum PromptBuilder {
             """)
         }
 
-        // 对方是谁。同一个人可以换身份来聊，角色得跟着换称呼和态度。
+        // 现在跟自己说话的人。资料变了，称呼和分寸就跟着变。
         if let userIdentity {
             var lines: [String] = ["他叫\(userIdentity.name)。"]
             let userSignature = userIdentity.signature.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -105,15 +105,10 @@ enum PromptBuilder {
             if userIdentity.isBlank {
                 lines.append("你没见过他别的资料。不知道的事就问，不要替他补设定。")
             }
-            lines.append("按这个身份跟他说话：称呼、语气、分寸都按你和他现在的关系来。")
-            // 这部手机里可以有好几个身份。对角色来说，那是不同的人，
-            // 不是同一个人换了名字——不写这一句，模型会拿同一个人的
-            // 记忆去接另一个身份的对话，等于把两个人的私事串了。
-            lines.append("""
-            这部手机里可能还有别人用别的身份来找你。那是另一个人，不是这个人换了个名字、\
-            也不是他的小号：不要把两个人的事混在一起，不要跟这个人提另一个人跟你说过什么，\
-            也不要拿「上次你不是说……」去接另一个身份的话。
-            """)
+            // 不在这里交代「还有谁也会来找你」。每轮送进来的历史、记忆和
+            // 世界状态本来就是按当前这个人筛过的，模型看不到别人的那一份；
+            // 写一句「别把两个人混起来」反而等于告诉它那边还有一个人。
+            lines.append("按你和他现在的关系说话：称呼、语气、分寸都按这份资料来。")
             blocks.append("【对方是谁】\n" + lines.joined(separator: "\n"))
         }
 

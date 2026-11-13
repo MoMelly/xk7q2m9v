@@ -21,7 +21,7 @@ struct AppStorePage: View {
 
                     GroupedSection(
                         "可以装回来的",
-                        footer: "卸载只是把桌面那一格拿走。聊天记录、角色、书和听歌记录都还在，装回来还是原来那个。"
+                        footer: "装上或卸下都只动桌面那一格。聊天记录、角色、书和听歌记录都还在，装回来还是原来那个。"
                     ) {
                         ForEach(Array(AppCatalog.installable.enumerated()), id: \.element.id) { index, app in
                             if index > 0 { RowDivider() }
@@ -178,6 +178,7 @@ struct AppStorePage: View {
         "couple": "两个人的空间，火花和纪念日",
         "storygame": "分支剧情，选了就回不去",
         "reading": "导入书、翻页、划句子",
+        "moments": "角色发过的动态，按时间排成一墙",
         "store": "卸掉的 App 从这里装回来",
         "dock.messages": "跟角色说话，都在这儿",
         "dock.feed": "动态、私信、帖子",
