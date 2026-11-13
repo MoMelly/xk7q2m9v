@@ -151,23 +151,7 @@ struct PhoneShellView: View {
             }
 
             if let app = openedApp {
-                // 键盘自己让，不交给系统。
-                //
-                // 这一层是一整块铺满屏幕的假手机，系统那套键盘避让在这里不生效：
-                // 截图核对过，键盘起来以后 App 页没有被压窄，底部输入条直接被盖在
-                // 键盘后面；而声明了「不理键盘」之后，系统又改成把整块内容往上翻译，
-                // 标题跟着被推出屏幕。
-                //
-                // 所以按系统本来的做法自己做一遍：在底部预留一条和键盘等高的
-                // 安全区，内容区就压窄了——输入条落在键盘上沿，顶部安全区不动、
-                // 标题留在原位。不要改成给内容加固定高度：显式 frame 会连带
-                // 把顶部的安全区吃掉，标题又被顶出去。
                 appLayer(app)
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        Color.clear
-                            .frame(height: KeyboardInset.shared.lift)
-                            .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.lift)
-                    }
                     // 遮罩要铺到整屏：App 页的背景自己会往安全区外延伸，
                     // 遮罩只按安全区算的话，上下会各裁掉一条、露出壁纸。
                     .mask { launchMask.ignoresSafeArea() }

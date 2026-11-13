@@ -73,7 +73,8 @@ extension View {
     /// 在屏幕里。只在 `-previewState chatKeyboard` 下显示。
     func keyboardProbe() -> some View {
         overlay {
-            if UserDefaults.standard.string(forKey: "previewState") == "chatKeyboard" {
+            let state = UserDefaults.standard.string(forKey: "previewState") ?? ""
+            if state == "chatKeyboard" || state == "chatGroup" {
                 GeometryReader { proxy in
                     let frame = proxy.frame(in: .global)
                     let screen = UIScreen.main.bounds.height

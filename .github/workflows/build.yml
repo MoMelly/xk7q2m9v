@@ -120,6 +120,17 @@ jobs:
           guarded 180 xcrun simctl install "$DEVICE_ID" "$APP" || { echo "install failed"; exit 1; }
           mkdir -p shots
 
+          # 压掉模拟器的「滑动输入」新手引导。
+          #
+          # 第一次在模拟器里弹键盘时，系统会在键盘上方叠一块
+          # "Speed up your typing by sliding your finger… Continue" 的教学面板，
+          # 比键盘本身还高，正好盖住截图里的输入条——看上去像「输入框消失了」。
+          # 它只是模拟器的一次性引导，真机上不会出现，但会把验收图拍歪。
+          guarded 30 xcrun simctl spawn "$DEVICE_ID" defaults write \
+            com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true || true
+          guarded 30 xcrun simctl spawn "$DEVICE_ID" defaults write \
+            com.apple.Preferences KeyboardDidShowContinuousPathIntroduction -bool true || true
+
           # 模拟器刚起来时前几次 launch 会失败（SpringBoard 还没接手），
           # 空跑一次把路走通再正式拍，否则 lock/home 这种排在最前的必然丢掉。
           guarded 30 xcrun simctl launch "$DEVICE_ID" com.melly.miniphone -previewState home || true
