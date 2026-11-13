@@ -321,12 +321,7 @@ enum DataBackup {
                 options: .atomic
             )
         }
-        if let world = try? Data(contentsOf: WorldStateFile.url) {
-            try world.write(
-                to: folder.appendingPathComponent("world-state.json"),
-                options: .atomic
-            )
-        }
+        try exportWorldState(to: folder)
 
         // 用户从相册传的头像是 Documents/avatars 下的 UUID 文件，
         // 内置头像（avatar_ 前缀）随包发布不用搬。逐个文件拷进备份目录。
@@ -548,11 +543,7 @@ enum DataBackup {
             try? VideoWallpaperStore.replace(with: video)
             extras.append("视频壁纸")
         }
-        let worldSource = folder.appendingPathComponent("world-state.json")
-        if let snapshot = try? Data(contentsOf: worldSource) {
-            try? snapshot.write(to: WorldStateFile.url, options: .atomic)
-            extras.append("世界状态")
-        }
+        if restoreWorldState(from: folder) { extras.append("世界状态") }
 
         // 上传的头像照片文件搬回 Documents/avatars，内置的随包不用动。
         let backupAvatars = folder.appendingPathComponent("avatars", isDirectory: true)

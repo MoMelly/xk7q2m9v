@@ -277,7 +277,7 @@ extension ChatViewModel {
                         hour: hour,
                         mood: mood?.mood,
                         location: location,
-                        since: mate.createdAt,
+                        since: mate.knownSince,
                         now: now
                     )
                 )

@@ -146,9 +146,9 @@ struct PreviewSeeder {
 
     // MARK: - 入口
 
-    /// 只在带 `-previewState` 启动时写。正常启动读不到这个键，一条都不会插。
-    /// 聊天详情和我的主页没有预置内容就是空态，截图看不出布局对不对。
+    /// 只在带 `-previewState` 启动时写；空态截图看不出布局，所以这几屏要垫数据。
     func run() {
+        startFromDefaultIdentity()
         switch state {
         case "home", "homeVector", "homeDark", "homeNight":
             // 主屏三块组件都读世界状态。不垫数据，截出来全是「今天还没排事」。
@@ -157,8 +157,9 @@ struct PreviewSeeder {
         case "musicBall", "musicLyrics":
             seedNowPlaying()
 
-        case "couple":
+        case "couple", "coupleIdentity":
             seedCouple()
+            if state == "coupleIdentity" { switchToSecondIdentity() }
 
         case "chatTogether":
             // 这一屏专门拍「一起听」的状态条，只需要一首在放的歌。
@@ -281,8 +282,9 @@ struct PreviewSeeder {
         case "storyGame", "storyEnd", "storyPlay":
             seedStory()
 
-        case "statePanel", "anonBox", "memoryLibrary", "worldEntries":
+        case "statePanel", "anonBox", "memoryLibrary", "worldEntries", "statePanelIdentity":
             seedWorldState()
+            if state == "statePanelIdentity" { switchToSecondIdentity() }
 
         case "chatGroup", "groupDetail", "groupMemory":
             seedGroupChat()

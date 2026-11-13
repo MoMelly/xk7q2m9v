@@ -30,6 +30,11 @@ struct PhoneApp: Identifiable, Hashable {
     let destination: Destination
     /// 图形颜色。底色偏浅的图标必须换成深色，否则白图形看不见。
     var symbolTint: Color = .white
+    /// 固定在桌面、不给卸。
+    ///
+    /// 应用商店是误删之后唯一的恢复入口，它自己被删掉就没有第二处能装回图标了。
+    /// 这一格不进装卸列表，编辑态也不长减号。
+    var isPinned: Bool = false
 
     static func == (lhs: PhoneApp, rhs: PhoneApp) -> Bool { lhs.id == rhs.id }
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
@@ -51,7 +56,7 @@ enum AppCatalog {
     /// 通话已经进聊天，计算器没有任何场景。
     ///
     /// 和 Dock 严格不重叠：同一个 App 在桌面和底栏各出现一次，看起来像重复安装。
-    /// 信息、西瓜皮、TA 的手机这几个每天都要点的放进 Dock，桌面只留内容类的。
+    /// 信息、西瓜皮、TA 的手机、设置这四个每天都要点的放进 Dock，桌面只留内容类的。
     static let home: [PhoneApp] = [
         PhoneApp(id: "music", name: "音乐", symbol: "music.note",
                  colors: [Color(red: 1.0, green: 0.46, blue: 0.52), Color(red: 0.97, green: 0.24, blue: 0.48)],
@@ -82,13 +87,19 @@ enum AppCatalog {
         PhoneApp(id: "reading", name: "阅读", symbol: "books.vertical.fill",
                  colors: [Color(red: 1.0, green: 0.93, blue: 0.80), Color(red: 0.96, green: 0.80, blue: 0.58)],
                  destination: .scene(.reading),
-                 symbolTint: Color(red: 0.46, green: 0.32, blue: 0.14))
+                 symbolTint: Color(red: 0.46, green: 0.32, blue: 0.14)),
+        // 应用商店放桌面，不放底栏：底栏固定四个是她定的。
+        // 它是唯一的恢复入口，所以标记为不可卸。
+        PhoneApp(id: "store", name: "应用商店", symbol: "bag.fill",
+                 colors: [Color(red: 0.42, green: 0.72, blue: 1.0), Color(red: 0.20, green: 0.46, blue: 0.98)],
+                 destination: .appStore,
+                 isPinned: true)
     ]
 
-    /// Dock 里的四个。桌面上的同类入口已经全部撤掉，这里不再有第二份。
+    /// Dock 里固定四个。桌面上的同类入口已经全部撤掉，这里不再有第二份。
     ///
-    /// 第五格是应用商店，和别的 App 不一样：它不能被卸掉，桌面上的图标
-    /// 也删不到它。删掉一个图标之后得有地方把它装回来，不然就只能重装软件。
+    /// 数量写死成四：多一格会让每个图标都变窄，也和真机底栏对不上。
+    /// 应用商店原来占过第五格，已经挪回桌面第一屏。
     static let dock: [PhoneApp] = [
         PhoneApp(id: "dock.messages", name: "信息", symbol: "message.fill",
                  colors: [Color(red: 0.42, green: 0.96, blue: 0.54), Color(red: 0.16, green: 0.82, blue: 0.38)],
@@ -102,13 +113,15 @@ enum AppCatalog {
         PhoneApp(id: "dock.settings", name: "设置", symbol: "gearshape.fill",
                  colors: [Color(red: 0.86, green: 0.89, blue: 0.93), Color(red: 0.62, green: 0.67, blue: 0.74)],
                  destination: .settings,
-                 symbolTint: Color(red: 0.20, green: 0.23, blue: 0.28)),
-        PhoneApp(id: "dock.store", name: "应用商店", symbol: "bag.fill",
-                 colors: [Color(red: 0.42, green: 0.72, blue: 1.0), Color(red: 0.20, green: 0.46, blue: 0.98)],
-                 destination: .appStore)
+                 symbolTint: Color(red: 0.20, green: 0.23, blue: 0.28))
     ]
 
-    /// 应用商店里能装的东西。Dock 那一组是固定的，不参与装卸，
-    /// 只拿来在页面底部说明一句「底栏的四个不能删」。
-    static let installable: [PhoneApp] = home
+    /// 应用商店里能装回来的东西。固定的那格不参与装卸，否则没有恢复入口。
+    static var installable: [PhoneApp] { home.filter { !$0.isPinned } }
+
+    /// 固定在桌面的 App id。老桌面布局里没有这些格子时会自动补上。
+    static var pinnedIDs: [String] { home.filter(\.isPinned).map(\.id) }
+
+    /// 清单里全部的 App。旧布局清理、图标查找都走这一份。
+    static var all: [PhoneApp] { home + dock }
 }

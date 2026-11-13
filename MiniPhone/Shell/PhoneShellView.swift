@@ -33,6 +33,8 @@ struct PhoneShellView: View {
     /// 截图状态下要直开的那段会话。正常启动不会用到，也不写任何演示数据。
     @Query(sort: \Companion.createdAt, order: .forward) private var companions: [Companion]
     @Query(sort: \UserProfile.createdAt, order: .forward) private var profiles: [UserProfile]
+    /// 当前身份。值一变就换一份世界状态、重算主屏显示谁。
+    @AppStorage("shell.activeIdentity") private var activeIdentity = ""
 
     // MARK: - 截图用的启动状态
 
@@ -57,7 +59,7 @@ struct PhoneShellView: View {
     private static var opensChatDirectly: Bool {
         switch previewState {
         case "chatDetail", "chatStickers", "chatPhoto", "chatDynamic", "chatGlass", "charDetail", "board",
-             "statePanel", "anonBox", "worldEntries", "chatGroup", "groupDetail", "groupMemory",
+             "statePanel", "statePanelIdentity", "anonBox", "worldEntries", "chatGroup", "groupDetail", "groupMemory",
              "groupMembers", "chatKeyboard",
              "call", "chatTogether", "redPacket":
             return true
@@ -82,10 +84,10 @@ struct PhoneShellView: View {
         case "letters": destination = .scene(.letters)
         case "reading": destination = .scene(.reading)
         case "phonePeek": destination = .scene(.phonePeek)
-        case "couple": destination = .scene(.couple)
+        case "couple", "coupleIdentity": destination = .scene(.couple)
         case "storyGame", "storyPlay", "storyEnd": destination = .scene(.storyGame)
-        case "chatDetail", "chatMine", "identitySwitch", "chatCalls", "chatEditor", "chatStickers", "chatPhoto",
-             "groupNew", "chatKeyboard",
+        case "chatDetail", "chatMine", "identitySwitch", "statePanelIdentity", "chatCalls", "chatEditor",
+             "chatStickers", "chatPhoto", "groupNew", "chatKeyboard",
              "chatDynamic", "chatGlass", "avatarPicker", "chatGroup", "groupDetail", "groupMemory",
              "groupMembers",
              "charDetail", "board", "statePanel", "anonBox", "worldEntries",
@@ -95,7 +97,7 @@ struct PhoneShellView: View {
         }
         guard let destination else { return nil }
         // Dock 里的 App 不在桌面清单里了，找的时候两份合起来找。
-        return (AppCatalog.home + AppCatalog.dock).first { $0.destination == destination }
+        return AppCatalog.all.first { $0.destination == destination }
     }
 
     /// 夜间截图：状态名带 Night 后缀就切到夜间。
@@ -211,7 +213,7 @@ struct PhoneShellView: View {
                         onClose: closeControlCenter,
                         onOpenSettings: {
                             closeControlCenter()
-                            if let app = (AppCatalog.home + AppCatalog.dock)
+                            if let app = AppCatalog.all
                                 .first(where: { $0.destination == .settings }) {
                                 open(app)
                             }
@@ -261,14 +263,7 @@ struct PhoneShellView: View {
                 ThemeStore.shared.appearanceRaw = AppearanceMode.night.rawValue
             }
             Self.applyPreviewTheme()
-            // 主屏和锁屏只有一块地方，挑人的规则跟「TA 的手机」默认打开谁一致：
-            // 最近说过话的那个。小助手不算——它不是谈恋爱的人；群也不算，
-            // 小组件上写一个群名，看起来像系统在提醒你有个群。
-            let primary = companions
-                .filter { !$0.isFeedOnly && !$0.isGroup && $0.name != DefaultAssistant.name }
-                .sorted { ($0.lastMessageAt ?? .distantPast) > ($1.lastMessageAt ?? .distantPast) }
-                .first?.name ?? ""
-            if !primary.isEmpty { world.primaryName = primary }
+            refreshPrimary()
             // 上次设的音量在启动时落到播放器上：它存在控制中心那边，播放器是无状态的。
             player.volume = controlCenter.volume
             // 语速同理：设置里选的那一档落到语音服务上，各处 speak 不用各传一次。
@@ -298,6 +293,31 @@ struct PhoneShellView: View {
             guard !pages.isEmpty else { return }
             scheduleNoticeDismiss()
         }
+        // 身份切换要当场生效：通知那条走异步，这里同步补一次，
+        // 免得中间有一帧还挂着上一个身份的好感度和日程。
+        .onChange(of: activeIdentity) { _, _ in
+            world.reloadForActiveIdentity()
+            refreshPrimary()
+        }
+    }
+
+    /// 主屏和锁屏只有一块地方，挑「当前身份最近说过话的那个人」。
+    ///
+    /// 用 scoped 时间而不是 `Companion.lastMessageAt`：那个字段是所有身份
+    /// 混在一起的，换身份之后会把另一个人聊过的角色带到主屏组件上。
+    /// 这个身份一条消息都没有时谁都不显示，小组件走空状态。
+    /// 小助手不算——它不是谈恋爱的人；群也不算，组件上写群名像系统提醒。
+    private func refreshPrimary() {
+        let candidates = companions.filter {
+            !$0.isFeedOnly && !$0.isGroup && $0.name != DefaultAssistant.name
+        }
+        let latest = candidates
+            .compactMap { character -> (String, Date)? in
+                guard let at = character.scopedLastMessageAt else { return nil }
+                return (character.name, at)
+            }
+            .max { $0.1 < $1.1 }
+        world.primaryName = latest?.0 ?? ""
     }
 
     // MARK: - 控制中心
@@ -320,7 +340,7 @@ struct PhoneShellView: View {
             case .feed: destination = .scene(.feed)
             }
             // 西瓜皮现在只在 Dock 里，桌面那张表查不到它。
-            guard let app = (AppCatalog.home + AppCatalog.dock)
+            guard let app = AppCatalog.all
                 .first(where: { $0.destination == destination }) else {
                 return nil
             }

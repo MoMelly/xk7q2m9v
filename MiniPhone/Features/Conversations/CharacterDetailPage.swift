@@ -68,7 +68,7 @@ struct CharacterDetailPage: View {
         switch previewLeaf {
         case "board":
             AnyView(CharacterBoardPage(character: character, world: world))
-        case "statePanel":
+        case "statePanel", "statePanelIdentity":
             AnyView(StatePanelPage(character: character, world: world))
         case "anonBox":
             AnyView(AnonymousBoxPage(character: character, world: world, settings: settings))

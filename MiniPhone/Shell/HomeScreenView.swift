@@ -136,7 +136,7 @@ struct HomeScreenView: View {
     /// 桌面和 Dock 一起找：心情组件点开的是「信息」，它现在只在 Dock 里，
     /// 只翻桌面那张表会静默失灵。
     private func openApp(_ id: String) {
-        guard let app = (AppCatalog.home + AppCatalog.dock).first(where: { $0.id == id }) else { return }
+        guard let app = AppCatalog.all.first(where: { $0.id == id }) else { return }
         onOpen(app)
     }
 

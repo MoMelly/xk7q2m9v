@@ -14,7 +14,8 @@ enum WipeService {
         "Lyrics",
         "Wallpapers",
         "avatars",
-        "worlds"
+        "worlds",
+        "identity-states"
     ]
 
     private static let ownedFiles = [
@@ -45,7 +46,12 @@ enum WipeService {
         try context.delete(model: UserProfile.self)
         try context.save()
 
+        // 身份状态也要清掉，并且回到默认身份：不清的话会站在一个
+        // 已经被删空的人格上。写入口先指回默认文件再落盘，免得
+        // 把空状态写进马上要删掉的那个身份目录里。
+        IdentityScope.shared.resetToDefault()
         let world = WorldStore.shared
+        world.adoptActiveIdentityFile()
         world.state = .empty
         world.primaryName = ""
         world.save()

@@ -13,12 +13,14 @@ import SwiftUI
 final class IdentityScope {
     static let shared = IdentityScope()
 
-    private static let key = "shell.activeIdentity"
+    /// UserDefaults 键。世界状态文件选路径时也要读它，那边不方便跨
+    /// actor 隔离取实例，所以键名单独暴露，避免两边各写一份字面量。
+    nonisolated static let storageKey = "shell.activeIdentity"
 
     /// 不经过实例的读取。`@Query` 的谓词在 init 里拼，那里碰不到
     /// 主线程隔离的实例，就直接读存下来的那个值。
     nonisolated static var storedUID: String {
-        UserDefaults.standard.string(forKey: "shell.activeIdentity") ?? ""
+        UserDefaults.standard.string(forKey: storageKey) ?? ""
     }
 
     private(set) var uid: String
@@ -26,7 +28,7 @@ final class IdentityScope {
     var isDefault: Bool { uid.isEmpty }
 
     private init() {
-        uid = UserDefaults.standard.string(forKey: Self.key) ?? ""
+        uid = UserDefaults.standard.string(forKey: Self.storageKey) ?? ""
     }
 
     /// 切到某个身份。传空串就是回默认身份。
@@ -36,11 +38,20 @@ final class IdentityScope {
     func switchTo(_ newUID: String) {
         guard uid != newUID else { return }
         uid = newUID
-        UserDefaults.standard.set(newUID, forKey: Self.key)
+        UserDefaults.standard.set(newUID, forKey: Self.storageKey)
         Haptics.tap()
         // 会话列表、聊天页、记忆页都是按身份现算的，不订阅这个值就得等
         // 重新进页面才会变；发一条通知让开着的那几个当场刷一遍。
         NotificationCenter.default.post(name: .identityChanged, object: nil)
+    }
+
+    /// 清空整台手机时把当前身份一起归零。
+    ///
+    /// 不发身份变更通知：调用方已经把世界状态清空并指回默认文件，
+    /// 再触发一次异步读盘会把刚清掉的东西重新读回来。
+    func resetToDefault() {
+        uid = ""
+        UserDefaults.standard.removeObject(forKey: Self.storageKey)
     }
 
     /// 删掉一个身份之后，如果正站在它上面，回默认身份。
@@ -61,6 +72,15 @@ extension Companion {
     /// 当前身份在这段会话里最后说话的时间。列表按它排。
     var scopedLastMessageAt: Date? {
         scopedMessages.map(\.createdAt).max()
+    }
+
+    /// 当前身份是从哪天认识他的。
+    ///
+    /// `Companion.createdAt` 是角色建库的时间，跟谁在聊无关；换身份之后
+    /// 用它算「相处 N 天」会把另一个身份攒下来的天数带过来。起算点改成
+    /// 这个身份在这段会话里最早的一条消息，没聊过就是今天。
+    var knownSince: Date {
+        scopedMessages.map(\.createdAt).min() ?? Date()
     }
 }
 

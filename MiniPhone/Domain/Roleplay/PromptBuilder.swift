@@ -486,7 +486,7 @@ enum PromptBuilder {
             hour: CharacterClock.calendar.component(.hour, from: now),
             mood: worldContext?.mood?.mood,
             location: worldContext?.location ?? "",
-            since: character.createdAt,
+            since: character.knownSince,
             now: now
         )
         // 群成员的条目按各自的状态判。成员没带条件时退回这一轮的条件，

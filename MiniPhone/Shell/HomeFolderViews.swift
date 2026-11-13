@@ -63,7 +63,7 @@ struct FolderPanel: View {
 
     private var apps: [PhoneApp] {
         appIDs.compactMap { id in
-            AppCatalog.home.first { $0.id == id } ?? AppCatalog.dock.first { $0.id == id }
+            AppCatalog.all.first { $0.id == id }
         }
     }
 

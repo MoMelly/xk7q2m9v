@@ -157,7 +157,7 @@ struct ChatView: View {
                 // 正常启动读不到这个键。
                 isComposerActive = true
                 isInputFocused = true
-            case "charDetail", "board", "statePanel", "anonBox", "worldEntries", "groupDetail", "groupMemory", "groupMembers":
+            case "charDetail", "board", "statePanel", "statePanelIdentity", "anonBox", "worldEntries", "groupDetail", "groupMemory", "groupMembers":
                 // board / statePanel / anonBox 是再往下压一层的页面，截图流水线
                 // 没有手势可用，先把详情页打开，由它自己决定要不要直接落到那一层。
                 // worldEntries 再深一级：详情 → 编辑器 → 世界书列表，逐层自己开。

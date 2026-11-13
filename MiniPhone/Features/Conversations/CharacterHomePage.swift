@@ -26,10 +26,12 @@ struct CharacterHomePage: View {
         world.state.person(named: character.name)
     }
 
-    /// 相处天数从第一次对话算起，不是从建角色算起——
-    /// 建了角色一直没聊，不该显示「认识 30 天」。
+    /// 相处天数从「这个身份」的第一条消息算起。
+    ///
+    /// `character.messages` 是所有身份混在一起的；换身份之后不能把别人
+    /// 攒下的天数带过来，没聊过就是第 1 天。
     private var knownDays: Int {
-        let start = character.messages.min(by: { $0.createdAt < $1.createdAt })?.createdAt ?? character.createdAt
+        let start = character.knownSince
         let days = Calendar.current.dateComponents(
             [.day],
             from: Calendar.current.startOfDay(for: start),

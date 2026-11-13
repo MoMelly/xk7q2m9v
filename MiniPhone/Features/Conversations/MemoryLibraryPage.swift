@@ -270,7 +270,7 @@ struct MemoryLibraryPage: View {
         let person = people.first { $0.name == character.name && $0.personaUID == IdentityScope.storedUID }
         let facts = person?.facts.count ?? 0
         let open = person?.voices.filter { !$0.isResolved }.count ?? 0
-        let days = WorldBookResolver.Conditions.daysBetween(character.createdAt, and: Date())
+        let days = WorldBookResolver.Conditions.daysBetween(character.knownSince, and: Date())
 
         var parts: [String] = []
         parts.append(days == 0 ? "今天加的" : "认识 \(days) 天")

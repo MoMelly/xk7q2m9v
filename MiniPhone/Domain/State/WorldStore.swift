@@ -3,11 +3,41 @@ import Observation
 
 /// 世界状态文件的路径。放在类型外面，让备份层不必跨 actor 隔离取路径。
 ///
-/// 跟着当前世界走：第一个世界还是 `Documents/world-state.json`，
-/// 新建的世界在 `Documents/worlds/<id>/world-state.json`。
+/// 跟着「当前世界 + 当前身份」走：
+/// - 默认身份沿用老路径（第一个世界 `Documents/world-state.json`，
+///   新世界 `Documents/worlds/<id>/world-state.json`），升级不用迁移；
+/// - 其它身份各有自己的一份，落在 `Documents/identity-states/<世界>/<身份>/`。
+///
+/// 按文件分而不是逐个字段打身份标签：好感度、日程、火花、心情、变量、
+/// 心事、群摘要全在这一份里，一处切开就全切开，也不会漏掉某张表。
 enum WorldStateFile {
+    /// 非默认身份那几份状态的根目录。备份按整个目录搬。
+    static var identityRootURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("identity-states", isDirectory: true)
+    }
+
+    static func url(for personaUID: String, worldID: String = WorldRegistry.activeID) -> URL {
+        guard !personaUID.isEmpty else { return WorldRegistry.stateURL(for: worldID) }
+        let folder = identityRootURL
+            .appendingPathComponent(safeComponent(worldID), isDirectory: true)
+            .appendingPathComponent(safeComponent(personaUID), isDirectory: true)
+        try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appendingPathComponent("world-state.json")
+    }
+
+    /// 当前身份该读写哪一份。读 UserDefaults 而不是取 `IdentityScope.shared`，
+    /// 是为了让备份层（不跑在主线程隔离里）也能安全拿到同一个值。
     static var url: URL {
-        WorldRegistry.stateURL(for: WorldRegistry.activeID)
+        let uid = UserDefaults.standard.string(forKey: IdentityScope.storageKey) ?? ""
+        return url(for: uid)
+    }
+
+    /// 身份 id 是 UUID，但目录名还是过一遍，别把斜杠、空格带进路径。
+    private static func safeComponent(_ raw: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let cleaned = String(raw.unicodeScalars.map { allowed.contains($0) ? Character($0) : Character("_") })
+        return cleaned.isEmpty ? "unnamed" : cleaned
     }
 }
 
@@ -47,7 +77,8 @@ final class WorldStore {
     func consumeNotice() {
         pendingNotices = []
     }
-    private let fileURL: URL
+    /// 当前身份对应的那一份文件。切换身份时换路径，不重建 store。
+    private var fileURL: URL
 
     init(fileURL: URL? = nil) {
         let url = fileURL ?? WorldStateFile.url
@@ -57,6 +88,37 @@ final class WorldStore {
             self.state = decoded
         } else {
             self.state = .empty
+        }
+        observeIdentityChanges()
+    }
+
+    /// 换身份 = 换一份世界状态：改文件、重新读盘，再按新那份生成今天。
+    ///
+    /// 不合并、不拷贝，新身份看到的就是一份空状态。老身份那份原样留在盘上，
+    /// 切回来再读回来。通知和主屏的 onChange 都会调到它，重复调用是幂等的
+    /// （`ensureToday` 有 dateKey 守卫）。
+    func reloadForActiveIdentity() {
+        adoptActiveIdentityFile()
+        reload()
+        ensureToday(wakeHour: 7, sleepHour: 23)
+    }
+
+    /// 只换目标文件、不读盘。清空整台手机时要先把写入口指回默认身份再落盘。
+    func adoptActiveIdentityFile() {
+        fileURL = WorldStateFile.url
+    }
+
+    /// 新建、切换、删掉当前身份后回退，都由 `IdentityScope` 发同一条通知。
+    /// 在这里统一接，比在每个切换入口各调一次不容易漏。
+    private func observeIdentityChanges() {
+        _ = NotificationCenter.default.addObserver(
+            forName: .identityChanged,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { @MainActor in
+                WorldStore.shared.reloadForActiveIdentity()
+            }
         }
     }
 

@@ -66,7 +66,7 @@ struct HomeLayout: Codable {
     /// 图标清单是会变的：这一版撤掉了「照片」，而旧布局里还留着那一格。
     /// 不做这一步，桌面上就多一个永远点不开的空白格子。
     func pruned() -> HomeLayout {
-        let known = Set((AppCatalog.home + AppCatalog.dock).map(\.id))
+        let known = Set(AppCatalog.all.map(\.id))
         var next = self
         for index in next.pages.indices {
             next.pages[index] = next.pages[index].filter { slot in
@@ -74,6 +74,19 @@ struct HomeLayout: Codable {
             }
         }
         next.pages = next.pages.filter { !$0.isEmpty }
+        if next.pages.isEmpty { next.pages = [[]] }
+
+        // 固定入口补回桌面。应用商店原来在 Dock 第五格，那一格撤掉之后
+        // 老布局里根本没有它；不补的话升级完就找不到装回图标的地方了。
+        // 追加到末尾，不插队，免得顶掉用户已经排好的位置。
+        for appID in AppCatalog.pinnedIDs where !next.contains(appID) {
+            var last = next.pages.count - 1
+            if next.pages[last].count >= perPage {
+                next.pages.append([])
+                last += 1
+            }
+            next.pages[last].append(.app(appID))
+        }
         return HomeLayout(pages: next.pages)
     }
 
@@ -82,7 +95,9 @@ struct HomeLayout: Codable {
               let decoded = try? JSONDecoder().decode(HomeLayout.self, from: data),
               !decoded.pages.isEmpty
         else { return .standard() }
-        return decoded
+        // 读的时候就补固定入口：桌面、应用商店、装/卸各读各的，
+        // 只靠某一个调用点记得 .pruned() 迟早会漏一处。
+        return decoded.pruned()
     }
 
     func save() {
@@ -123,6 +138,8 @@ struct HomeLayout: Codable {
 
     /// 从桌面卸掉。只动桌面这一格，App 本身和它的数据都不受影响。
     static func remove(_ appID: String) {
+        // 固定入口不给卸：它自己是唯一能把别的图标装回来的地方。
+        guard !AppCatalog.pinnedIDs.contains(appID) else { return }
         var layout = load().pruned()
         for pageIndex in layout.pages.indices {
             if let index = layout.pages[pageIndex].firstIndex(where: { $0.appIDs == [appID] }) {

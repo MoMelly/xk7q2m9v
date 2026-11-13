@@ -47,16 +47,21 @@ struct HomeBoard: View {
                     pageView(slots, index: index, size: size)
                         .frame(width: size.width, height: size.height)
                         .offset(x: CGFloat(index - page) * size.width + swipeOffset)
+                        // 编辑态左右放开裁切之后，相邻页会从左边缘露出一条。
+                        // 编辑态本来就禁止翻页，非当前页直接藏掉。
+                        .opacity(editing && index != page ? 0 : 1)
                 }
             }
             .frame(width: size.width, height: size.height, alignment: .leading)
             .coordinateSpace(name: "homeBoard")
-            // 只裁左右，不裁上下。
+            // 上下一直不裁；左右只在翻页时裁。
             //
-            // 原来这里是一整块 `.clipped()`：编辑模式下把图标往上或往下拖，
-            // 一出网格就被切掉半截；第一排左上角的减号也被上边缘裁掉一块。
-            // 翻页仍然要裁（相邻那页会滑进屏幕），所以横着裁、竖着放任它画出去。
-            .clipShape(BoardWindow())
+            // 原来是一整块 `.clipped()`：图标往上/往下拖出网格就被切半截，
+            // 第一排的减号也被上边缘削掉。改成只裁横向之后上边好了，
+            // 但第一列图标的减号是往格子外偏 11pt 画的，又被左边缘削掉一半。
+            // 所以编辑态把横向裁剪框左右各放宽一点——那一段正落在主屏的
+            // 左右留白里，不会碰屏幕边；非编辑态收回原宽，翻页照旧裁干净。
+            .clipShape(BoardWindow(horizontalInset: editing ? 18 : 0))
             .contentShape(Rectangle())
             .gesture(pagingGesture(size: size))
             // 兜底：图标那套手势万一没起来，板子这一层也认一次长按。
@@ -122,7 +127,7 @@ struct HomeBoard: View {
             Button("从桌面移除", role: .destructive) { confirmRemoval() }
             Button("取消", role: .cancel) { pendingRemoval = nil }
         } message: {
-            Text("只是拿走这个图标，聊天记录和里面的东西都还在。想装回来去底栏的「应用商店」。")
+            Text("只是拿走这个图标，聊天记录和里面的东西都还在。想装回来点桌面上的「应用商店」。")
         }
     }
 
@@ -198,7 +203,8 @@ struct HomeBoard: View {
                     // 编辑态里就按不动任何图标。打开动作由 onTapGesture
                     // 自己那行 `guard !editing` 拦住。
                     .overlay(alignment: .topLeading) {
-                        if editing { removeBadge { remove(appID) } }
+                        // 应用商店是唯一的恢复入口，不给它长减号。
+                        if editing, !app.isPinned { removeBadge { remove(appID) } }
                     }
                     .jiggle(editing, phase: jigglePhase)
             }
@@ -245,7 +251,7 @@ struct HomeBoard: View {
     }
 
     private func app(id: String) -> PhoneApp? {
-        AppCatalog.home.first { $0.id == id } ?? AppCatalog.dock.first { $0.id == id }
+        AppCatalog.all.first { $0.id == id }
     }
 
     // MARK: - 手势：翻页
@@ -424,6 +430,8 @@ struct HomeBoard: View {
         // 每次想挪位置都会长出一个文件夹。合并不是主诉，先按她抱怨的方向关掉。
         guard case .folder = other, other.id != movingID else { return }
         guard let moving = slots.first(where: { $0.id == movingID }) else { return }
+        // 固定入口不能藏进文件夹：藏进去就等于没有恢复入口了。
+        guard !moving.appIDs.contains(where: { AppCatalog.pinnedIDs.contains($0) }) else { return }
         appendIntoFolder(slot: moving, folder: other, page: pageIndex)
     }
 
@@ -472,15 +480,20 @@ struct Removal: Identifiable {
     let name: String
 }
 
-/// 桌面网格的可见范围：横着裁到板子，竖着几乎不裁。
+/// 桌面网格的可见范围：竖向几乎不裁，横向按状态收紧或放开。
 ///
-/// 翻页靠横向位移，必须裁；拖拽是竖向的，裁了就成「拖出两行就消失」。
+/// 翻页靠横向位移，平时要裁到板子边缘，否则相邻那页会滑进屏幕。
+/// 编辑态不翻页，可以左右各放宽一点：第一列图标的减号是画在格子外
+/// 左上角的，裁到边缘就正好被削掉一半。
 struct BoardWindow: Shape {
+    /// 左右各放宽多少。减号往外偏 11pt，18 够它整个露出来。
+    var horizontalInset: CGFloat = 0
+
     func path(in rect: CGRect) -> Path {
         Path(CGRect(
-            x: rect.minX,
+            x: rect.minX - horizontalInset,
             y: rect.minY - 600,
-            width: rect.width,
+            width: rect.width + horizontalInset * 2,
             height: rect.height + 1_200
         ))
     }

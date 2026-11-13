@@ -14,7 +14,9 @@ extension DataBackup {
         ("stickers", StickerStorage.directory),
         ("wallpapers", WallpaperPhoto.directory),
         ("Music", MusicLibrary.importedDirectory),
-        ("worlds", WorldRegistry.rootURL)
+        ("worlds", WorldRegistry.rootURL),
+        // 每个非默认身份一份世界状态（好感度、日程、火花…），按整个目录搬。
+        ("identity-states", WorldStateFile.identityRootURL)
     ]
 
     // MARK: - 导出
@@ -52,7 +54,8 @@ extension DataBackup {
             "stickers": "自建表情",
             "wallpapers": "自选壁纸",
             "Music": "导入的音乐",
-            "worlds": "其它世界"
+            "worlds": "其它世界",
+            "identity-states": "身份状态"
         ]
 
         for (name, directory) in fileStores {

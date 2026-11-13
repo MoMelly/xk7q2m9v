@@ -5,7 +5,8 @@ import SwiftUI
 /// 桌面上的图标可以删掉，删掉之后数据还在，但那个入口就没了——之前删错了
 /// 只能重装软件。这一页把那批 App 重新列出来，装回去只是往桌面补一格。
 ///
-/// 底栏那四个是固定的：它们每天都要点，位置一动就找不到，所以不参与装卸。
+/// 商店自己就在桌面第一屏，删不掉：它是唯一的恢复入口。
+/// 底栏固定四个，同样不参与装卸。
 struct AppStorePage: View {
     var onExit: () -> Void
 
@@ -29,8 +30,18 @@ struct AppStorePage: View {
                     }
 
                     GroupedSection(
+                        "固定在桌面",
+                        footer: "应用商店是唯一能把图标装回来的地方，所以它自己不给卸，也不会被拖进文件夹。"
+                    ) {
+                        ForEach(Array(AppCatalog.home.filter(\.isPinned).enumerated()), id: \.element.id) { index, app in
+                            if index > 0 { RowDivider() }
+                            pinnedRow(app)
+                        }
+                    }
+
+                    GroupedSection(
                         "底栏",
-                        footer: "底栏这几个删不掉，也不能拖到桌面上——它们的位置是固定的，熟了就靠肌肉记忆点。"
+                        footer: "底栏这四个删不掉，也不能拖到桌面上——位置固定，熟了就靠肌肉记忆点。"
                     ) {
                         ForEach(Array(AppCatalog.dock.enumerated()), id: \.element.id) { index, app in
                             if index > 0 { RowDivider() }
@@ -124,6 +135,14 @@ struct AppStorePage: View {
     }
 
     private func dockRow(_ app: PhoneApp) -> some View {
+        fixedRow(app, label: "固定在底栏")
+    }
+
+    private func pinnedRow(_ app: PhoneApp) -> some View {
+        fixedRow(app, label: "固定在桌面")
+    }
+
+    private func fixedRow(_ app: PhoneApp, label: String) -> some View {
         HStack(spacing: PhoneMetrics.Space.s) {
             AppIconTile(app: app, size: 46, showsLabel: false)
 
@@ -139,7 +158,7 @@ struct AppStorePage: View {
 
             Spacer(minLength: PhoneMetrics.Space.xs)
 
-            Text("固定在底栏")
+            Text(label)
                 .font(.system(size: PhoneMetrics.FontSize.caption))
                 .foregroundStyle(AppSurface.light.secondaryLabel)
         }
@@ -159,11 +178,11 @@ struct AppStorePage: View {
         "couple": "两个人的空间，火花和纪念日",
         "storygame": "分支剧情，选了就回不去",
         "reading": "导入书、翻页、划句子",
+        "store": "卸掉的 App 从这里装回来",
         "dock.messages": "跟角色说话，都在这儿",
         "dock.feed": "动态、私信、帖子",
         "dock.phonepeek": "翻他的相册、备忘录、聊天",
-        "dock.settings": "身份、模型、外观、数据",
-        "dock.store": "卸载的 App 从这里装回来"
+        "dock.settings": "身份、模型、外观、数据"
     ]
 
     private func toggle(_ app: PhoneApp) {
