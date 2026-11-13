@@ -3,12 +3,13 @@ import UIKit
 
 /// 键盘现在把屏幕遮掉多少。
 ///
-/// 只负责量高度，排版由外壳做：`PhoneShellView` 把 App 那一层按 `lift` 收短、
-/// 顶部对齐，收出来的这一条正好等于键盘，输入条就落在键盘上沿。
+/// 只负责量高度，位置由外壳钉（见 `PhoneShellView.appLayerBox`）：
+/// 键盘一弹起，App 层的高度取 `pinnedHeight`、顶边按实测值挪回状态栏下沿，
+/// 框正好是「状态栏下沿 → 键盘上沿」，输入条落在键盘上沿、标题留在原位。
 ///
-/// 为什么不交给系统默认避让：手机壳是一整块铺满屏幕的假手机，系统那套按
-/// 安全区压窄内容的做法在这里不生效（截图核对过，键盘起来以后内容没有被压窄，
-/// 输入条直接被盖在键盘后面）。自己收高度是确定的。
+/// 为什么不交给系统的键盘避让：这层壳是一整块铺满屏幕的假手机，系统算出来的
+/// 数不对——截图量到键盘高 335，它只给 215 的底部安全区，顶部安全区还会掉成 0，
+/// 外壳的框因此变成 -28..659：标题被顶出屏幕，输入条压在键盘后面。
 @Observable
 @MainActor
 final class KeyboardInset {
@@ -17,33 +18,16 @@ final class KeyboardInset {
     /// 键盘顶边到屏幕底边的距离，含底部安全区。收起时是 0。
     private(set) var height: CGFloat = 0
 
-    /// App 层要收短多少。
-    ///
-    /// 键盘报的高度连 Home 指示条那一段一起算，而 App 层本来就摆在安全区上沿，
-    /// 按整高收会多收一条。收短量 = 键盘高 − 底部安全区。
-    var lift: CGFloat {
-        guard height > 0 else { return 0 }
-        return max(0, height - Self.bottomSafeArea)
-    }
-
     var isUp: Bool { height > 0 }
 
-    /// 键盘弹起时，聊天页应当占的高度：状态栏下沿到键盘上沿。
-    ///
-    /// 系统在这层假手机壳里给的安全区不可信（键盘 335 只给 215，顶部还会掉成 0），
-    /// 所以这个数自己算，聊天页按它钉死高度。
+    /// 键盘弹起时，App 层应当占的高度：状态栏下沿到键盘上沿。
     static var pinnedHeight: CGFloat {
         max(200, UIScreen.main.bounds.height - topSafeArea - KeyboardInset.shared.height)
     }
 
-    /// 顶部安全区，取窗口的。App 层铺满整屏之后，上下这两条要自己补回来。
+    /// 顶部安全区，取窗口的。
     static var topSafeArea: CGFloat {
         window?.safeAreaInsets.top ?? 0
-    }
-
-    /// 外壳底部留多少：键盘在就留整个键盘，否则只留 Home 指示条那一条。
-    var shellBottomPadding: CGFloat {
-        height > 0 ? height : Self.bottomSafeArea
     }
 
     private static var window: UIWindow? {
@@ -52,11 +36,6 @@ final class KeyboardInset {
     }
 
     private var observers: [NSObjectProtocol] = []
-
-    /// 底部安全区取窗口的：真机上键盘不会算进窗口的安全区。
-    static var bottomSafeArea: CGFloat {
-        window?.safeAreaInsets.bottom ?? 0
-    }
 
     private init() {
         let center = NotificationCenter.default
@@ -83,35 +62,5 @@ final class KeyboardInset {
             return
         }
         height = max(0, UIScreen.main.bounds.height - frame.minY)
-    }
-}
-
-extension View {
-    /// 键盘截图那一档的读数：内容框顶边、高度、键盘高度、屏幕高、安全区。
-    ///
-    /// 键盘避让出问题时，光看画面分不清是「整块被翻译上去了」还是「高度算错了」，
-    /// 这几个数一照就能定位。画在框的正中间——框被顶出去的时候，只有中间一定还
-    /// 在屏幕里。只在 `-previewState chatKeyboard` 下显示。
-    func keyboardProbe() -> some View {
-        overlay {
-            let state = UserDefaults.standard.string(forKey: "previewState") ?? ""
-            if state == "chatKeyboard" || state == "chatGroup" {
-                GeometryReader { proxy in
-                    let frame = proxy.frame(in: .global)
-                    let screen = UIScreen.main.bounds.height
-                    Text("""
-                    y\(Int(frame.minY)) h\(Int(frame.height))
-                    kb\(Int(KeyboardInset.shared.height)) lift\(Int(KeyboardInset.shared.lift))
-                    screen\(Int(screen)) sTop\(Int(proxy.safeAreaInsets.top)) sBot\(Int(proxy.safeAreaInsets.bottom))
-                    """)
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(.red)
-                    .padding(6)
-                    .background(.black.opacity(0.75))
-                    .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
-                }
-                .allowsHitTesting(false)
-            }
-        }
     }
 }

@@ -131,7 +131,6 @@ struct ChatView: View {
                 composer
             }
         }
-        .keyboardProbe()
         .onAppear {
             seedGreetingIfNeeded()
             // 截图流水线要拍表情面板 / 角色详情 / 通话这些层，冷启动点不到按钮，

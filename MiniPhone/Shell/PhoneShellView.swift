@@ -158,22 +158,6 @@ struct PhoneShellView: View {
                     .zIndex(2)
             }
 
-            // 键盘截图那一档的读数：外壳自己的框和安全区。
-            // 用来判断「根节点关掉键盘避让」到底有没有生效。只在预览状态出现。
-            if UserDefaults.standard.string(forKey: "previewState") == "chatKeyboard" {
-                GeometryReader { proxy in
-                    let frame = proxy.frame(in: .global)
-                    Text("shell y\(Int(frame.minY)) h\(Int(frame.height)) sTop\(Int(proxy.safeAreaInsets.top)) sBot\(Int(proxy.safeAreaInsets.bottom))")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.yellow)
-                        .padding(4)
-                        .background(.black.opacity(0.8))
-                        .position(x: proxy.size.width / 2, y: 240)
-                }
-                .allowsHitTesting(false)
-                .zIndex(9)
-            }
-
             // 悬浮球：真的有歌在放才出现，App 页之上、提示之下。
             // 歌词页不套系统 sheet——手机壳里再弹一个系统面板，拟真就破了。
             // 设置里能关：球一直浮在页面上，压住按钮的时候没有别的办法。
@@ -404,14 +388,22 @@ struct PhoneShellView: View {
 
     /// App 层的外框。
     ///
-    /// 平时原样交给系统；键盘弹起时套一层 GeometryReader，把外壳自己的顶边量出来
-    /// 交给聊天页去钉位置（见 `chatLayer`）。只在键盘在的时候套，是为了不改变
-    /// 常规状态下的布局——GeometryReader 会换掉子视图的对齐和安全区传递方式。
+    /// 平时原样交给系统。键盘弹起时这一层的位置不再听系统的：截图量到键盘 335 高，
+    /// 系统只给 215 的底部安全区，顶部安全区还从 62 掉成 0，外壳的框变成 -28..659
+    /// ——标题被顶出屏幕，输入条压在键盘后面。padding、等高空档、safeAreaInset、
+    /// 整页定高、根节点关避让，这几种都试过，系统每次都会连带改掉容器。
+    ///
+    /// 所以直接钉：高度取 pinnedHeight（屏高 − 顶部安全区 − 键盘高），再按实测的
+    /// 外壳顶边挪回原位，框正好是「状态栏下沿 → 键盘上沿」。键盘不在时走原路。
+    /// 聊天、文游、私信这几个底部挂输入条的页面都靠这一层，所以钉在外框而不是某一页。
     @ViewBuilder
     private func appLayerBox(_ app: PhoneApp) -> some View {
         if KeyboardInset.shared.isUp {
             GeometryReader { proxy in
-                appLayer(app, origin: proxy.frame(in: .global).minY)
+                appLayer(app)
+                    .frame(height: KeyboardInset.pinnedHeight, alignment: .top)
+                    .offset(y: KeyboardInset.topSafeArea - proxy.frame(in: .global).minY)
+                    .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.height)
             }
         } else {
             appLayer(app)
@@ -419,14 +411,21 @@ struct PhoneShellView: View {
     }
 
     @ViewBuilder
-    private func appLayer(_ app: PhoneApp, origin: CGFloat = 0) -> some View {
+    private func appLayer(_ app: PhoneApp) -> some View {
         switch app.destination {
         case .chat:
             // 截图直开时挑「最近说过话的那个人」，和主屏组件、查手机用的是
             // 同一条规则。不能取列表第一个：内置小助手最先建、sortIndex 又靠前，
             // 取 first 会让所有预览（状态面板、提问箱、详情）都落到它头上，
             // 预置在世界状态里的数据全挂在那个人身上，一幅都对不上。
-            chatLayer(origin: origin)
+            if Self.opensChatDirectly,
+               let character = companions.max(by: {
+                   ($0.lastMessageAt ?? .distantPast) < ($1.lastMessageAt ?? .distantPast)
+               }) {
+                ChatView(character: character, settings: settings, onExit: closeApp)
+            } else {
+                ConversationListView(settings: settings, onExit: closeApp)
+            }
         case .moments:
             MomentsView(settings: settings, onExit: closeApp)
         case .settings:
@@ -436,38 +435,6 @@ struct PhoneShellView: View {
         case .placeholder:
             // 占位图标不会走进来，open(_:) 里已经拦掉了。
             EmptyView()
-        }
-    }
-
-    @ViewBuilder
-    private func chatLayer(origin: CGFloat) -> some View {
-        let layer = Group {
-            if Self.opensChatDirectly,
-               let character = companions.max(by: {
-                   ($0.lastMessageAt ?? .distantPast) < ($1.lastMessageAt ?? .distantPast)
-               }) {
-                ChatView(character: character, settings: settings, onExit: closeApp)
-            } else {
-                ConversationListView(settings: settings, onExit: closeApp)
-            }
-        }
-
-        // 键盘弹起时，这一层的位置不再听系统的。
-        //
-        // 截图量过：键盘 335 高，系统只给 215 的底部安全区，顶部安全区还从 62
-        // 掉到 0——外壳的框因此变成 -28..659：标题被顶出屏幕，输入条被压到键盘后面。
-        // 试过 padding、等高空档、safeAreaInset、给整页定高、根节点关掉避让，
-        // 系统都会连带改容器，怎么让都不对。
-        //
-        // 所以直接钉住：这一层的高度取「状态栏下沿 → 键盘上沿」，再按实测的外壳
-        // 顶边把它挪回原位。键盘不在时原样交给系统，非聊天页一律不碰。
-        if KeyboardInset.shared.isUp {
-            layer
-                .frame(height: KeyboardInset.pinnedHeight, alignment: .top)
-                .offset(y: KeyboardInset.topSafeArea - origin)
-                .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.height)
-        } else {
-            layer
         }
     }
 
