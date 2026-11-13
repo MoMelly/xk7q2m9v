@@ -66,21 +66,27 @@ final class KeyboardInset {
 }
 
 extension View {
-    /// 键盘截图那一档的读数：内容顶边位置、内容高度、键盘高度。
+    /// 键盘截图那一档的读数：内容框顶边、高度、键盘高度、屏幕高、安全区。
     ///
     /// 键盘避让出问题时，光看画面分不清是「整块被翻译上去了」还是「高度算错了」，
-    /// 这三个数一照就能定位。只在 `-previewState chatKeyboard` 下显示，
-    /// 正常启动读不到这个键。
+    /// 这几个数一照就能定位。画在框的正中间——框被顶出去的时候，只有中间一定还
+    /// 在屏幕里。只在 `-previewState chatKeyboard` 下显示。
     func keyboardProbe() -> some View {
-        overlay(alignment: .topLeading) {
+        overlay {
             if UserDefaults.standard.string(forKey: "previewState") == "chatKeyboard" {
                 GeometryReader { proxy in
                     let frame = proxy.frame(in: .global)
-                    Text("y\(Int(frame.minY)) h\(Int(frame.height)) kb\(Int(KeyboardInset.shared.height))")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.red)
-                        .padding(2)
-                        .background(.black.opacity(0.7))
+                    let screen = UIScreen.main.bounds.height
+                    Text("""
+                    y\(Int(frame.minY)) h\(Int(frame.height))
+                    kb\(Int(KeyboardInset.shared.height)) lift\(Int(KeyboardInset.shared.lift))
+                    screen\(Int(screen)) sTop\(Int(proxy.safeAreaInsets.top)) sBot\(Int(proxy.safeAreaInsets.bottom))
+                    """)
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(.red)
+                    .padding(6)
+                    .background(.black.opacity(0.75))
+                    .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
                 }
                 .allowsHitTesting(false)
             }
