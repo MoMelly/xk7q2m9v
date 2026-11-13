@@ -151,22 +151,27 @@ struct PhoneShellView: View {
             }
 
             if let app = openedApp {
-                // 键盘这一块自己让，不交给系统（根节点已经声明不理键盘，见 MiniPhoneApp）。
-                //
-                // 做法就一句：在 App 层的底部预留一条和键盘等高的安全区。内容区因此
-                // 压窄到「状态栏下沿 → 键盘上沿」，输入条落在键盘上沿，标题留在原位。
-                // 不要改成给内容加固定高度或自己补上下 padding：那几版都会把顶部的
-                // 安全区吃掉，或者让整块高过容器、居中摆放时标题被顶出屏幕。
                 appLayer(app)
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        Color.clear
-                            .frame(height: KeyboardInset.shared.lift)
-                            .animation(.easeOut(duration: 0.22), value: KeyboardInset.shared.lift)
-                    }
                     // 遮罩要铺到整屏：App 页的背景自己会往安全区外延伸，
                     // 遮罩只按安全区算的话，上下会各裁掉一条、露出壁纸。
                     .mask { launchMask.ignoresSafeArea() }
                     .zIndex(2)
+            }
+
+            // 键盘截图那一档的读数：外壳自己的框和安全区。
+            // 用来判断「根节点关掉键盘避让」到底有没有生效。只在预览状态出现。
+            if UserDefaults.standard.string(forKey: "previewState") == "chatKeyboard" {
+                GeometryReader { proxy in
+                    let frame = proxy.frame(in: .global)
+                    Text("shell y\(Int(frame.minY)) h\(Int(frame.height)) sTop\(Int(proxy.safeAreaInsets.top)) sBot\(Int(proxy.safeAreaInsets.bottom))")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(.yellow)
+                        .padding(4)
+                        .background(.black.opacity(0.8))
+                        .position(x: proxy.size.width / 2, y: 240)
+                }
+                .allowsHitTesting(false)
+                .zIndex(9)
             }
 
             // 悬浮球：真的有歌在放才出现，App 页之上、提示之下。
