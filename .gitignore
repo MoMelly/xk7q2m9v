@@ -22,3 +22,8 @@ Secrets/
 # CLI 登录过程的一次性输出，不属于源码
 _ghauth.log
 *.log
+
+# 本地探针与临时截图（CI 回传的 shots/ 要入库，别混进来）
+_probe/
+_shots*/
+_ci*_artifact.zip

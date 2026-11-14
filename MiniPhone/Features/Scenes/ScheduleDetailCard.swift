@@ -43,6 +43,7 @@ struct ScheduleDetailCard: View {
                 .padding(.bottom, PhoneMetrics.Space.l)
         }
         .background(AppSurface.light.background)
+        .presentationBackground(AppSurface.light.background)
         .environment(\.colorScheme, AppSurface.light.colorScheme)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)

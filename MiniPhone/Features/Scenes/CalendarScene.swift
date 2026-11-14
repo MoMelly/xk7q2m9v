@@ -74,10 +74,11 @@ struct CalendarScene: View {
         }
         .onAppear {
             // 截图：`-previewState scheduleCard` 直接把半屏摊开，省掉一层点击。
+            // 优先挑有地点的那条，否则详情三行全空，截出来只有一句灰字提示。
             if UserDefaults.standard.string(forKey: "previewState") == "scheduleCard",
                detailItem == nil,
-               let first = items.first {
-                detailItem = first
+               let target = items.first(where: { !$0.place.isEmpty }) ?? items.first {
+                detailItem = target
             }
         }
     }
