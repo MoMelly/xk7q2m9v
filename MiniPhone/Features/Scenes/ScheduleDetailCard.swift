@@ -157,7 +157,7 @@ struct ScheduleDetailCard: View {
                 .frame(height: 46)
                 .background {
                     RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
-                        .fill(staged ? Theme.green : Theme.tint)
+                        .fill(staged ? Theme.IconTint.green : Theme.tint)
                 }
             }
             .buttonStyle(.plain)
@@ -185,7 +185,7 @@ struct ScheduleDetailCard: View {
                 } label: {
                     Text("删掉")
                         .font(.system(size: PhoneMetrics.FontSize.sub))
-                        .foregroundStyle(Theme.pink)
+                        .foregroundStyle(Theme.IconTint.pink)
                         .frame(maxWidth: .infinity)
                         .frame(height: 44)
                         .background {

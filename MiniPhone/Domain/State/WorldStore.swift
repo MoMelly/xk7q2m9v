@@ -66,7 +66,7 @@ final class WorldStore {
     ///
     /// 只活在内存里：日程点「跟他提一句」是「放进输入框」，不是发出去，
     /// 也不值得为它写一份持久化状态。按名字记，跟 `primaryName` 同一套口径。
-    private(set) var stagedChatDrafts: [String: String] = []
+    private(set) var stagedChatDrafts: [String: String] = [:]
 
     /// 把一句话交给某个角色的聊天页。同名再递一次会覆盖上一次。
     func stageChatDraft(_ text: String, for characterName: String) {

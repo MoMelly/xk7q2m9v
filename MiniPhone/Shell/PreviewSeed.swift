@@ -157,6 +157,7 @@ struct PreviewSeeder {
         case "musicBall", "musicLyrics":
             seedNowPlaying()
 
+        case "scheduleCard": seedScheduleCard()
         case "couple", "coupleIdentity":
             seedCouple()
             if state == "coupleIdentity" { switchToSecondIdentity() }

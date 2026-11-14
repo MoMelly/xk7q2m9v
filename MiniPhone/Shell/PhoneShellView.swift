@@ -75,7 +75,7 @@ struct PhoneShellView: View {
         case "moments": destination = .moments
         case "settings", "theme", "memoryLibrary": destination = .settings
         case "store": destination = .appStore
-        case "calendar": destination = .scene(.calendar)
+        case "calendar", "scheduleCard": destination = .scene(.calendar)
         case "notes": destination = .scene(.notes)
         case "music", "musicBall", "musicLyrics": destination = .scene(.music)
         case "market", "feedInbox", "feedChat", "feedShare", "feedCard", "feedLive": destination = .scene(.feed)

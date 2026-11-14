@@ -72,6 +72,14 @@ struct CalendarScene: View {
         .sheet(item: $detailItem) { item in
             ScheduleDetailCard(item: item, world: world)
         }
+        .onAppear {
+            // 截图：`-previewState scheduleCard` 直接把半屏摊开，省掉一层点击。
+            if UserDefaults.standard.string(forKey: "previewState") == "scheduleCard",
+               detailItem == nil,
+               let first = items.first {
+                detailItem = first
+            }
+        }
     }
 
     /// 加一条。顶栏那个位置被「今天」占了，就放在时间轴末尾——
