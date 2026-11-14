@@ -62,6 +62,25 @@ final class WorldStore {
     /// 这些地方没有角色上下文，只能挑一个人：取最近说过话的那个，
     /// 跟「TA 的手机」默认打开谁同一套规则。外壳启动时告诉它。
     var primaryName: String = ""
+    /// 别的页面递过来、等着落进聊天输入框的一句话。
+    ///
+    /// 只活在内存里：日程点「跟他提一句」是「放进输入框」，不是发出去，
+    /// 也不值得为它写一份持久化状态。按名字记，跟 `primaryName` 同一套口径。
+    private(set) var stagedChatDrafts: [String: String] = []
+
+    /// 把一句话交给某个角色的聊天页。同名再递一次会覆盖上一次。
+    func stageChatDraft(_ text: String, for characterName: String) {
+        let name = characterName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let line = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !line.isEmpty else { return }
+        stagedChatDrafts[name] = line
+    }
+
+    /// 取走就清掉：同一句话不该在她回到聊天页时又冒第二次。
+    func takeChatDraft(for characterName: String) -> String? {
+        defer { stagedChatDrafts[characterName] = nil }
+        return stagedChatDrafts[characterName]
+    }
     /// 刚发生的刷新，界面弹一次就清掉。按页面记，用来配对应的图标。
     private(set) var pendingNotices: [RefreshPage] = []
 

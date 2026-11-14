@@ -38,7 +38,8 @@ struct ChatView: View {
     @FocusState var isInputFocused: Bool
     /// 输入栏的完整态开关。默认收成一条安静的提示条——页面上摆一个
     /// 等着打字的输入框，看上去就像对话正在进行到一半；点一下才醒。
-    @State private var isComposerActive = false
+    /// 不写 `private`：`ChatView+Composer.swift` 里递草稿要把它掀开。
+    @State var isComposerActive = false
 
     /// 正在引用的那条。发出去时带在消息上，发完清空。
     @State var quoting: StoredMessage?
@@ -70,20 +71,8 @@ struct ChatView: View {
     }
 
     /// 一起听的状态挂在播放器上：歌是这台手机放的，跟会话无关。
-    private let player = PlayerService.shared
-
-    private var isTogether: Bool { player.isTogether(with: character.uid) }
-
-    /// 邀请/结束都不走网络。它只是把「这会儿跟谁一起听」记下来，
-    /// 下一轮生成时若还在一起听，提示词才会带这首歌。
-    private func toggleTogether() {
-        Haptics.tap()
-        if isTogether {
-            player.endTogether()
-        } else {
-            player.invite(uid: character.uid, name: character.name)
-        }
-    }
+    /// 不写 `private`：跟一起听、递进来的草稿相关的几段拆在 `ChatView+Composer.swift`。
+    let player = PlayerService.shared
 
     var body: some View {
         ZStack {
@@ -136,6 +125,7 @@ struct ChatView: View {
             }
         }
         .onAppear {
+            applyStagedDraftIfNeeded()
             seedGreetingIfNeeded()
             // 截图流水线要拍表情面板 / 角色详情 / 通话这些层，冷启动点不到按钮，
             // 这里按状态名直接打开。正常启动读不到这个键，一件都不会触发。

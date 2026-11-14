@@ -2,8 +2,8 @@ import SwiftUI
 
 /// 一条日程的查看 / 编辑。
 ///
-/// 一条日程只有四样东西：几点、做什么、当时什么心情、备注。所以要的是
-/// 一个能把四样都改掉的地方，不是一个只读详情页——真机上日程点开来就是能改的。
+/// 一条日程只有五样东西：几点、做什么、在哪、和谁、备注。点开先看的那一眼
+/// 在 `ScheduleDetailCard`，这里是把它们改掉的地方。
 struct ScheduleEditor: View {
     let original: ScheduleItem?
     let onSave: (ScheduleItem) -> Void
@@ -13,6 +13,9 @@ struct ScheduleEditor: View {
 
     @State private var title: String
     @State private var hour: Int
+    @State private var place: String
+    /// 同去的人先按一行字收，保存时再拆成名字。
+    @State private var companions: String
     @State private var note: String
     @State private var mood: Mood
 
@@ -28,6 +31,8 @@ struct ScheduleEditor: View {
         let now = Calendar.current.component(.hour, from: Date())
         _title = State(initialValue: item?.title ?? "")
         _hour = State(initialValue: item?.hour ?? min(now + 1, 23))
+        _place = State(initialValue: item?.place ?? "")
+        _companions = State(initialValue: item?.companionsText ?? "")
         _note = State(initialValue: item?.note ?? "")
         _mood = State(initialValue: item?.mood ?? .calm)
     }
@@ -38,6 +43,8 @@ struct ScheduleEditor: View {
                 VStack(spacing: PhoneMetrics.Space.l) {
                     titleField
                     timeRow
+                    placeField
+                    companionsField
                     moodRow
                     noteField
 
@@ -130,6 +137,53 @@ struct ScheduleEditor: View {
         }
     }
 
+    private var placeField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            label("在哪")
+            ZStack(alignment: .leading) {
+                if place.isEmpty {
+                    hint("不用写也行", size: PhoneMetrics.FontSize.sub)
+                        .padding(.horizontal, PhoneMetrics.Space.s)
+                }
+
+                TextField("", text: $place)
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                    .tint(Theme.tint)
+                    .padding(.horizontal, PhoneMetrics.Space.s)
+            }
+            .frame(height: 44)
+            .background {
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .fill(AppSurface.light.rowSurface)
+            }
+        }
+    }
+
+    private var companionsField: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            label("和谁")
+            ZStack(alignment: .leading) {
+                if companions.isEmpty {
+                    hint("名字之间用顿号隔开，比如 小绿、阿沉", size: PhoneMetrics.FontSize.sub)
+                        .padding(.horizontal, PhoneMetrics.Space.s)
+                        .lineLimit(1)
+                }
+
+                TextField("", text: $companions)
+                    .font(.system(size: PhoneMetrics.FontSize.sub))
+                    .foregroundStyle(AppSurface.light.label)
+                    .tint(Theme.tint)
+                    .padding(.horizontal, PhoneMetrics.Space.s)
+            }
+            .frame(height: 44)
+            .background {
+                RoundedRectangle(cornerRadius: PhoneMetrics.Radius.card, style: .continuous)
+                    .fill(AppSurface.light.rowSurface)
+            }
+        }
+    }
+
     private var moodRow: some View {
         VStack(alignment: .leading, spacing: 6) {
             label("当时的心情")
@@ -199,12 +253,19 @@ struct ScheduleEditor: View {
     }
 
     private func save() {
+        let people = companions
+            .split(whereSeparator: { "、,，/ ".contains($0) })
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
         let item = ScheduleItem(
             id: original?.id ?? UUID(),
             hour: hour,
             title: trimmedTitle,
             mood: mood,
-            note: note.trimmingCharacters(in: .whitespacesAndNewlines)
+            note: note.trimmingCharacters(in: .whitespacesAndNewlines),
+            place: place.trimmingCharacters(in: .whitespacesAndNewlines),
+            companions: people
         )
         onSave(item)
         Haptics.tap()

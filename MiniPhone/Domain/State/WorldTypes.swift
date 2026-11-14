@@ -62,9 +62,52 @@ struct ScheduleItem: Codable, Identifiable, Hashable {
     var title: String
     var mood: Mood
     var note: String
+    /// 在哪。老数据里没有这一项，空串就是「没写」——不编一个默认地点出来。
+    var place: String
+    /// 和谁。存名字不存 id：日程是当天的一句话，那个人删了也不该让这行变成空洞。
+    var companions: [String]
 
     var timeText: String {
         String(format: "%02d:00", hour)
+    }
+
+    /// 同去的人怎么读：「小绿、阿沉」。
+    var companionsText: String {
+        companions.joined(separator: "、")
+    }
+
+    init(
+        id: UUID = UUID(),
+        hour: Int,
+        title: String,
+        mood: Mood,
+        note: String = "",
+        place: String = "",
+        companions: [String] = []
+    ) {
+        self.id = id
+        self.hour = hour
+        self.title = title
+        self.mood = mood
+        self.note = note
+        self.place = place
+        self.companions = companions
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, hour, title, mood, note, place, companions
+    }
+
+    /// 地点、同去是后加的字段，读老存档时缺键要当空值，不能整条丢掉。
+    init(from decoder: Decoder) throws {
+        let box = try decoder.container(keyedBy: CodingKeys.self)
+        id = try box.decode(UUID.self, forKey: .id)
+        hour = try box.decode(Int.self, forKey: .hour)
+        title = try box.decode(String.self, forKey: .title)
+        mood = try box.decode(Mood.self, forKey: .mood)
+        note = try box.decodeIfPresent(String.self, forKey: .note) ?? ""
+        place = try box.decodeIfPresent(String.self, forKey: .place) ?? ""
+        companions = try box.decodeIfPresent([String].self, forKey: .companions) ?? []
     }
 }
 

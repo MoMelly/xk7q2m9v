@@ -172,7 +172,7 @@
 | P-18 | 市集（西瓜皮里的双列商品流） | ✅ | `MarketView` |
 | P-19 | 购物不再单独占桌面图标 | ✅ | |
 | P-20 | 把自己手上的 TXT 导进来读（书架 + 导入 + 分段进度 + 四档字号） | ✅ | `Features/Reading/*`：`ReadingScene`、`BookPaginator`（分段）、`ReaderSettings`（四档字号）；笔记在 `BookNotesPage` |
-| P-21 | 今日日程能直接点开看 | 🟡 | `Features/Scenes/CalendarScene.swift`、`ScheduleBlock.swift`：时间轴条目点了还没反应；要做成半屏卡（时间、地点、同去、备注）+ 三个动作（跟他提一句 / 改时间 / 删掉） |
+| P-21 | 今日日程能直接点开看 | ✅ | `Features/Scenes/ScheduleDetailCard.swift`：时间轴条目点了出半屏卡（时间、地点、同去、备注）+ 三个动作（跟他提一句 / 改时间 / 删掉）；「跟他提一句」经 `WorldStore.stageChatDraft` 落进对应角色聊天页的输入框，不自动发；`ScheduleItem` 新增 `place` / `companions`（老存档缺键读成空值） |
 | P-22 | 查手机前端拟真（八个板块 + 固定模板生成） | ✅ | `Features/Peek/*`：`PhoneBasicPages`、`PhoneLifePages`、`PhoneAlbumPage`、`PhoneChatPages`、`CharacterPhoneScene` |
 | P-24 | 私密档默认锁着（`secret` 瞒着你的事 / `private` 只属于两个人的记录） | ✅ | `Features/Peek/PhoneLifePages.swift`（落盘时加锁）+ `Settings/BehaviorPage.swift`（开关）；提示词里 `private` 写情绪和场景、不写身体细节 |
 

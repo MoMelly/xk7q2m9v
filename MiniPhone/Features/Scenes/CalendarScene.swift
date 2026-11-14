@@ -18,6 +18,8 @@ struct CalendarScene: View {
 
     @State private var tab: Tab = .mine
     @State private var selectedDay = Date()
+    /// 正在看的那条。点一下先看，不直接进编辑。
+    @State private var detailItem: ScheduleItem?
     /// 正在改的那条。nil 表示在新建。
     @State private var editingItem: ScheduleItem?
     @State private var showEditor = false
@@ -66,6 +68,9 @@ struct CalendarScene: View {
                 onSave: { world.upsertScheduleItem($0) },
                 onDelete: { world.deleteScheduleItem(id: $0.id) }
             )
+        }
+        .sheet(item: $detailItem) { item in
+            ScheduleDetailCard(item: item, world: world)
         }
     }
 
@@ -135,8 +140,7 @@ struct CalendarScene: View {
                 } else {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         ScheduleBlock(item: item, isLast: index == items.count - 1) {
-                            editingItem = item
-                            showEditor = true
+                            detailItem = item
                         }
                     }
 
